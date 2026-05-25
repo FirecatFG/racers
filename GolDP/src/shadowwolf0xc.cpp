@@ -9,7 +9,9 @@
 
 #include <stddef.h>
 
-// FUNCTION: GOLDP 0x10025de0
+DECOMP_SIZE_ASSERT(ShadowWolf0xc, 0x0c)
+
+// FUNCTION: GOLDP 0x10025de0 FOLDED
 ShadowWolf0xc::ShadowWolf0xc()
 {
 	m_renderer = NULL;
@@ -17,7 +19,7 @@ ShadowWolf0xc::ShadowWolf0xc()
 	m_entries = NULL;
 }
 
-// FUNCTION: GOLDP 0x10025df0
+// FUNCTION: GOLDP 0x10025df0 FOLDED
 void ShadowWolf0xc::FUN_10025df0(WhiteFalcon0x140* p_renderer, undefined4 p_arg2)
 {
 	if (m_renderer != NULL) {

@@ -106,6 +106,7 @@ set(COMMON_SOURCES
   common/src/cmbmodelpartdata0x18.cpp
   common/src/cmbmodelpartdata0x28.cpp
   common/src/mabmaterialanimation0x14.cpp
+  common/src/materialtable0x0c.cpp
   common/src/floatypontoon0x4cfield0x2c.cpp
   common/src/floatyboat0x28.cpp
   common/src/floatybuoy0x58.cpp
@@ -291,6 +292,7 @@ add_executable(legoracers WIN32
   LEGORacers/src/input/directinputdevice.cpp
   LEGORacers/src/input/inputdevice.cpp
   LEGORacers/src/menumanager.cpp
+  LEGORacers/src/duskwindbananarelic0x24.cpp
   LEGORacers/src/aquacoral0x37b8.cpp
   LEGORacers/src/stackoflegou16.cpp
   LEGORacers/src/crimsonsun0xa4entry.cpp
@@ -375,6 +377,11 @@ add_executable(legoracers WIN32
   LEGORacers/src/racenamelist.cpp
   LEGORacers/src/menuanimationlist.cpp
   LEGORacers/src/lavendervault0x764.cpp
+  LEGORacers/src/gdbpartdefinition0x0c.cpp
+  LEGORacers/src/gdbpartlibrary0x1c.cpp
+  LEGORacers/src/gdbpartfacegroup0x14.cpp
+  LEGORacers/src/gdbpartvertexpool0x14.cpp
+  LEGORacers/src/gdbpositionvertexpool0x0c.cpp
   LEGORacers/src/garnetflare0x60.cpp
   LEGORacers/src/tanzanitewisp0x88.cpp
   LEGORacers/src/chromespike0x4.cpp

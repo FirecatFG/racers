@@ -2,14 +2,14 @@
 #define SHADOWWOLF0xC_H
 
 #include "decomp.h"
-#include "floatypontoon0x4c.h"
+#include "materialtable0x0c.h"
 #include "types.h"
 
 class GolFileParser;
-class WhiteFalcon0x140;
 class DuskwindBananaRelic0x24;
+class WhiteFalcon0x140;
 
-class ShadowWolf0xc : public FloatyPontoon0x4c::Field0x2c {
+class ShadowWolf0xc : public MaterialTable0x0c {
 public:
 	ShadowWolf0xc();
 	~ShadowWolf0xc();
