@@ -1,8 +1,9 @@
 #include "racer/drivermodelbuilder.h"
 
 #include "core/gol.h"
-#include "gdbmodelindexarray0xc.h"
-#include "gdbvertexarray0xc.h"
+#include "gdbmodelindexarray.h"
+#include "gdbmodelindexarraybase.h"
+#include "gdbvertexarray.h"
 #include "golbmpfile.h"
 #include "golerror.h"
 #include "golhashtable.h"
@@ -12,7 +13,6 @@
 #include "golmodelmaterialtable.h"
 #include "golname.h"
 #include "golstream.h"
-#include "igdbmodelindexarray0x8.h"
 #include "material/goltexturelist.h"
 #include "mesh/golmodel.h"
 #include "racer/drivercosmetics.h"
@@ -20,7 +20,7 @@
 #include "racer/driverpartresources.h"
 #include "render/gold3drenderdevice.h"
 #include "surface/color.h"
-#include "surface/purpledune0x7c.h"
+#include "surface/gold3dtexture.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -64,8 +64,8 @@ void DriverModelBuilder::CreateMenuResources()
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	m_textureList->VTable0x1c(m_renderer, m_menuId);
-	m_materialList->VTable0x1c(m_renderer, m_menuId);
+	m_textureList->Initialize(m_renderer, m_menuId);
+	m_materialList->Initialize(m_renderer, m_menuId);
 }
 
 // FUNCTION: LEGORACERS 0x0049d1d0
@@ -108,39 +108,39 @@ void DriverModelBuilder::RefreshMenuResources()
 	m_materialCount = 0;
 	m_textureList->Clear();
 	m_materialList->Clear();
-	m_textureList->VTable0x1c(m_renderer, m_menuId);
-	m_materialList->VTable0x1c(m_renderer, m_menuId);
+	m_textureList->Initialize(m_renderer, m_menuId);
+	m_materialList->Initialize(m_renderer, m_menuId);
 }
 
 // FUNCTION: LEGORACERS 0x0049d2a0
 void DriverModelBuilder::InitializeDefaultMaterialParams()
 {
-	DuskwindBananaRelic0x24* material = m_partResources->FindFaceMaterial(0);
+	GolMaterial* material = m_partResources->FindFaceMaterial(0);
 	material->CopyParamsTo(&m_defaultMaterialParams);
-	m_defaultMaterialParams.m_unk0x08.m_unk0x3 = 0xff;
-	m_defaultMaterialParams.m_unk0x08.m_unk0x0 = 200;
-	m_defaultMaterialParams.m_unk0x08.m_unk0x2 = 200;
-	m_defaultMaterialParams.m_unk0x08.m_unk0x1 = 200;
-	m_defaultMaterialParams.m_unk0x0c.m_unk0x3 = 0xff;
-	m_defaultMaterialParams.m_unk0x0c.m_unk0x0 = 200;
-	m_defaultMaterialParams.m_unk0x0c.m_unk0x2 = 200;
-	m_defaultMaterialParams.m_unk0x0c.m_unk0x1 = 200;
+	m_defaultMaterialParams.m_ambient.m_alp = 0xff;
+	m_defaultMaterialParams.m_ambient.m_red = 200;
+	m_defaultMaterialParams.m_ambient.m_blu = 200;
+	m_defaultMaterialParams.m_ambient.m_grn = 200;
+	m_defaultMaterialParams.m_diffuse.m_alp = 0xff;
+	m_defaultMaterialParams.m_diffuse.m_red = 200;
+	m_defaultMaterialParams.m_diffuse.m_blu = 200;
+	m_defaultMaterialParams.m_diffuse.m_grn = 200;
 }
 
 // FUNCTION: LEGORACERS 0x0049d2e0
 void DriverModelBuilder::LoadFaceTexture(const LegoChar* p_name, GolBmpFile* p_imageFile)
 {
-	PurpleDune0x7c* texture = m_textureList->GetItem(m_textureCount++);
+	GolD3DTexture* texture = m_textureList->GetItem(m_textureCount++);
 
 	LegoChar fileName[13];
 	::memset(fileName, 0, sizeof(fileName));
 	::strncpy(fileName, p_name, sizeof(GolName));
 	::strcat(fileName, ".bmp");
-	p_imageFile->VTable0x08(fileName);
+	p_imageFile->Open(fileName);
 
 	texture->SetNameFromBuffer(p_name);
-	texture->SetTextureFlags(GoldDune0x38::c_unk0x36Bit2);
-	texture->VTable0x30(*m_renderer, p_imageFile);
+	texture->SetTextureFlags(GolTexture::c_textureFlagFlipVertically);
+	texture->LoadFromImgFile(*m_renderer, p_imageFile);
 	m_textureList->AddName(p_name, texture);
 	p_imageFile->Destroy();
 }
@@ -148,14 +148,14 @@ void DriverModelBuilder::LoadFaceTexture(const LegoChar* p_name, GolBmpFile* p_i
 // FUNCTION: LEGORACERS 0x0049d3a0
 void DriverModelBuilder::CreateFaceMaterial(const LegoChar* p_name)
 {
-	DuskwindBananaRelic0x24* sourceMaterial = m_partResources->FindFaceMaterial(0);
-	DuskWindBananaRelicParams params;
+	GolMaterial* sourceMaterial = m_partResources->FindFaceMaterial(0);
+	GolMaterialParams params;
 	sourceMaterial->CopyParamsTo(&params);
 
-	DuskwindBananaRelic0x24* material = m_materialList->GetItem(m_materialCount++);
-	params.m_unk0x04 = m_renderer->FindTextureByName(p_name);
+	GolMaterial* material = m_materialList->GetItem(m_materialCount++);
+	params.m_texture = m_renderer->FindTextureByName(p_name);
 	material->SetName(p_name);
-	material->FUN_100257e0(m_renderer, params);
+	material->SetParams(m_renderer, params);
 	m_materialList->AddName(p_name, material);
 }
 
@@ -196,10 +196,10 @@ void DriverModelBuilder::SummarizeModel(GolModelBase* p_model, ModelSummary* p_s
 {
 	p_summary->m_model = p_model;
 
-	GdbVertexArray0xc* vertexArray;
-	p_model->VTable0x28(&vertexArray);
+	GdbVertexArray* vertexArray;
+	p_model->GetVertexArray(&vertexArray);
 	p_summary->m_vertexCount = vertexArray->GetCount();
-	p_model->VTable0x2c(0, FALSE);
+	p_model->AddFlagsWithBounds(0, FALSE);
 	p_summary->m_indexCount = p_model->GetIndexArray()->GetCount();
 	p_summary->m_groupCount = p_model->GetGroupCount();
 	p_summary->m_materialCount = p_model->GetMaterialTable()->GetCount();
@@ -219,50 +219,49 @@ LegoBool32 DriverModelBuilder::FitsOutputModel() const
 }
 
 // FUNCTION: LEGORACERS 0x0049d600
-void DriverModelBuilder::FUN_0049d600()
+void DriverModelBuilder::MergeHeadMaterials()
 {
 	LegoS32 outputIndex = m_bodySummary.m_materialCount;
 
 	for (LegoS32 i = 0; i < m_headSummary.m_materialCount; i++) {
-		DuskwindBananaRelic0x24* material = m_headSummary.m_model->GetMaterialTable()->GetMaterial(i);
+		GolMaterial* material = m_headSummary.m_model->GetMaterialTable()->GetMaterial(i);
 		if (material == NULL) {
 			continue;
 		}
 
-		DuskWindName0x8 materialName;
+		GolMaterial::NameRecord materialName;
 		materialName = material->GetNameRecord();
-		LegoS32 existingIndex =
-			m_outputSummary.m_model->GetMaterialTable()->FindEntryIndexByName(materialName.m_unk0x0);
+		LegoS32 existingIndex = m_outputSummary.m_model->GetMaterialTable()->FindEntryIndexByName(materialName.m_name);
 		if (existingIndex == -1 || existingIndex >= outputIndex) {
 			LegoS32 setIndex = outputIndex++;
-			m_outputSummary.m_model->GetMaterialTable()->SetPosition(setIndex, material);
+			m_outputSummary.m_model->GetMaterialTable()->SetEntry(setIndex, material);
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0049d670
-LegoBool32 DriverModelBuilder::FUN_0049d670(GolModelBase* p_model) const
+LegoBool32 DriverModelBuilder::NeedsNewOutputModel(GolModelBase* p_model) const
 {
 	GolModelBase* bodyModel = m_bodySummary.m_model;
 	LegoBool32 result = TRUE;
 
 	if (p_model != NULL && p_model->GetGroups() != NULL) {
-		GdbVertexArray0xc* bodyVertexArray;
-		GdbVertexArray0xc* existingVertexArray;
-		bodyModel->VTable0x28(&bodyVertexArray);
-		p_model->VTable0x28(&existingVertexArray);
+		GdbVertexArray* bodyVertexArray;
+		GdbVertexArray* existingVertexArray;
+		bodyModel->GetVertexArray(&bodyVertexArray);
+		p_model->GetVertexArray(&existingVertexArray);
 		result = bodyVertexArray->GetVertexType() != existingVertexArray->GetVertexType();
-		bodyModel->VTable0x2c(0, FALSE);
-		p_model->VTable0x2c(0, FALSE);
+		bodyModel->AddFlagsWithBounds(0, FALSE);
+		p_model->AddFlagsWithBounds(0, FALSE);
 	}
 
 	return result;
 }
 
 // FUNCTION: LEGORACERS 0x0049d6e0
-GolModelBase* DriverModelBuilder::FUN_0049d6e0(undefined4 p_vertexType)
+GolModelBase* DriverModelBuilder::CreateOutputModel(undefined4 p_vertexType)
 {
-	GolModelBase* model = m_golExport->VTable0x14();
+	GolModelBase* model = m_golExport->CreateModel();
 	if (model == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
@@ -272,13 +271,13 @@ GolModelBase* DriverModelBuilder::FUN_0049d6e0(undefined4 p_vertexType)
 	LegoS32 groupCount = m_headSummary.m_groupCount + m_bodySummary.m_groupCount + 9;
 	LegoS32 materialCount = m_headSummary.m_materialCount + m_bodySummary.m_materialCount + 2;
 
-	GdbVertexArray0xc* vertexArray;
-	m_bodySummary.m_model->VTable0x28(&vertexArray);
+	GdbVertexArray* vertexArray;
+	m_bodySummary.m_model->GetVertexArray(&vertexArray);
 	if (static_cast<undefined2>(p_vertexType) == 0) {
 		p_vertexType = vertexArray->GetVertexType();
 	}
 
-	model->VTable0x18(
+	model->Allocate(
 		m_renderer,
 		static_cast<undefined2>(p_vertexType),
 		vertexCount,
@@ -286,7 +285,7 @@ GolModelBase* DriverModelBuilder::FUN_0049d6e0(undefined4 p_vertexType)
 		groupCount,
 		materialCount
 	);
-	m_bodySummary.m_model->VTable0x2c(0, FALSE);
+	m_bodySummary.m_model->AddFlagsWithBounds(0, FALSE);
 
 	return model;
 }
@@ -298,74 +297,74 @@ void DriverModelBuilder::CopyModelVertices(
 	LegoU32 p_vertexOffset
 )
 {
-	GdbVertexArray0xc* sourceVertices;
-	GdbVertexArray0xc* destVertices;
+	GdbVertexArray* sourceVertices;
+	GdbVertexArray* destVertices;
 	ColorRGBA color;
 	GolVec2 texCoord;
 	GolVec3 position;
 	GolVec3 normal;
-	p_sourceModel->VTable0x28(&sourceVertices);
-	p_destModel->VTable0x28(&destVertices);
+	p_sourceModel->GetVertexArray(&sourceVertices);
+	p_destModel->GetVertexArray(&destVertices);
 
 	LegoS32 vertexCount = sourceVertices->GetCount();
 	for (LegoS32 i = 0; i < vertexCount; i++) {
 		LegoU32 destIndex = i + p_vertexOffset;
 
-		sourceVertices->VTable0x14(i, &position);
-		destVertices->VTable0x24(destIndex, position);
+		sourceVertices->GetPosition(i, &position);
+		destVertices->SetPosition(destIndex, position);
 
-		sourceVertices->VTable0x18(i, &texCoord);
-		destVertices->VTable0x28(destIndex, texCoord);
+		sourceVertices->GetTextureCoordinate(i, &texCoord);
+		destVertices->SetTextureCoordinate(destIndex, texCoord);
 
-		sourceVertices->VTable0x1c(i, &normal);
-		destVertices->VTable0x2c(destIndex, normal);
+		sourceVertices->GetNormal(i, &normal);
+		destVertices->SetNormal(destIndex, normal);
 
-		sourceVertices->VTable0x20(i, &color);
-		destVertices->VTable0x30(destIndex, color);
+		sourceVertices->GetColor(i, &color);
+		destVertices->SetColor(destIndex, color);
 	}
 
-	p_sourceModel->VTable0x2c(0, FALSE);
-	p_destModel->VTable0x2c(0, FALSE);
+	p_sourceModel->AddFlagsWithBounds(0, FALSE);
+	p_destModel->AddFlagsWithBounds(0, FALSE);
 }
 
 // STUB: LEGORACERS 0x0049d880
-void DriverModelBuilder::FUN_0049d880(GolModelBase* p_sourceModel, GolModelBase* p_destModel, LegoU32 p_indexOffset)
+void DriverModelBuilder::CopyModelIndices(GolModelBase* p_sourceModel, GolModelBase* p_destModel, LegoU32 p_indexOffset)
 {
-	IGdbModelIndexArray0x8* sourceIndexArrayBase;
-	IGdbModelIndexArray0x8* destIndexArrayBase;
-	p_sourceModel->VTable0x30(&sourceIndexArrayBase);
-	p_destModel->VTable0x30(&destIndexArrayBase);
+	GdbModelIndexArrayBase* sourceIndexArrayBase;
+	GdbModelIndexArrayBase* destIndexArrayBase;
+	p_sourceModel->GetIndexArrayInto(&sourceIndexArrayBase);
+	p_destModel->GetIndexArrayInto(&destIndexArrayBase);
 
-	GdbModelIndexArray0xc* sourceIndexArray = static_cast<GdbModelIndexArray0xc*>(sourceIndexArrayBase);
-	GdbModelIndexArray0xc* destIndexArray = static_cast<GdbModelIndexArray0xc*>(destIndexArrayBase);
+	GdbModelIndexArray* sourceIndexArray = static_cast<GdbModelIndexArray*>(sourceIndexArrayBase);
+	GdbModelIndexArray* destIndexArray = static_cast<GdbModelIndexArray*>(destIndexArrayBase);
 
 	for (LegoU32 i = 0; i < sourceIndexArrayBase->GetCount(); i++) {
-		const GdbModelIndexArray0xc::Indices* sourceIndices = sourceIndexArray->GetIndex(i);
+		const GdbModelIndexArray::Indices* sourceIndices = sourceIndexArray->GetIndex(i);
 		if (sourceIndices != NULL) {
-			GdbModelIndexArray0xc::Indices* destIndices = destIndexArray->GetMutableIndex(p_indexOffset + i);
+			GdbModelIndexArray::Indices* destIndices = destIndexArray->GetMutableIndex(p_indexOffset + i);
 			destIndices->m_a = sourceIndices->m_a;
 			destIndices->m_b = sourceIndices->m_b;
 			destIndices->m_c = sourceIndices->m_c;
 		}
 	}
 
-	p_sourceModel->VTable0x34(0);
-	p_destModel->VTable0x34(0);
+	p_sourceModel->AddFlags(0);
+	p_destModel->AddFlags(0);
 }
 
 // FUNCTION: LEGORACERS 0x0049d920
-void DriverModelBuilder::FUN_0049d920()
+void DriverModelBuilder::CopyBodyIntoOutput()
 {
 	GolModelBase* bodyModel = m_bodySummary.m_model;
 	GolModelBase* outputModel = m_outputSummary.m_model;
 	GolModelMaterialTable* bodyMaterials = bodyModel->GetMaterialTable();
 	LegoS32 bodyMaterialCount = bodyMaterials->GetCount();
 	CopyModelVertices(bodyModel, outputModel, 0);
-	FUN_0049d880(bodyModel, outputModel, 0);
+	CopyModelIndices(bodyModel, outputModel, 0);
 
 	GolModelMaterialTable* outputMaterials = outputModel->GetMaterialTable();
 	for (LegoS32 i = 0; i < bodyMaterialCount; i++) {
-		outputMaterials->SetPosition(i, bodyMaterials->GetMaterial(i));
+		outputMaterials->SetEntry(i, bodyMaterials->GetMaterial(i));
 	}
 }
 
@@ -373,39 +372,39 @@ void DriverModelBuilder::FUN_0049d920()
 void DriverModelBuilder::MergeHeadModel()
 {
 	CopyModelVertices(m_headSummary.m_model, m_outputSummary.m_model, m_bodySummary.m_vertexCount);
-	FUN_0049d880(m_headSummary.m_model, m_outputSummary.m_model, m_bodySummary.m_indexCount);
-	FUN_0049d600();
+	CopyModelIndices(m_headSummary.m_model, m_outputSummary.m_model, m_bodySummary.m_indexCount);
+	MergeHeadMaterials();
 }
 
 // FUNCTION: LEGORACERS 0x0049d9b0
-void DriverModelBuilder::FUN_0049d9b0(DuskwindBananaRelic0x24* p_material, const LegoChar* p_name)
+void DriverModelBuilder::ReplaceMaterialTexture(GolMaterial* p_material, const LegoChar* p_name)
 {
 	GolModelMaterialTable* materialTable = m_outputSummary.m_model->GetMaterialTable();
-	DuskWindBananaRelicParams* params = new DuskWindBananaRelicParams;
+	GolMaterialParams* params = new GolMaterialParams;
 	LegoS32 materialCount = materialTable->GetCount();
 	if (params == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
 	for (LegoS32 materialIndex = 0; materialIndex < materialCount; materialIndex++) {
-		DuskwindBananaRelic0x24* material = materialTable->GetMaterial(materialIndex);
+		GolMaterial* material = materialTable->GetMaterial(materialIndex);
 		if (material != NULL) {
-			DuskWindName0x8 materialName;
+			GolMaterial::NameRecord materialName;
 			materialName = material->GetNameRecord();
 
-			if (::strncmp(p_name, materialName.m_unk0x0, sizeof(GolName)) == 0) {
+			if (::strncmp(p_name, materialName.m_name, sizeof(GolName)) == 0) {
 				p_material->CopyParamsTo(params);
-				params->m_unk0x08.m_unk0x3 = m_defaultMaterialParams.m_unk0x08.m_unk0x3;
-				params->m_unk0x08.m_unk0x0 = m_defaultMaterialParams.m_unk0x08.m_unk0x0;
-				params->m_unk0x08.m_unk0x1 = m_defaultMaterialParams.m_unk0x08.m_unk0x1;
-				params->m_unk0x08.m_unk0x2 = m_defaultMaterialParams.m_unk0x08.m_unk0x2;
-				params->m_unk0x0c.m_unk0x3 = m_defaultMaterialParams.m_unk0x0c.m_unk0x3;
-				params->m_unk0x0c.m_unk0x0 = m_defaultMaterialParams.m_unk0x0c.m_unk0x0;
-				params->m_unk0x0c.m_unk0x1 = m_defaultMaterialParams.m_unk0x0c.m_unk0x1;
-				params->m_unk0x0c.m_unk0x2 = m_defaultMaterialParams.m_unk0x0c.m_unk0x2;
+				params->m_ambient.m_alp = m_defaultMaterialParams.m_ambient.m_alp;
+				params->m_ambient.m_red = m_defaultMaterialParams.m_ambient.m_red;
+				params->m_ambient.m_grn = m_defaultMaterialParams.m_ambient.m_grn;
+				params->m_ambient.m_blu = m_defaultMaterialParams.m_ambient.m_blu;
+				params->m_diffuse.m_alp = m_defaultMaterialParams.m_diffuse.m_alp;
+				params->m_diffuse.m_red = m_defaultMaterialParams.m_diffuse.m_red;
+				params->m_diffuse.m_grn = m_defaultMaterialParams.m_diffuse.m_grn;
+				params->m_diffuse.m_blu = m_defaultMaterialParams.m_diffuse.m_blu;
 
-				p_material->FUN_100257e0(m_renderer, *params);
-				materialTable->SetPosition(materialIndex, p_material);
+				p_material->SetParams(m_renderer, *params);
+				materialTable->SetEntry(materialIndex, p_material);
 				delete params;
 				return;
 			}
@@ -422,12 +421,12 @@ GolModelBase* DriverModelBuilder::MergeModels(
 	undefined4 p_vertexType
 )
 {
-	if (FUN_0049d670(p_model)) {
+	if (NeedsNewOutputModel(p_model)) {
 		if (p_model != NULL && p_model->GetGroups() != NULL) {
 			return NULL;
 		}
 
-		p_model = FUN_0049d6e0(p_vertexType);
+		p_model = CreateOutputModel(p_vertexType);
 	}
 
 	SummarizeModel(p_model, &m_outputSummary);
@@ -435,15 +434,15 @@ GolModelBase* DriverModelBuilder::MergeModels(
 		return NULL;
 	}
 
-	FUN_0049d920();
+	CopyBodyIntoOutput();
 	MergeHeadModel();
-	FUN_0049dd50();
+	CopyGroupsUntilFace();
 	LoadFaceExpressionMaterials(p_cosmetics->m_faceIndex);
 
 	p_model->SetScale(m_bodySummary.m_model->GetScale());
-	FUN_0049d9b0(m_partResources->FindFaceMaterial(p_cosmetics->m_faceIndex), "face");
-	FUN_0049d9b0(m_partResources->FindTorsoMaterial(p_cosmetics->m_torsoIndex), "torso");
-	FUN_0049d9b0(m_partResources->FindLegMaterial(p_cosmetics->m_legIndex), "legs");
+	ReplaceMaterialTexture(m_partResources->FindFaceMaterial(p_cosmetics->m_faceIndex), "face");
+	ReplaceMaterialTexture(m_partResources->FindTorsoMaterial(p_cosmetics->m_torsoIndex), "torso");
+	ReplaceMaterialTexture(m_partResources->FindLegMaterial(p_cosmetics->m_legIndex), "legs");
 
 	return p_model;
 }
@@ -452,7 +451,7 @@ GolModelBase* DriverModelBuilder::MergeModels(
 GolModelBase* DriverModelBuilder::BuildDriverModel(
 	DriverCosmetics* p_cosmetics,
 	GolModelBase* p_model,
-	undefined4 p_unk0x0c
+	undefined4 p_vertexType
 )
 {
 	DriverPartCatalog* partCatalog = m_partResources->GetPartCatalog();
@@ -464,7 +463,7 @@ GolModelBase* DriverModelBuilder::BuildDriverModel(
 	SummarizeModel(torsoLegModel, &m_bodySummary);
 	SummarizeModel(headModel, &m_headSummary);
 
-	return MergeModels(p_cosmetics, p_model, p_unk0x0c);
+	return MergeModels(p_cosmetics, p_model, p_vertexType);
 }
 
 // FUNCTION: LEGORACERS 0x0049dc10
@@ -477,7 +476,7 @@ GolSceneNode* DriverModelBuilder::GetBodySceneNode(DriverCosmetics* p_cosmetics)
 }
 
 // FUNCTION: LEGORACERS 0x0049dc50
-CmbModelPart0x34* DriverModelBuilder::GetBodyModelPart(DriverCosmetics* p_cosmetics)
+CmbModelPart* DriverModelBuilder::GetBodyModelPart(DriverCosmetics* p_cosmetics)
 {
 	DriverPartCatalog* partCatalog = m_partResources->GetPartCatalog();
 	LegoS32 torsoLegIndex = 2 * partCatalog->GetLegVariant(p_cosmetics->m_legIndex) +
@@ -506,7 +505,7 @@ void DriverModelBuilder::ApplyFaceExpression(GolModelBase* p_model, DriverCosmet
 }
 
 // STUB: LEGORACERS 0x0049dd50
-void DriverModelBuilder::FUN_0049dd50()
+void DriverModelBuilder::CopyGroupsUntilFace()
 {
 	GolName faceName;
 	::strncpy(faceName, "face", sizeof(GolName));
@@ -546,12 +545,11 @@ void DriverModelBuilder::FUN_0049dd50()
 				}
 			}
 			else if (groupType == GolModel::c_groupTypeMaterial) {
-				DuskwindBananaRelic0x24* material =
-					m_headSummary.m_model->GetMaterialTable()->GetMaterial(group & 0x0000ffff);
-				DuskWindName0x8 materialName;
+				GolMaterial* material = m_headSummary.m_model->GetMaterialTable()->GetMaterial(group & 0x0000ffff);
+				GolMaterial::NameRecord materialName;
 				materialName = material->GetNameRecord();
 				group = GolModel::c_groupTypeMaterial |
-						(m_outputSummary.m_model->GetMaterialTable()->FindEntryIndexByName(materialName.m_unk0x0) &
+						(m_outputSummary.m_model->GetMaterialTable()->FindEntryIndexByName(materialName.m_name) &
 						 0x00ffffff);
 			}
 			else if (groupType) {

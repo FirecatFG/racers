@@ -3,7 +3,7 @@
 #include "golcamerabase.h"
 #include "golerror.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/golrendertarget.h"
 
 DECOMP_SIZE_ASSERT(MenuAnimationList, 0x8)
 DECOMP_SIZE_ASSERT(MenuAnimationList::Entry, 0x18)
@@ -42,17 +42,17 @@ void MenuAnimationList::Entry::Clear()
 	m_remainingMs = 0;
 	m_durationMs = 0;
 	m_flags = 0;
-	m_red = 0;
-	m_green = 0;
-	m_blue = 0;
-	m_unk0x0b = 0;
+	m_color.m_red = 0;
+	m_color.m_grn = 0;
+	m_color.m_blu = 0;
+	m_color.m_alp = 0;
 }
 
 // FUNCTION: LEGORACERS 0x00490550
 void MenuAnimationList::Entry::Activate(
 	LegoU32 p_durationMs,
 	LegoBool32 p_fadeOut,
-	DuskwindBananaRelic0x24* p_material,
+	GolMaterial* p_material,
 	const GolCameraBase* p_rectSource
 )
 {
@@ -111,7 +111,7 @@ void MenuAnimationList::Entry::Draw(GolD3DRenderDevice* p_renderer)
 	else {
 		scratch.m_rect.m_top = 0;
 		scratch.m_rect.m_left = 0;
-		const SlatePeak0x58* renderTargetInfo = p_renderer->GetRenderTargetInfo();
+		const GolRenderTarget* renderTargetInfo = p_renderer->GetRenderTargetInfo();
 		scratch.m_rect.m_bottom = renderTargetInfo->GetHeight();
 		renderTargetInfo = p_renderer->GetRenderTargetInfo();
 		scratch.m_rect.m_right = renderTargetInfo->GetWidth();
@@ -135,9 +135,9 @@ void MenuAnimationList::Entry::Draw(GolD3DRenderDevice* p_renderer)
 	scratch.m_topLeft.m_z = 0.0f;
 	scratch.m_topLeft.m_u = 0.0f;
 	scratch.m_topLeft.m_v = 0.0f;
-	scratch.m_topLeft.m_color.m_red = m_red;
-	scratch.m_topLeft.m_color.m_grn = m_green;
-	scratch.m_topLeft.m_color.m_blu = m_blue;
+	scratch.m_topLeft.m_color.m_red = m_color.m_red;
+	scratch.m_topLeft.m_color.m_grn = m_color.m_grn;
+	scratch.m_topLeft.m_color.m_blu = m_color.m_blu;
 	scratch.m_topLeft.m_color.m_alp = scratch.m_alpha;
 
 	scratch.m_bottomLeft.m_x = scratch.m_topLeft.m_x;
@@ -145,9 +145,9 @@ void MenuAnimationList::Entry::Draw(GolD3DRenderDevice* p_renderer)
 	scratch.m_bottomLeft.m_z = 0.0f;
 	scratch.m_bottomLeft.m_u = 0.0f;
 	scratch.m_bottomLeft.m_v = 1.0f;
-	scratch.m_bottomLeft.m_color.m_red = m_red;
-	scratch.m_bottomLeft.m_color.m_grn = m_green;
-	scratch.m_bottomLeft.m_color.m_blu = m_blue;
+	scratch.m_bottomLeft.m_color.m_red = m_color.m_red;
+	scratch.m_bottomLeft.m_color.m_grn = m_color.m_grn;
+	scratch.m_bottomLeft.m_color.m_blu = m_color.m_blu;
 	scratch.m_bottomLeft.m_color.m_alp = scratch.m_alpha;
 
 	scratch.m_topRight.m_x = (LegoFloat) scratch.m_rect.m_right;
@@ -155,9 +155,9 @@ void MenuAnimationList::Entry::Draw(GolD3DRenderDevice* p_renderer)
 	scratch.m_topRight.m_z = 0.0f;
 	scratch.m_topRight.m_u = 1.0f;
 	scratch.m_topRight.m_v = 0.0f;
-	scratch.m_topRight.m_color.m_red = m_red;
-	scratch.m_topRight.m_color.m_grn = m_green;
-	scratch.m_topRight.m_color.m_blu = m_blue;
+	scratch.m_topRight.m_color.m_red = m_color.m_red;
+	scratch.m_topRight.m_color.m_grn = m_color.m_grn;
+	scratch.m_topRight.m_color.m_blu = m_color.m_blu;
 	scratch.m_topRight.m_color.m_alp = scratch.m_alpha;
 
 	scratch.m_bottomRight.m_x = scratch.m_topRight.m_x;
@@ -165,9 +165,9 @@ void MenuAnimationList::Entry::Draw(GolD3DRenderDevice* p_renderer)
 	scratch.m_bottomRight.m_z = 0.0f;
 	scratch.m_bottomRight.m_u = 1.0f;
 	scratch.m_bottomRight.m_v = 1.0f;
-	scratch.m_bottomRight.m_color.m_red = m_red;
-	scratch.m_bottomRight.m_color.m_grn = m_green;
-	scratch.m_bottomRight.m_color.m_blu = m_blue;
+	scratch.m_bottomRight.m_color.m_red = m_color.m_red;
+	scratch.m_bottomRight.m_color.m_grn = m_color.m_grn;
+	scratch.m_bottomRight.m_color.m_blu = m_color.m_blu;
 	scratch.m_bottomRight.m_color.m_alp = scratch.m_alpha;
 
 	p_renderer->SetAlphaOverride(scratch.m_alpha, TRUE);
@@ -218,7 +218,7 @@ void MenuAnimationList::Allocate(LegoU32 p_count)
 MenuAnimationList::Entry* MenuAnimationList::Activate(
 	LegoU32 p_durationMs,
 	LegoBool32 p_fadeOut,
-	DuskwindBananaRelic0x24* p_material,
+	GolMaterial* p_material,
 	const GolCameraBase* p_rectSource
 )
 {
@@ -276,7 +276,7 @@ void MenuAnimationList::Draw(GolD3DRenderDevice* p_renderer)
 }
 
 // FUNCTION: LEGORACERS 0x00494fe0
-void MenuAnimationList::FUN_00494fe0()
+void MenuAnimationList::DeactivateAll()
 {
 	LegoU32 result = m_count;
 

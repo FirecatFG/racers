@@ -3,7 +3,7 @@
 
 #include "golnametable.h"
 #include "goltxtparser.h"
-#include "image/whitebaffoon0x50.h"
+#include "image/goltiledtexture.h"
 #include "surface/color.h"
 
 class GolD3DRenderDevice;
@@ -17,7 +17,19 @@ class GolFontLibrary : public GolNameTable {
 public:
 	// VTABLE: GOLDP 0x10056e30
 	// SIZE 0x1fc
-	class FdbTxtParser : public GolTxtParser {};
+	class FdbTxtParser : public GolTxtParser {
+	public:
+		// .fdb tokens; ids proven by the field or flag each one feeds
+		enum {
+			e_font = GolFileParser::e_unknown0x27,
+			e_bmp = GolFileParser::e_unknown0x28,
+			e_tga = GolFileParser::e_unknown0x29,
+			e_colorKey = GolFileParser::e_unknown0x2a,
+			e_characters = GolFileParser::e_unknown0x2b,
+			e_charSpacing = GolFileParser::e_unknown0x2c,
+			e_textColor = GolFileParser::e_unknown0x2d,
+		};
+	};
 
 	// SIZE 0x0c
 	struct FontParseStyle {
@@ -59,7 +71,7 @@ protected:
 
 	GolD3DRenderDevice* m_renderer;   // 0x0c
 	GolFontLibrary* m_next;           // 0x10
-	LegoU32 m_numItems;               // 0x14
+	LegoU32 m_itemCount;              // 0x14
 	GolString* m_charStrings;         // 0x18
 	undefined2** m_charCodes;         // 0x1c
 	LegoU16* m_charCounts;            // 0x20

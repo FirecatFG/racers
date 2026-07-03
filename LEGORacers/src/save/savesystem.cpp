@@ -60,11 +60,11 @@ void SaveSystem::Initialize(InputManager* p_inputManager, LegoBool32 p_createIfM
 	LoadSaveFile(g_defaultSaveFileName, &m_defaultSave);
 	m_quickBuildSave.Initialize(36, 3, 0);
 	LoadSaveFile(g_quickBuildSaveFileName, &m_quickBuildSave);
-	m_activeRecord.FUN_0042b2f0(4, 0, 0, 0);
+	m_activeRecord.Initialize(4, 0, 0, 0);
 }
 
 // FUNCTION: LEGORACERS 0x00443420
-undefined4 SaveSystem::FUN_00443420(LegoU32 p_index, undefined4 p_createIfMissing)
+undefined4 SaveSystem::LoadSlot(LegoU32 p_index, undefined4 p_createIfMissing)
 {
 	MemoryCardSaveGame* save = &m_memoryCardSaves[p_index];
 	undefined4 status = save->OpenExistingFile();
@@ -94,7 +94,7 @@ undefined4 SaveSystem::FUN_00443420(LegoU32 p_index, undefined4 p_createIfMissin
 }
 
 // FUNCTION: LEGORACERS 0x004434a0
-undefined4 SaveSystem::FUN_004434a0(undefined4 p_index)
+undefined4 SaveSystem::SaveSlot(undefined4 p_index)
 {
 	if (m_gameState.IsDirty() && m_gameState.GetActiveSaveIndex() == p_index) {
 		m_gameState.WriteToSaveGame(&m_memoryCardSaves[p_index]);
@@ -139,7 +139,7 @@ void SaveSystem::LoadMemoryCardSaves(undefined4 p_createIfMissing)
 void SaveSystem::LoadFirstOpenSave()
 {
 	for (LegoU32 i = 0; i < m_memoryCardSaveCount; i++) {
-		if (m_memoryCardSaves[i].HasUnk0x4b4Flag0x01() && m_gameState.GetActiveSaveIndex() == 0xffffffff) {
+		if (m_memoryCardSaves[i].IsUsable() && m_gameState.GetActiveSaveIndex() == 0xffffffff) {
 			m_gameState.LoadFromSaveGame(&m_memoryCardSaves[i], i);
 			return;
 		}

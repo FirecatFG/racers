@@ -42,18 +42,18 @@ ControlConfigScreen::~ControlConfigScreen()
 // FUNCTION: LEGORACERS 0x0047a7d0
 void ControlConfigScreen::Reset()
 {
-	InputDevice** devices = m_unk0x368;
-	LegoS32* bindings = m_unk0x37c;
+	InputDevice** devices = m_devices;
+	LegoS32* bindings = m_bindingIndices;
 
-	m_unk0x39c = 0;
-	m_unk0x3a0 = 0;
-	m_unk0x3a4 = 0;
-	m_unk0x390 = 0;
-	m_unk0x394 = NULL;
-	m_unk0x398 = NULL;
+	m_deviceCount = 0;
+	m_selectedDevice = 0;
+	m_playerIndex = 0;
+	m_awaitingButton = 0;
+	m_savedButtonMapping = NULL;
+	m_savedAxisMapping = NULL;
 
-	::memset(devices, 0, sizeof(m_unk0x368));
-	::memset(bindings, 0, sizeof(m_unk0x37c));
+	::memset(devices, 0, sizeof(m_devices));
+	::memset(bindings, 0, sizeof(m_bindingIndices));
 
 	::memset(m_ellipsisText, 0, sizeof(m_ellipsisText));
 
@@ -65,31 +65,31 @@ void ControlConfigScreen::Reset()
 }
 
 // FUNCTION: LEGORACERS 0x0047a860
-void ControlConfigScreen::VTable0x4c()
+void ControlConfigScreen::CreateWidgets()
 {
-	LegoU16 idBase = m_unk0x3a4 + 0x17;
+	LegoU16 idBase = m_playerIndex + 0x17;
 
-	CreateImage(&m_unk0x3a8, 0x49, 0x49);
-	CreateTextLabel(&m_unk0x404, 0x3a, 0x3a, idBase);
-	m_unk0x404.FUN_0046f6b0(0x14);
-	CreateCarousel(&m_unk0x780, 0x3e, 0x3b);
-	CreateSelector(&m_unk0x814, &m_unk0x780, 0x111, 0x4d);
+	CreateImage(&m_photoImage, 0x49, 0x49);
+	CreateTextLabel(&m_infoLabel, 0x3a, 0x3a, idBase);
+	m_infoLabel.WrapText(0x14);
+	CreateCarousel(&m_deviceCarousel, 0x3e, 0x3b);
+	CreateSelector(&m_deviceSelector, &m_deviceCarousel, 0x111, 0x4d);
 
 	for (LegoU32 i = 0; i < 9; i++) {
-		FUN_0047fdc0(&m_unk0x144c[i], i + 0x108, 0x42, 0x69);
-		CreateTextLabel(&m_unk0x2ebc[i], i + 0x116, 0x37, i + 0x69);
+		CreateTextButton(&m_eventButtons[i], i + 0x108, 0x42, 0x69);
+		CreateTextLabel(&m_eventLabels[i], i + 0x116, 0x37, i + 0x69);
 	}
 
-	FUN_0047fdc0(&m_unk0x47c, 0x3f, 0x46, 0x1e);
+	CreateTextButton(&m_backButton, 0x3f, 0x46, 0x1e);
 }
 
 // FUNCTION: LEGORACERS 0x0047a930
-void ControlConfigScreen::FUN_0047a930()
+void ControlConfigScreen::PopulateDeviceCarousel()
 {
-	FUN_004803d0();
-	m_unk0x39c = m_inputManager->GetJoystickCount();
-	if (m_unk0x39c > 2) {
-		m_unk0x39c = 2;
+	ReinitializeInputBindings();
+	m_deviceCount = m_inputManager->GetJoystickCount();
+	if (m_deviceCount > 2) {
+		m_deviceCount = 2;
 	}
 
 	for (LegoS32 i = 0; i < 2; i++) {
@@ -97,137 +97,138 @@ void ControlConfigScreen::FUN_0047a930()
 		if (device) {
 			switch (device->GetDeviceSubType()) {
 			case 4:
-				CreateImage(&m_unk0x1208[i], 0x113, 0x113);
+				CreateImage(&m_deviceIcons[i], 0x113, 0x113);
 				break;
 			case 6:
-				CreateImage(&m_unk0x1208[i], 0x114, 0x114);
+				CreateImage(&m_deviceIcons[i], 0x114, 0x114);
 				break;
 			default:
-				CreateImage(&m_unk0x1208[i], 0x112, 0x112);
+				CreateImage(&m_deviceIcons[i], 0x112, 0x112);
 				break;
 			}
 
-			m_unk0x780.FUN_0046d9c0(&m_unk0x1208[i]);
-			m_unk0x368[i] = device;
-			m_unk0x37c[i] = i;
+			m_deviceCarousel.AddItem(&m_deviceIcons[i]);
+			m_devices[i] = device;
+			m_bindingIndices[i] = i;
 		}
 	}
 
 	if (m_inputManager->IsKeyboardAvailable()) {
 		InputDevice* keyboard = m_inputManager->GetKeyboard();
 		for (LegoU32 i = 2; i < 5; i++) {
-			CreateImage(&m_unk0x1208[m_unk0x39c], 0x115, 0x115);
-			m_unk0x780.FUN_0046d9c0(&m_unk0x1208[m_unk0x39c]);
-			m_unk0x368[m_unk0x39c] = keyboard;
-			m_unk0x37c[m_unk0x39c] = i;
-			m_unk0x39c++;
+			CreateImage(&m_deviceIcons[m_deviceCount], 0x115, 0x115);
+			m_deviceCarousel.AddItem(&m_deviceIcons[m_deviceCount]);
+			m_devices[m_deviceCount] = keyboard;
+			m_bindingIndices[m_deviceCount] = i;
+			m_deviceCount++;
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047aaa0
-LegoBool32 ControlConfigScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
+LegoBool32 ControlConfigScreen::Initialize(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
 {
 	if (p_createParams->m_menuId == 0x0b) {
-		m_unk0x3a4 = 1;
+		m_playerIndex = 1;
 	}
 
 	p_createParams->m_menuId = 9;
-	if (!MenuGameScreen::VTable0x8c(p_context, p_createParams)) {
+	if (!MenuGameScreen::Initialize(p_context, p_createParams)) {
 		return FALSE;
 	}
 
-	FUN_0047a930();
-	LegoS32 selectedEntryIndex = m_context->m_saveSystem.GetGameState().GetSelectedInputBindingEntryIndex(m_unk0x3a4);
+	PopulateDeviceCarousel();
+	LegoS32 selectedEntryIndex =
+		m_context->m_saveSystem.GetGameState().GetSelectedInputBindingEntryIndex(m_playerIndex);
 
-	for (LegoU32 i = 0; i < m_unk0x39c; i++) {
-		if (m_unk0x37c[i] == selectedEntryIndex) {
-			m_unk0x3a0 = i;
+	for (LegoU32 i = 0; i < m_deviceCount; i++) {
+		if (m_bindingIndices[i] == selectedEntryIndex) {
+			m_selectedDevice = i;
 			break;
 		}
 	}
 
-	m_unk0x780.VTable0x50(m_unk0x3a0);
-	m_unk0x144c[0].VTable0x4c(4);
-	VTable0x78(0);
+	m_deviceCarousel.SetSelection(m_selectedDevice);
+	m_eventButtons[0].Select(4);
+	Update(0);
 
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x0047ab60
-void ControlConfigScreen::VTable0x84()
+void ControlConfigScreen::Navigate()
 {
-	m_context->m_saveSystem.GetGameState().SelectInputBinding(m_unk0x3a4, m_unk0x37c[m_unk0x3a0]);
+	m_context->m_saveSystem.GetGameState().SelectInputBinding(m_playerIndex, m_bindingIndices[m_selectedDevice]);
 	m_context->m_menuStack.Pop();
 	m_context->m_menuStack.Push(0x30);
 }
 
 // FUNCTION: LEGORACERS 0x0047abb0
-void ControlConfigScreen::VTable0x44(MenuWidget* p_unk0x04)
+void ControlConfigScreen::OnWidgetValueChanged(MenuWidget* p_source)
 {
-	if (p_unk0x04 == &m_unk0x814) {
-		m_unk0x3a0 = m_unk0x780.GetUnk0x6c();
+	if (p_source == &m_deviceSelector) {
+		m_selectedDevice = m_deviceCarousel.GetSelectedIndex();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047abd0
-void ControlConfigScreen::VTable0x34(MenuIcon* p_source)
+void ControlConfigScreen::OnIconFocused(MenuIcon* p_source)
 {
-	LegoS32 eventIndex = p_source->GetUnk0x30() - m_unk0x144c[0].GetUnk0x30();
+	LegoS32 eventIndex = p_source->GetId() - m_eventButtons[0].GetId();
 
 	if (eventIndex >= 0 && static_cast<LegoU32>(eventIndex) <= 8) {
-		InputDevice* device = m_unk0x368[m_unk0x3a0];
-		m_unk0x394 = device->GetCustomButtonMapping();
-		m_unk0x398 = device->GetCustomAxisMapping();
+		InputDevice* device = m_devices[m_selectedDevice];
+		m_savedButtonMapping = device->GetCustomButtonMapping();
+		m_savedAxisMapping = device->GetCustomAxisMapping();
 		device->SetEventMappings(NULL, NULL);
-		m_context->m_saveSystem.GetGameState().SetInputEvent(m_unk0x37c[m_unk0x3a0], eventIndex, 0);
-		m_unk0x390 = p_source;
+		m_context->m_saveSystem.GetGameState().SetInputEvent(m_bindingIndices[m_selectedDevice], eventIndex, 0);
+		m_awaitingButton = p_source;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047ac60
-void ControlConfigScreen::VTable0x38(MenuWidget* p_unk0x04)
+void ControlConfigScreen::OnIconUnfocused(MenuWidget* p_source)
 {
-	if (p_unk0x04 == &m_unk0x47c) {
-		m_unk0x360 = 8;
-		m_unk0x364 = TRUE;
+	if (p_source == &m_backButton) {
+		m_nextMenuId = 8;
+		m_navPending = TRUE;
 	}
 
-	m_unk0x35c = p_unk0x04;
+	m_clickedWidget = p_source;
 }
 
 // FUNCTION: LEGORACERS 0x0047ac90
-LegoBool32 ControlConfigScreen::VTable0x18(MenuWidget*, InputEventQueue::Event* p_item, undefined4, undefined4)
+LegoBool32 ControlConfigScreen::HandleKeyDown(MenuWidget*, InputEventQueue::Event* p_item, undefined4, undefined4)
 {
 	LegoU32 keyCode = p_item->m_keyCode;
 	LegoU32 source = keyCode & InputDevice::c_sourceMask;
 	GameState& state = m_context->m_saveSystem.GetGameState();
-	LegoS32 selectedDeviceIndex = m_unk0x3a0;
-	InputDevice* device = m_unk0x368[selectedDeviceIndex];
-	LegoS32 entryIndex = m_unk0x37c[selectedDeviceIndex];
+	LegoS32 selectedDeviceIndex = m_selectedDevice;
+	InputDevice* device = m_devices[selectedDeviceIndex];
+	LegoS32 entryIndex = m_bindingIndices[selectedDeviceIndex];
 
-	if (!m_unk0x364) {
-		if (!m_unk0x390) {
+	if (!m_navPending) {
+		if (!m_awaitingButton) {
 			return FALSE;
 		}
 
 		if (source == InputDevice::c_sourceJoystickButton || source == InputDevice::c_sourceKeyboard) {
 			for (LegoU32 i = 0; i < sizeOfArray(g_controlConfigBlockedEvents); i++) {
 				if (keyCode == g_controlConfigBlockedEvents[i]) {
-					m_soundGroupBinding->FUN_0046e970(8);
+					m_soundGroupBinding->PlaySoundByIndex(8);
 					return TRUE;
 				}
 			}
 
 			if (source == InputDevice::c_sourceJoystickButton && p_item->m_device != device) {
-				m_soundGroupBinding->FUN_0046e970(8);
+				m_soundGroupBinding->PlaySoundByIndex(8);
 				return TRUE;
 			}
 
-			state.SetInputEvent(entryIndex, m_unk0x390->GetUnk0x30() - m_unk0x144c[0].GetUnk0x30(), keyCode);
-			device->SetEventMappings(m_unk0x394, m_unk0x398);
-			m_unk0x390->VTable0x58(0);
-			m_unk0x390 = NULL;
+			state.SetInputEvent(entryIndex, m_awaitingButton->GetId() - m_eventButtons[0].GetId(), keyCode);
+			device->SetEventMappings(m_savedButtonMapping, m_savedAxisMapping);
+			m_awaitingButton->Unfocus(0);
+			m_awaitingButton = NULL;
 		}
 	}
 
@@ -235,25 +236,25 @@ LegoBool32 ControlConfigScreen::VTable0x18(MenuWidget*, InputEventQueue::Event* 
 }
 
 // FUNCTION: LEGORACERS 0x0047ad90
-LegoBool32 ControlConfigScreen::VTable0x1c(MenuWidget*, InputEventQueue::Event*, undefined4, undefined4)
+LegoBool32 ControlConfigScreen::HandleKeyUp(MenuWidget*, InputEventQueue::Event*, undefined4, undefined4)
 {
-	if (m_unk0x364) {
+	if (m_navPending) {
 		return TRUE;
 	}
 
-	return MenuEventResult(m_unk0x390);
+	return MenuEventResult(m_awaitingButton);
 }
 
 // FUNCTION: LEGORACERS 0x0047adb0
-void ControlConfigScreen::FUN_0047adb0()
+void ControlConfigScreen::RefreshEventTexts()
 {
 	GameState& state = m_context->m_saveSystem.GetGameState();
 
-	for (LegoS32 i = 0; i < sizeOfArray(m_unk0x144c); i++) {
-		m_unk0x32f4[i].CopyFromBufSelection(m_ellipsisText, 0);
+	for (LegoS32 i = 0; i < sizeOfArray(m_eventButtons); i++) {
+		m_eventTexts[i].CopyFromBufSelection(m_ellipsisText, 0);
 
-		if (!(m_unk0x144c[i].GetStateFlags() & MenuIcon::c_flagBit2)) {
-			LegoU32 event = state.GetInputEvent(m_unk0x3a4, m_unk0x37c[m_unk0x3a0], i);
+		if (!(m_eventButtons[i].GetStateFlags() & MenuIcon::c_flagFocused)) {
+			LegoU32 event = state.GetInputEvent(m_playerIndex, m_bindingIndices[m_selectedDevice], i);
 
 			if (event) {
 				InputDevice* device;
@@ -261,41 +262,41 @@ void ControlConfigScreen::FUN_0047adb0()
 					device = m_inputManager->GetKeyboard();
 				}
 				else {
-					device = m_unk0x368[m_unk0x3a0];
+					device = m_devices[m_selectedDevice];
 				}
 
-				m_unk0x32f4[i].CopyFromBufSelection((undefined2*) device->GetControlName(event), 0);
-				m_unk0x32f4[i].ToUpperCase();
+				m_eventTexts[i].CopyFromBufSelection((undefined2*) device->GetControlName(event), 0);
+				m_eventTexts[i].ToUpperCase();
 			}
 			else if (i < 2) {
-				InputDevice* device = m_unk0x368[m_unk0x3a0];
+				InputDevice* device = m_devices[m_selectedDevice];
 				if (device->GetDeviceType() == 4 && (device->GetAxisMask() & 1)) {
-					m_unk0x32f4[i].CopyFromBufSelection(
+					m_eventTexts[i].CopyFromBufSelection(
 						(undefined2*) device->GetControlName(InputDevice::c_sourceJoystickAxisButton),
 						0
 					);
-					m_unk0x32f4[i].ToUpperCase();
+					m_eventTexts[i].ToUpperCase();
 				}
 			}
 		}
 
-		m_unk0x144c[i].FUN_00482810(&m_unk0x32f4[i]);
+		m_eventButtons[i].SetText(&m_eventTexts[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047aeb0
-LegoBool32 ControlConfigScreen::VTable0x78(undefined4 p_unk0x04)
+LegoBool32 ControlConfigScreen::Update(undefined4 p_source)
 {
-	FUN_0047adb0();
+	RefreshEventTexts();
 
-	if (m_unk0x368[m_unk0x3a0]->GetDeviceType() == 3) {
-		m_unk0x144c[0].VTable0x44(0);
-		m_unk0x144c[1].VTable0x44(0);
+	if (m_devices[m_selectedDevice]->GetDeviceType() == 3) {
+		m_eventButtons[0].Enable(0);
+		m_eventButtons[1].Enable(0);
 	}
 	else {
-		m_unk0x144c[0].VTable0x48(0);
-		m_unk0x144c[1].VTable0x48(0);
+		m_eventButtons[0].Disable(0);
+		m_eventButtons[1].Disable(0);
 	}
 
-	return MenuGameScreen::VTable0x78(p_unk0x04);
+	return MenuGameScreen::Update(p_source);
 }

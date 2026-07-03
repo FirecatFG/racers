@@ -1,16 +1,16 @@
 #include "model/gdbpartlibrary.h"
 
-#include "duskwindbananarelic0x24.h"
-#include "gdbmodelindexarray0xc.h"
-#include "gdbvertexarray0xc.h"
+#include "gdbmodelindexarray.h"
+#include "gdbmodelindexarraybase.h"
+#include "gdbvertexarray.h"
 #include "golbinparser.h"
 #include "golerror.h"
 #include "golfileparser.h"
+#include "golmaterial.h"
 #include "golmodelbase.h"
 #include "golmodelmaterialtable.h"
 #include "golname.h"
 #include "goltxtparser.h"
-#include "igdbmodelindexarray0x8.h"
 #include "model/gdbpartdefinition.h"
 #include "model/gdbpartfacegroup.h"
 #include "model/gdbpartvertexpool.h"
@@ -31,10 +31,10 @@ static LegoU16 g_copyBatchSourceVertices[g_gdbPartBatchVertexCapacity];
 static GolModelBase* g_copyModel;
 
 // GLOBAL: LEGORACERS 0x004c2838
-static GdbVertexArray0xc* g_copyVertexArray;
+static GdbVertexArray* g_copyVertexArray;
 
 // GLOBAL: LEGORACERS 0x004c283c
-static GdbModelIndexArray0xc::Indices* g_copyIndices;
+static GdbModelIndexArray::Indices* g_copyIndices;
 
 // GLOBAL: LEGORACERS 0x004c2840
 static LegoU32 g_copyBatchVertexStart;
@@ -103,13 +103,13 @@ void GdbPartLibrary::Load(const LegoChar* p_filename, LegoBool32 p_binary)
 	GolFileParser::ParserTokenType token = parser->GetNextToken();
 	while (token != GolFileParser::e_syntaxerror) {
 		switch (token) {
-		case GolFileParser::e_unknown0x28:
+		case GdbPartLibrary::GdbTxtParser::e_uncoloredVertices:
 			m_vertexPool->Read(*parser, 2);
 			break;
-		case GolFileParser::e_unknown0x29:
+		case GdbPartLibrary::GdbTxtParser::e_normalVertices:
 			m_vertexPool->Read(*parser, 1);
 			break;
-		case GolFileParser::e_unknown0x2c:
+		case GdbPartLibrary::GdbTxtParser::e_parts:
 			ReadParts(*parser);
 			break;
 		default:
@@ -132,7 +132,7 @@ void GdbPartLibrary::ReadParts(GolFileParser& p_parser)
 	m_parts = new GdbPartDefinition[m_partCount];
 	for (LegoU32 i = 0; i < m_partCount; i++) {
 		GolName name;
-		p_parser.AssertNextTokenIs(GolFileParser::e_unknown0x2c);
+		p_parser.AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(GdbPartLibrary::GdbTxtParser::e_parts));
 		p_parser.ReadString();
 		::strncpy(name, p_parser.GetLastString(), sizeof(name));
 		AddName(name, &m_parts[i]);
@@ -166,11 +166,11 @@ void GdbPartLibrary::CopyPartToModel(GolD3DRenderDevice* p_renderer, GolModelBas
 		GOL_FATALERROR_MESSAGE(message);
 	}
 
-	IGdbModelIndexArray0x8* indexArrayBase;
+	GdbModelIndexArrayBase* indexArrayBase;
 	g_copyModel = p_model;
-	p_model->VTable0x28(&g_copyVertexArray);
-	g_copyModel->VTable0x30(&indexArrayBase);
-	g_copyIndices = static_cast<GdbModelIndexArray0xc*>(indexArrayBase)->GetMutableIndices();
+	p_model->GetVertexArray(&g_copyVertexArray);
+	g_copyModel->GetIndexArrayInto(&indexArrayBase);
+	g_copyIndices = static_cast<GdbModelIndexArray*>(indexArrayBase)->GetMutableIndices();
 	g_copyBatchVertexStart = 0;
 	g_copyBatchVertexCount = 0;
 	g_copyIndexStart = 0;
@@ -207,8 +207,8 @@ void GdbPartLibrary::CopyPartToModel(GolD3DRenderDevice* p_renderer, GolModelBas
 	GolModelBase* model = g_copyModel;
 	model->GetMutableGroups()[groupWrite] = 0xc0000000;
 	model->SetDirty(TRUE);
-	g_copyModel->VTable0x34(g_gdbPartModelDirty);
-	g_copyModel->VTable0x2c(g_gdbPartModelDirty, TRUE);
+	g_copyModel->AddFlags(g_gdbPartModelDirty);
+	g_copyModel->AddFlagsWithBounds(g_gdbPartModelDirty, TRUE);
 }
 
 // FUNCTION: LEGORACERS 0x00407b40
@@ -218,8 +218,8 @@ void GdbPartLibrary::CopyPartGroupStart(
 	const LegoChar* p_materialName
 )
 {
-	DuskwindBananaRelic0x24* material = p_renderer->FindMaterialByName(p_materialName);
-	g_copyModel->GetMaterialTable()->SetPosition(p_groupIndex, material);
+	GolMaterial* material = p_renderer->FindMaterialByName(p_materialName);
+	g_copyModel->GetMaterialTable()->SetEntry(p_groupIndex, material);
 
 	LegoU32 groupWrite = g_copyGroupWrite++;
 	GolModelBase* model = g_copyModel;
@@ -253,7 +253,7 @@ void GdbPartLibrary::EmitCopyTriangle(LegoU32 p_index0, LegoU32 p_index1, LegoU3
 		batchIndex2 = -1;
 	}
 
-	GdbModelIndexArray0xc::Indices* target = &g_copyIndices[g_copyIndexStart + g_copyBatchIndexCount];
+	GdbModelIndexArray::Indices* target = &g_copyIndices[g_copyIndexStart + g_copyBatchIndexCount];
 	g_copyBatchIndexCount++;
 
 	if (batchIndex0 < 0) {
@@ -297,22 +297,22 @@ LegoS32 GdbPartLibrary::CopyBatchVertex(LegoU32 p_sourceVertex)
 	LegoU32 targetVertex = g_copyBatchVertexStart + g_copyBatchVertexCount;
 
 	GolVec3 position;
-	m_vertexPool->VTable0x14(p_sourceVertex, &position);
-	g_copyVertexArray->VTable0x24(targetVertex, position);
+	m_vertexPool->GetPosition(p_sourceVertex, &position);
+	g_copyVertexArray->SetPosition(targetVertex, position);
 
 	GolVec2 texCoord;
-	m_vertexPool->VTable0x18(p_sourceVertex, &texCoord);
-	g_copyVertexArray->VTable0x28(targetVertex, texCoord);
+	m_vertexPool->GetTextureCoordinate(p_sourceVertex, &texCoord);
+	g_copyVertexArray->SetTextureCoordinate(targetVertex, texCoord);
 
 	if (m_vertexPool->GetVertexType() == 1) {
 		ColorRGBA color;
-		m_vertexPool->VTable0x20(p_sourceVertex, &color);
-		g_copyVertexArray->VTable0x30(targetVertex, color);
+		m_vertexPool->GetColor(p_sourceVertex, &color);
+		g_copyVertexArray->SetColor(targetVertex, color);
 	}
 	else {
 		GolVec3 normal;
-		m_vertexPool->VTable0x1c(p_sourceVertex, &normal);
-		g_copyVertexArray->VTable0x2c(targetVertex, normal);
+		m_vertexPool->GetNormal(p_sourceVertex, &normal);
+		g_copyVertexArray->SetNormal(targetVertex, normal);
 	}
 
 	return g_copyBatchVertexCount++;

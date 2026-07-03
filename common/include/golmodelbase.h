@@ -7,11 +7,11 @@
 #include "goltxtparser.h"
 #include "types.h"
 
-class GdbVertexArray0xc;
+class GdbVertexArray;
 class GolFileParser;
 struct GolVec3;
-class IGdbModelIndexArray0x8;
-struct ColorTransform0x20;
+class GdbModelIndexArrayBase;
+struct ColorTransform;
 class GolRenderDevice;
 
 // VTABLE: GOLDP 0x10057224
@@ -20,66 +20,84 @@ class GolModelBase {
 public:
 	// VTABLE: GOLDP 0x100570bc
 	// SIZE 0x1fc
-	class GdbTxtParser : public GolTxtParser {};
+	class GdbTxtParser : public GolTxtParser {
+	public:
+		// .gdb tokens; group-stream keywords map to GolModel::GdbModelGroupType
+		enum {
+			e_material = 0x27,
+			e_uncoloredVertices = 0x28,
+			e_normalVertices = 0x29,
+			e_coloredVertices = 0x2a,
+			e_indices = 0x2d,
+			e_triangleBatch = 0x2d,
+			e_groups = 0x2e,
+			e_pushMatrix = 0x2f,
+			e_popMatrix = 0x30,
+			e_triangles = 0x31,
+			e_setMatrix = 0x32,
+			e_scale = 0x33,
+			e_vertices = 0x34,
+		};
+	};
 
 	GolModelBase();
 
-	virtual void VTable0x00(GolFileParser& p_parser);     // vtable+0x00
-	virtual void VTable0x04(GolFileParser& p_parser);     // vtable+0x04
-	virtual void VTable0x08(GolFileParser& p_parser);     // vtable+0x08
-	virtual void VTable0x0c(GolFileParser& p_parser) = 0; // vtable+0x0c
-	virtual void VTable0x10(GolFileParser& p_parser) = 0; // vtable+0x10
-	virtual void VTable0x14(GolFileParser& p_parser);     // vtable+0x14
-	virtual void VTable0x18(
+	virtual void ParseGroups(GolFileParser& p_parser);                // vtable+0x00
+	virtual void ParseIndices(GolFileParser& p_parser);               // vtable+0x04
+	virtual void ParseVertices(GolFileParser& p_parser);              // vtable+0x08
+	virtual void ParseUncoloredVertices(GolFileParser& p_parser) = 0; // vtable+0x0c
+	virtual void ParseColoredVertices(GolFileParser& p_parser) = 0;   // vtable+0x10
+	virtual void ParseNormalVertices(GolFileParser& p_parser);        // vtable+0x14
+	virtual void Allocate(
 		GolRenderDevice* p_renderer,
 		undefined2,
 		undefined4,
 		undefined4,
 		undefined4,
 		undefined4
-	) = 0;                                                                                             // vtable+0x18
-	virtual void VTable0x1c(GolRenderDevice* p_renderer, const LegoChar* p_name, LegoBool32 p_binary); // vtable+0x1c
-	virtual ~GolModelBase();                                                                           // vtable+0x20
-	virtual void VTable0x24();                                                                         // vtable+0x24
-	virtual void VTable0x28(GdbVertexArray0xc** p_dest) const;                                         // vtable+0x28
-	virtual void VTable0x2c(LegoU32, LegoBool32);                                                      // vtable+0x2c
-	virtual void VTable0x30(IGdbModelIndexArray0x8**) const;                                           // vtable+0x30
-	virtual void VTable0x34(LegoU32);                                                                  // vtable+0x34
-	virtual void VTable0x38(GolVec3*, LegoFloat*, LegoFloat) const;                                    // vtable+0x38
-	virtual void VTable0x3c(const ColorTransform0x20&);                                                // vtable+0x3c
-	virtual void VTable0x40();                                                                         // vtable+0x40
+	) = 0;                                                                                       // vtable+0x18
+	virtual void Load(GolRenderDevice* p_renderer, const LegoChar* p_name, LegoBool32 p_binary); // vtable+0x1c
+	virtual ~GolModelBase();                                                                     // vtable+0x20
+	virtual void Destroy();                                                                      // vtable+0x24
+	virtual void GetVertexArray(GdbVertexArray** p_dest) const;                                  // vtable+0x28
+	virtual void AddFlagsWithBounds(LegoU32, LegoBool32);                                        // vtable+0x2c
+	virtual void GetIndexArrayInto(GdbModelIndexArrayBase**) const;                              // vtable+0x30
+	virtual void AddFlags(LegoU32);                                                              // vtable+0x34
+	virtual void ComputeBounds(GolVec3*, LegoFloat*, LegoFloat) const;                           // vtable+0x38
+	virtual void ApplyColorTransform(const ColorTransform&);                                     // vtable+0x3c
+	virtual void ClearColorTransform();                                                          // vtable+0x40
 
-	void FUN_100272e0(LegoU32 p_countVertices, LegoU32 p_countGroups);
-	void FUN_00411090();
-	GolModelMaterialTable* GetMaterialTable() { return &m_unk0x04; }
-	GdbVertexArray0xc* GetVertexArray() const { return m_unk0x10; }
-	IGdbModelIndexArray0x8* GetIndexArray() const { return m_unk0x18; }
-	const GolVec3& GetCenter() const { return m_unk0x28; }
-	const GolVec3& GetBoundingCenter() const { return m_unk0x28; }
-	LegoFloat GetRadius() const { return m_unk0x34; }
-	LegoFloat GetBoundingRadius() const { return m_unk0x34; }
-	LegoFloat GetScale() const { return m_unk0x38; }
-	void SetScale(LegoFloat p_scale) { m_unk0x38 = p_scale; }
-	void SetDirty(LegoBool32 p_dirty) { m_unk0x3c = p_dirty; }
-	LegoU32 GetGroupCount() const { return m_countGroups; }
-	const LegoU32* GetGroups() const { return m_unk0x24; }
-	LegoU32* GetMutableGroups() { return m_unk0x24; }
+	void AllocateIndices(LegoU32 p_countVertices, LegoU32 p_countGroups);
+	void MirrorY();
+	GolModelMaterialTable* GetMaterialTable() { return &m_materialTable; }
+	GdbVertexArray* GetVertexArray() const { return m_vertexArray; }
+	GdbModelIndexArrayBase* GetIndexArray() const { return m_indexArray; }
+	const GolVec3& GetCenter() const { return m_center; }
+	const GolVec3& GetBoundingCenter() const { return m_center; }
+	LegoFloat GetRadius() const { return m_radius; }
+	LegoFloat GetBoundingRadius() const { return m_radius; }
+	LegoFloat GetScale() const { return m_scale; }
+	void SetScale(LegoFloat p_scale) { m_scale = p_scale; }
+	void SetDirty(LegoBool32 p_dirty) { m_dirty = p_dirty; }
+	LegoU32 GetGroupCount() const { return m_groupCount; }
+	const LegoU32* GetGroups() const { return m_groups; }
+	LegoU32* GetMutableGroups() { return m_groups; }
 
 	// SYNTHETIC: GOLDP 0x10027070
 	// GolModelBase::`scalar deleting destructor'
 
 protected:
-	GolModelMaterialTable m_unk0x04;
-	GdbVertexArray0xc* m_unk0x10;
-	GdbVertexArray0xc* m_unk0x14;
-	IGdbModelIndexArray0x8* m_unk0x18;
-	undefined4* m_unk0x1c;
-	LegoU32 m_countGroups;
-	LegoU32* m_unk0x24;
-	GolVec3 m_unk0x28;
-	LegoFloat m_unk0x34;
-	LegoFloat m_unk0x38;
-	LegoBool32 m_unk0x3c;
+	GolModelMaterialTable m_materialTable; // 0x04
+	GdbVertexArray* m_vertexArray;         // 0x10
+	GdbVertexArray* m_ownedVertexArray;    // 0x14
+	GdbModelIndexArrayBase* m_indexArray;  // 0x18
+	undefined4* m_unk0x1c;                 // 0x1c
+	LegoU32 m_groupCount;                  // 0x20
+	LegoU32* m_groups;                     // 0x24
+	GolVec3 m_center;                      // 0x28
+	LegoFloat m_radius;                    // 0x34
+	LegoFloat m_scale;                     // 0x38
+	LegoBool32 m_dirty;                    // 0x3c
 };
 
 #endif // GOLMODELBASE_H

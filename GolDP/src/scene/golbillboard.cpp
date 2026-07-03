@@ -1,13 +1,13 @@
 #include "scene/golbillboard.h"
 
-#include "duskwindbananarelic0x24.h"
+#include "golmaterial.h"
 #include "render/golrenderdevice.h"
 
 #include <float.h>
 #include <math.h>
 
 DECOMP_SIZE_ASSERT(GolBillboard, 0x4c)
-DECOMP_SIZE_ASSERT(GolBillboard::Field0x2c, 0x0c)
+DECOMP_SIZE_ASSERT(GolBillboard::ManagedMaterialTable, 0x0c)
 
 // GLOBAL: GOLDP 0x100574fc
 float g_pontoonMaxFloat = FLT_MAX;
@@ -15,21 +15,21 @@ float g_pontoonMaxFloat = FLT_MAX;
 // FUNCTION: GOLDP 0x10029df0
 GolBillboard::GolBillboard()
 {
-	m_position = NULL;
-	m_positionContainer = NULL;
-	m_unk0x30.m_x = 0.0f;
-	m_unk0x30.m_y = 0.0f;
-	m_unk0x30.m_z = 1.0f;
+	m_material = NULL;
+	m_materialTable = NULL;
+	m_axis.m_x = 0.0f;
+	m_axis.m_y = 0.0f;
+	m_axis.m_z = 1.0f;
 	m_flags = 0;
-	m_positionIndex = 0;
+	m_materialIndex = 0;
 	m_width = 0.0f;
 	m_height = 0.0f;
 	m_maxDistanceSquared = g_pontoonMaxFloat; // std::numeric_limits<float>::max();
 }
 
 // FUNCTION: GOLDP 0x10029e30
-void GolBillboard::VTable0x4c(
-	DuskwindBananaRelic0x24* p_position,
+void GolBillboard::Configure(
+	GolMaterial* p_position,
 	LegoFloat p_width,
 	LegoFloat p_height,
 	LegoFloat p_maxDistanceSquared
@@ -39,48 +39,43 @@ void GolBillboard::VTable0x4c(
 	LegoFloat len = sqrtf(SQR(p_width / 2.0f) + SQR(p_height / 2.0f));
 #undef SQR
 
-	m_position = p_position;
+	m_material = p_position;
 	m_width = p_width;
 	m_height = p_height;
 	m_flags = 1;
 	m_maxDistanceSquared = p_maxDistanceSquared;
-	FUN_10026fa0(len);
+	SetBoundsRadius(len);
 }
 
 // FUNCTION: GOLDP 0x10029e90
-void GolBillboard::FUN_10029e90(
-	MaterialTable0x0c* p_container,
+void GolBillboard::ConfigureFromMaterialTable(
+	MaterialTable* p_container,
 	LegoS32 p_index,
 	LegoFloat p_width,
 	LegoFloat p_height,
 	LegoFloat p_maxDistanceSquared
 )
 {
-	m_positionContainer = p_container;
-	m_positionIndex = static_cast<LegoU16>(p_index);
-	VTable0x4c(
-		static_cast<DuskwindBananaRelic0x24*>(p_container->GetPosition(p_index)),
-		p_width,
-		p_height,
-		p_maxDistanceSquared
-	);
-	m_flags |= c_flagBit2;
+	m_materialTable = p_container;
+	m_materialIndex = static_cast<LegoU16>(p_index);
+	Configure(static_cast<GolMaterial*>(p_container->GetEntry(p_index)), p_width, p_height, p_maxDistanceSquared);
+	m_flags |= c_flagMaterialAssignment;
 }
 
 // FUNCTION: GOLDP 0x10029ed0
-void GolBillboard::VTable0x50()
+void GolBillboard::SetPrimaryModel()
 {
-	m_position = NULL;
+	m_material = NULL;
 	m_flags = 0;
 	m_width = 0;
 	m_height = 0;
 }
 
 // FUNCTION: GOLDP 0x10029ee0
-void GolBillboard::VTable0x14(const GolViewFrustum& p_view, ResultStruct* p_result)
+void GolBillboard::ComputeVisibility(const GolViewFrustum& p_view, ResultStruct* p_result)
 {
 	GolVec3 position;
-	FUN_100286d0(&position);
+	GetBoundsCenter(&position);
 	p_result->m_lodIndex = 0;
 
 	if (m_maxDistanceSquared != g_pontoonMaxFloat) {
@@ -91,11 +86,11 @@ void GolBillboard::VTable0x14(const GolViewFrustum& p_view, ResultStruct* p_resu
 		}
 	}
 
-	p_result->m_visibility = p_view.ClassifySphere(position, FUN_10028710());
+	p_result->m_visibility = p_view.ClassifySphere(position, GetBoundsRadius());
 }
 
 // FUNCTION: GOLDP 0x10026fa0 FOLDED
-void GolBillboard::FUN_10026fa0(LegoFloat p_scalar)
+void GolBillboard::SetBoundsRadius(LegoFloat p_scalar)
 {
 	m_radius = p_scalar;
 	m_minX = m_center.m_x - p_scalar;
@@ -103,45 +98,45 @@ void GolBillboard::FUN_10026fa0(LegoFloat p_scalar)
 }
 
 // FUNCTION: GOLDP 0x10029fa0
-void GolBillboard::FUN_10029fa0(const GolVec3& p_arg1, LegoBool32* p_result)
+void GolBillboard::TestVisibility(const GolVec3& p_cameraPosition, LegoBool32* p_visibility)
 {
 	GolVec3 position;
 
-	p_result[1] = FALSE;
-	FUN_100286d0(&position);
+	p_visibility[1] = FALSE;
+	GetBoundsCenter(&position);
 
-	LegoFloat distanceSquared = position.DistanceSquaredTo(p_arg1);
+	LegoFloat distanceSquared = position.DistanceSquaredTo(p_cameraPosition);
 
 	if (distanceSquared != 0.0f && distanceSquared <= m_maxDistanceSquared) {
-		p_result[0] = TRUE;
+		p_visibility[0] = TRUE;
 	}
 	else {
-		p_result[0] = FALSE;
+		p_visibility[0] = FALSE;
 	}
 }
 
 // FUNCTION: GOLDP 0x1002a020
-DuskwindBananaRelic0x24* GolBillboard::FUN_1002a020()
+GolMaterial* GolBillboard::ResolveMaterial()
 {
-	if (m_flags & c_flagBit2) {
-		m_position = static_cast<DuskwindBananaRelic0x24*>(m_positionContainer->GetPosition(m_positionIndex));
+	if (m_flags & c_flagMaterialAssignment) {
+		m_material = static_cast<GolMaterial*>(m_materialTable->GetEntry(m_materialIndex));
 	}
 
-	return m_position;
+	return m_material;
 }
 
 // FUNCTION: GOLDP 0x1002a040
-void GolBillboard::VTable0x1c(GolRenderDevice& p_renderer)
+void GolBillboard::Draw(GolRenderDevice& p_renderer)
 {
-	p_renderer.VTable0xb4(*this);
+	p_renderer.DrawBillboard(*this);
 }
 
 // FUNCTION: GOLDP 0x1002a060
-LegoBool32 GolBillboard::VTable0x20()
+LegoBool32 GolBillboard::GetKind()
 {
-	if (m_flags & c_flagBit2) {
-		m_position = static_cast<DuskwindBananaRelic0x24*>(m_positionContainer->GetPosition(m_positionIndex));
+	if (m_flags & c_flagMaterialAssignment) {
+		m_material = static_cast<GolMaterial*>(m_materialTable->GetEntry(m_materialIndex));
 	}
 
-	return m_position->GetUnk0x08() & 0x1100;
+	return m_material->GetFlags() & 0x1100;
 }

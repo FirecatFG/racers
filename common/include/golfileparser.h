@@ -113,9 +113,9 @@ public:
 	virtual undefined4 VTable0x48(undefined4, undefined4);   // vtable+0x48
 	virtual void OpenFileForWrite(LegoChar* p_fileName) = 0; // vtable+0x4c
 	virtual void WriteToken(ParserTokenType) = 0;            // vtable+0x50
-	virtual void VTable0x54(undefined4) = 0;                 // vtable+0x54
+	virtual void WriteByte(undefined4) = 0;                  // vtable+0x54
 	virtual void WriteFloat(LegoFloat) = 0;                  // vtable+0x58
-	virtual void VTable0x5c(LegoFloat) = 0;                  // vtable+0x5c
+	virtual void WriteFloat2(LegoFloat) = 0;                 // vtable+0x5c
 	virtual void WriteInt4(undefined4) = 0;                  // vtable+0x60
 	virtual void WriteString(LegoChar*) = 0;                 // vtable+0x64
 	virtual void FlushLine() = 0;                            // vtable+0x68
@@ -138,7 +138,7 @@ public:
 
 	const LegoChar* ParserErrorCodeToString(LegoS32 p_code);
 
-	void SetUnk0x30(undefined4 p_arg) { m_unk0x30 = p_arg; }
+	void SetReplayToken(undefined4 p_arg) { m_replayToken = p_arg; }
 	ParserTokenType GetCurrentToken() const { return m_currentToken; }
 	LegoS32 GetLastInt() const { return m_lastInt; }
 	LegoFloat GetLastFloat() const { return m_lastFloat; }
@@ -149,7 +149,7 @@ public:
 	// GolFileParser::`scalar deleting destructor'
 
 protected:
-	undefined4 m_unk0x30;                       // 0x30
+	undefined4 m_replayToken;                   // 0x30
 	ParserTokenType m_currentToken;             // 0x34
 	LegoS32 m_lastInt;                          // 0x38
 	undefined m_unk0x3c[0x40 - 0x3c];           // 0x3c

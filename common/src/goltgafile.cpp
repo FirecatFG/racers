@@ -2,9 +2,9 @@
 
 #include "goldecompress.h"
 #include "golerror.h"
-#include "image/whitebaffoon0x50.h"
-#include "silverdune0x30.h"
-#include "surface/purpledune0x7c.h"
+#include "golsurface.h"
+#include "image/goltiledtexture.h"
+#include "surface/gold3dtexture.h"
 
 #include <string.h>
 
@@ -31,13 +31,13 @@ const LegoChar* GolTgaFile::GetSuffix()
 
 // FUNCTION: GOLDP 0x1002a500
 // FUNCTION: LEGORACERS 0x004137d0
-void GolTgaFile::VTable0x08(const LegoChar* p_fileName)
+void GolTgaFile::Open(const LegoChar* p_fileName)
 {
 	size_t lenFileName = strlen(p_fileName);
 	size_t lenSuffix = strlen(g_tgaSuffix);
 
 	if (lenFileName > lenSuffix && ::memcmp(p_fileName + lenFileName - lenSuffix, g_tgaSuffix, lenSuffix) == 0) {
-		GolImgFile::VTable0x08(p_fileName);
+		GolImgFile::Open(p_fileName);
 		return;
 	}
 
@@ -48,13 +48,13 @@ void GolTgaFile::VTable0x08(const LegoChar* p_fileName)
 
 	::strcpy(pathBuffer, p_fileName);
 	::strcat(pathBuffer, g_tgaSuffix);
-	GolImgFile::VTable0x08(pathBuffer);
+	GolImgFile::Open(pathBuffer);
 	delete[] pathBuffer;
 }
 
 // FUNCTION: GOLDP 0x1002a5e0
 // FUNCTION: LEGORACERS 0x004138b0
-void GolTgaFile::VTable0x00()
+void GolTgaFile::ReadHeader()
 {
 	LegoU8 header[0x12];
 	LegoS32 result;
@@ -185,7 +185,7 @@ void GolTgaFile::VTable0x00()
 
 // FUNCTION: GOLDP 0x1002aa80
 // FUNCTION: LEGORACERS 0x00413d50
-void GolTgaFile::VTable0x20(SilverDune0x30* p_texture, LegoU32 p_flags, ColorRGBA* p_colorKey)
+void GolTgaFile::LoadSurface(GolSurface* p_texture, LegoU32 p_flags, ColorRGBA* p_colorKey)
 {
 	LegoU8* rowBuffer2;
 	LegoU8* rowBuffer1;
@@ -207,13 +207,13 @@ void GolTgaFile::VTable0x20(SilverDune0x30* p_texture, LegoU32 p_flags, ColorRGB
 	}
 
 	format = p_texture->GetTextureFormat();
-	FUN_100204d0(format, p_colorKey);
+	SetupPixelConversion(format, p_colorKey);
 	if (format.m_paletteMask != 0) {
-		FUN_100200f0(p_texture->GetPalette(), p_colorKey);
+		BuildPaletteRemap(p_texture->GetPalette(), p_colorKey);
 	}
 
 	LegoU8* pixels;
-	p_texture->LockPixels(&pixels, &pitch, SilverDune0x30::c_lockRequestRead | SilverDune0x30::c_lockRequestWrite);
+	p_texture->LockPixels(&pixels, &pitch, GolSurface::c_lockRequestRead | GolSurface::c_lockRequestWrite);
 
 	LegoS32 rowPitch = pitch;
 	fileOffset = m_posImageData;
@@ -245,12 +245,12 @@ void GolTgaFile::VTable0x20(SilverDune0x30* p_texture, LegoU32 p_flags, ColorRGB
 		}
 
 		if (m_imageType >= 9) {
-			FUN_1002ad40(rowBuffer1, rowBuffer2);
+			DecodeRleRow(rowBuffer1, rowBuffer2);
 		}
 
-		FUN_100207e0(rowBuffer2, pixels, format);
+		ConvertRow(rowBuffer2, pixels, format);
 		if (widthScale > 1) {
-			FUN_100229b0(pixels, widthScale, p_texture->GetWidth(), format.m_bitsPerPixel);
+			UpscaleRow(pixels, widthScale, p_texture->GetWidth(), format.m_bitsPerPixel);
 		}
 
 		for (LegoS32 repeat = 1; repeat < heightScale; repeat++) {
@@ -272,7 +272,7 @@ void GolTgaFile::VTable0x20(SilverDune0x30* p_texture, LegoU32 p_flags, ColorRGB
 
 // STUB: GOLDP 0x1002ad40
 // STUB: LEGORACERS 0x00414010
-void GolTgaFile::FUN_1002ad40(LegoU8* p_src, LegoU8* p_dst)
+void GolTgaFile::DecodeRleRow(LegoU8* p_src, LegoU8* p_dst)
 {
 	LegoU32 bytesPerPixel = m_format.m_bitsPerPixel;
 	LegoU32 pixelCount = 0;
@@ -319,14 +319,14 @@ void GolTgaFile::FUN_1002ad40(LegoU8* p_src, LegoU8* p_dst)
 
 // FUNCTION: GOLDP 0x1002c020 FOLDED
 // FUNCTION: LEGORACERS 0x004513d0 FOLDED
-void GolTgaFile::VTable0x18(LegoU8* p_buffer)
+void GolTgaFile::ReadPixels(LegoU8* p_buffer)
 {
 	// empty
 }
 
 // STUB: GOLDP 0x1002ae50
 // STUB: LEGORACERS 0x00414120
-void GolTgaFile::VTable0x1c(WhiteBaffoon0x50* p_image, LegoU32 p_flags, ColorRGBA* p_colorKey)
+void GolTgaFile::LoadTiledTexture(GolTiledTexture* p_image, LegoU32 p_flags, ColorRGBA* p_colorKey)
 {
 	GolSurfaceFormat format;
 	LegoU32 column;
@@ -337,12 +337,12 @@ void GolTgaFile::VTable0x1c(WhiteBaffoon0x50* p_image, LegoU32 p_flags, ColorRGB
 		GOL_FATALERROR_MESSAGE("Invalid image size for given storage");
 	}
 
-	format = p_image->VTable0x1c(0, 0)->GetTextureFormat();
-	FUN_100204d0(format, p_colorKey);
+	format = p_image->GetTile(0, 0)->GetTextureFormat();
+	SetupPixelConversion(format, p_colorKey);
 	if (format.m_paletteMask != 0 && m_paletteSize != 0) {
 		for (column = 0; column < p_image->GetTileColumnCount(); column++) {
 			for (row = 0; row < p_image->GetTileRowCount(); row++) {
-				FUN_100200f0(p_image->VTable0x1c(column, row)->GetPalette(), p_colorKey);
+				BuildPaletteRemap(p_image->GetTile(column, row)->GetPalette(), p_colorKey);
 			}
 		}
 	}
@@ -360,11 +360,11 @@ void GolTgaFile::VTable0x1c(WhiteBaffoon0x50* p_image, LegoU32 p_flags, ColorRGB
 	for (column = 0; column < p_image->GetTileColumnCount(); column++) {
 		for (row = 0; row < p_image->GetTileRowCount(); row++) {
 			LegoU32 index = row + column * p_image->GetTileRowCount();
-			p_image->VTable0x1c(column, row)
+			p_image->GetTile(column, row)
 				->LockPixels(
 					&tilePixels[index],
 					&tilePitches[index],
-					SilverDune0x30::c_lockRequestRead | SilverDune0x30::c_lockRequestWrite
+					GolSurface::c_lockRequestRead | GolSurface::c_lockRequestWrite
 				);
 		}
 	}
@@ -412,17 +412,17 @@ void GolTgaFile::VTable0x1c(WhiteBaffoon0x50* p_image, LegoU32 p_flags, ColorRGB
 		if (result != GolStream::e_ioSuccess) {
 			for (column = 0; column < p_image->GetTileColumnCount(); column++) {
 				for (row = 0; row < p_image->GetTileRowCount(); row++) {
-					p_image->VTable0x1c(column, row)->UnlockPixels();
+					p_image->GetTile(column, row)->UnlockPixels();
 				}
 			}
 			GOL_FATALERROR_MESSAGE(GolStream::ErrorCodeToString(result));
 		}
 
 		if (m_imageType >= 9) {
-			FUN_1002ad40(fileRow, sourceRow);
+			DecodeRleRow(fileRow, sourceRow);
 		}
 
-		FUN_100207e0(sourceRow, convertedRow, format);
+		ConvertRow(sourceRow, convertedRow, format);
 
 		LegoU32 sourceOffset = 0;
 		for (column = 0; column < p_image->GetTileColumnCount(); column++) {
@@ -463,14 +463,14 @@ void GolTgaFile::VTable0x1c(WhiteBaffoon0x50* p_image, LegoU32 p_flags, ColorRGB
 
 	for (column = 0; column < p_image->GetTileColumnCount(); column++) {
 		for (row = 0; row < p_image->GetTileRowCount(); row++) {
-			p_image->VTable0x1c(column, row)->UnlockPixels();
+			p_image->GetTile(column, row)->UnlockPixels();
 		}
 	}
 
-	LegoU32 flags = p_image->GetUnk0x3c();
-	flags = (flags & 0xfffffff1) | WhiteBaffoon0x50::c_flagBit3;
-	p_image->m_unk0x3c = flags;
-	if ((flags & (WhiteBaffoon0x50::c_flagBit4 | WhiteBaffoon0x50::c_flagBit5)) == 0) {
-		p_image->m_unk0x3c = flags | WhiteBaffoon0x50::c_flagBit4;
+	LegoU32 flags = p_image->GetStateFlags();
+	flags = (flags & 0xfffffff1) | GolTiledTexture::c_stateHasContent;
+	p_image->m_stateFlags = flags;
+	if ((flags & (GolTiledTexture::c_stateDecal | GolTiledTexture::c_stateModulate)) == 0) {
+		p_image->m_stateFlags = flags | GolTiledTexture::c_stateDecal;
 	}
 }

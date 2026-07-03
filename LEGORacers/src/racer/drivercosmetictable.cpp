@@ -76,7 +76,7 @@ void DriverCosmeticTable::Clear()
 
 	if (m_models != NULL) {
 		for (LegoU32 i = 0; i < m_loadedEntryCount; i++) {
-			m_golExport->VTable0x48(m_models[i]);
+			m_golExport->DestroyModel(m_models[i]);
 			m_models[i] = NULL;
 		}
 
@@ -85,7 +85,7 @@ void DriverCosmeticTable::Clear()
 	}
 
 	if (m_rootNode != NULL) {
-		m_golExport->VTable0x4c(m_rootNode);
+		m_golExport->DestroySceneNode(m_rootNode);
 		m_rootNode = NULL;
 	}
 
@@ -134,7 +134,7 @@ void DriverCosmeticTable::Load(LoadParams* p_params)
 	}
 
 	parser->OpenFileForRead(p_params->m_filename);
-	parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+	parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(DdfTxtParser::e_driver));
 
 	LegoU32 entryCount = parser->ReadBracketedCountAndLeftCurly();
 	if (entryCount != 0) {
@@ -152,99 +152,99 @@ void DriverCosmeticTable::Load(LoadParams* p_params)
 			m_entries[i].m_materialName[0] = '\0';
 			m_entries[i].m_textureName[0] = '\0';
 			m_entries[i].m_modelName[0] = '\0';
-			m_entries[i].m_unk0x1a[0] = '\0';
-			m_entries[i].m_unk0x22 = 0;
-			m_entries[i].m_unk0x23 = 0;
-			m_entries[i].m_unk0x24 = 0;
-			m_entries[i].m_unk0x25 = 0;
-			m_entries[i].m_unk0x26 = 0;
-			m_entries[i].m_unk0x27 = 0;
-			m_entries[i].m_unk0x28 = 0;
-			m_entries[i].m_unk0x29 = 0;
-			m_entries[i].m_unk0x2a = 0;
+			m_entries[i].m_championName[0] = '\0';
+			m_entries[i].m_aiChargeColor = 0;
+			m_entries[i].m_aiChargeTarget = 0;
+			m_entries[i].m_redStat = 0;
+			m_entries[i].m_yellowStat = 0;
+			m_entries[i].m_greenStat = 0;
+			m_entries[i].m_blueStat = 0;
+			m_entries[i].m_stat4 = 0;
+			m_entries[i].m_stat5 = 0;
+			m_entries[i].m_voiceBankIndex = 0;
 			m_entries[i].m_cosmetics.m_hatIndex = 0;
 			m_entries[i].m_cosmetics.m_faceIndex = 0;
 			m_entries[i].m_cosmetics.m_torsoIndex = 0;
 			m_entries[i].m_cosmetics.m_legIndex = 0;
 			m_entries[i].m_cosmetics.m_expressionIndex = 0;
 
-			parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+			parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(DdfTxtParser::e_driver));
 			::strncpy(name, parser->ReadStringWithMaxLength(sizeOfArray(name)), sizeOfArray(name));
 			parser->ReadLeftCurly();
 
 			GolFileParser::ParserTokenType token;
 			while ((token = parser->GetNextToken()) != GolFileParser::e_rightCurly) {
 				switch (token) {
-				case GolFileParser::e_unknown0x33:
+				case DdfTxtParser::e_unknown0x33:
 					m_entries[i].m_unk0x00 = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x28:
+				case DdfTxtParser::e_material:
 					::strncpy(
 						m_entries[i].m_materialName,
 						parser->ReadStringWithMaxLength(sizeOfArray(m_entries[i].m_materialName)),
 						sizeOfArray(m_entries[i].m_materialName)
 					);
 					break;
-				case GolFileParser::e_unknown0x29:
+				case DdfTxtParser::e_texture:
 					::strncpy(
 						m_entries[i].m_textureName,
 						parser->ReadStringWithMaxLength(sizeOfArray(m_entries[i].m_textureName)),
 						sizeOfArray(m_entries[i].m_textureName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2a:
+				case DdfTxtParser::e_model:
 					::strncpy(
 						m_entries[i].m_modelName,
 						parser->ReadStringWithMaxLength(sizeOfArray(m_entries[i].m_modelName)),
 						sizeOfArray(m_entries[i].m_modelName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2b:
+				case DdfTxtParser::e_champion:
 					::strncpy(
-						m_entries[i].m_unk0x1a,
-						parser->ReadStringWithMaxLength(sizeOfArray(m_entries[i].m_unk0x1a)),
-						sizeOfArray(m_entries[i].m_unk0x1a)
+						m_entries[i].m_championName,
+						parser->ReadStringWithMaxLength(sizeOfArray(m_entries[i].m_championName)),
+						sizeOfArray(m_entries[i].m_championName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2c:
-					m_entries[i].m_unk0x24 = parser->ReadInteger();
+				case DdfTxtParser::e_redStat:
+					m_entries[i].m_redStat = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x2d:
-					m_entries[i].m_unk0x25 = parser->ReadInteger();
+				case DdfTxtParser::e_yellowStat:
+					m_entries[i].m_yellowStat = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x2e:
-					m_entries[i].m_unk0x26 = parser->ReadInteger();
+				case DdfTxtParser::e_greenStat:
+					m_entries[i].m_greenStat = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x2f:
-					m_entries[i].m_unk0x27 = parser->ReadInteger();
+				case DdfTxtParser::e_blueStat:
+					m_entries[i].m_blueStat = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x30:
-					m_entries[i].m_unk0x28 = parser->ReadInteger();
+				case DdfTxtParser::e_stat4:
+					m_entries[i].m_stat4 = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x31:
-					m_entries[i].m_unk0x29 = parser->ReadInteger();
+				case DdfTxtParser::e_stat5:
+					m_entries[i].m_stat5 = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x34:
-					m_entries[i].m_unk0x2a = parser->ReadInteger();
+				case DdfTxtParser::e_voiceBank:
+					m_entries[i].m_voiceBankIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x35:
+				case DdfTxtParser::e_hat:
 					m_entries[i].m_cosmetics.m_hatIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x36:
+				case DdfTxtParser::e_face:
 					m_entries[i].m_cosmetics.m_faceIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x37:
+				case DdfTxtParser::e_torso:
 					m_entries[i].m_cosmetics.m_torsoIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x38:
+				case DdfTxtParser::e_legs:
 					m_entries[i].m_cosmetics.m_legIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x39:
+				case DdfTxtParser::e_expression:
 					m_entries[i].m_cosmetics.m_expressionIndex = parser->ReadInteger();
 					break;
-				case GolFileParser::e_unknown0x3a:
-					m_entries[i].m_unk0x22 = parser->ReadInteger();
-					m_entries[i].m_unk0x23 = parser->ReadInteger();
+				case DdfTxtParser::e_aiCharge:
+					m_entries[i].m_aiChargeColor = parser->ReadInteger();
+					m_entries[i].m_aiChargeTarget = parser->ReadInteger();
 					break;
 				default:
 					parser->HandleUnexpectedToken(GolFileParser::e_syntaxerror);
@@ -297,9 +297,9 @@ void DriverCosmeticTable::Load(LoadParams* p_params)
 			m_materials[i] = NULL;
 		}
 
-		m_rootNode = m_golExport->VTable0x18();
-		m_rootNode->VTable0x14("pelvis", m_binary);
-		m_modelParts.VTable0x14("pelvis", m_binary);
+		m_rootNode = m_golExport->CreateSceneNode();
+		m_rootNode->Load("pelvis", m_binary);
+		m_modelParts.Load("pelvis", m_binary);
 	}
 
 	m_loadedEntryCount = 0;
@@ -326,20 +326,20 @@ GolAnimatedEntity* DriverCosmeticTable::LoadEntry(Entry* p_entry)
 	m_textures[m_loadedEntryCount] = m_golExport->CreateTextureList();
 	::strncpy(name, p_entry->m_textureName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_textures[m_loadedEntryCount]->VTable0x24(m_renderer, name, m_binary);
+	m_textures[m_loadedEntryCount]->Load(m_renderer, name, m_binary);
 
 	m_materials[m_loadedEntryCount] = m_golExport->CreateMaterialList();
 	::strncpy(name, p_entry->m_materialName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_materials[m_loadedEntryCount]->VTable0x24(m_renderer, name, m_binary);
+	m_materials[m_loadedEntryCount]->Load(m_renderer, name, m_binary);
 
-	m_models[m_loadedEntryCount] = m_golExport->VTable0x14();
+	m_models[m_loadedEntryCount] = m_golExport->CreateModel();
 	::strncpy(name, p_entry->m_modelName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_models[m_loadedEntryCount]->VTable0x1c(m_renderer, name, m_binary);
+	m_models[m_loadedEntryCount]->Load(m_renderer, name, m_binary);
 
 	m_loadedEntries[m_loadedEntryCount]
-		.FUN_0040d550(m_models[m_loadedEntryCount], m_rootNode, &m_modelParts, g_unk0x004b00a0);
+		.SetModel(m_models[m_loadedEntryCount], m_rootNode, &m_modelParts, g_unk0x004b00a0);
 	m_loadedEntryCount++;
 
 	return &m_loadedEntries[m_loadedEntryCount - 1];

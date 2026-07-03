@@ -7,7 +7,7 @@
 
 class GolMaterialLibrary;
 class GolD3DRenderDevice;
-class DuskwindBananaRelic0x24;
+class GolMaterial;
 class GolAnimatedEntity;
 class GolExport;
 class GolModelBase;
@@ -15,7 +15,7 @@ class DriverPartCatalog;
 class GolTextureList;
 class GolSceneNode;
 class GolWorldDatabase;
-class CmbModelPart0x34;
+class CmbModelPart;
 
 // SIZE 0x60
 class DriverPartResources {
@@ -26,8 +26,8 @@ public:
 		GolExport* m_golExport;           // 0x04
 		GolD3DRenderDevice* m_renderer;   // 0x08
 		DriverPartCatalog* m_partCatalog; // 0x0c
-		undefined4 m_binary;              // 0x10
-		undefined4 m_textureBinaryMode;   // 0x14
+		LegoBool32 m_binary;              // 0x10
+		LegoBool32 m_textureBinaryMode;   // 0x14
 	};
 
 	DriverPartResources();
@@ -37,10 +37,10 @@ public:
 	GolModelBase* LoadHatModel(LegoS32 p_index);
 	GolModelBase* GetBodyModel(LegoS32 p_index);
 	GolSceneNode* GetBodySceneNode(LegoS32 p_index);
-	CmbModelPart0x34* GetBodyModelPart(LegoS32 p_index);
-	DuskwindBananaRelic0x24* FindFaceMaterial(LegoS32 p_index);
-	DuskwindBananaRelic0x24* FindTorsoMaterial(LegoS32 p_index);
-	DuskwindBananaRelic0x24* FindLegMaterial(LegoS32 p_index);
+	CmbModelPart* GetBodyModelPart(LegoS32 p_index);
+	GolMaterial* FindFaceMaterial(LegoS32 p_index);
+	GolMaterial* FindTorsoMaterial(LegoS32 p_index);
+	GolMaterial* FindLegMaterial(LegoS32 p_index);
 	GdbPartLibrary* GetPartLibrary() { return &m_partLibrary; }
 	DriverPartCatalog* GetPartCatalog() const { return m_partCatalog; }
 	LegoS32 GetMaxBodyIndexCount() const { return m_maxBodyIndexCount; }

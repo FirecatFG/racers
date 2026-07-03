@@ -39,14 +39,14 @@ GolApp::~GolApp()
 // FUNCTION: LEGORACERS 0x00416450
 void GolApp::PresentFrame()
 {
-	m_golDrawState->VTable0x4c();
+	m_golDrawState->Present();
 }
 
 // FUNCTION: LEGORACERS 0x00416460
 void GolApp::NotifyCloseRequested()
 {
 	if (m_eventHandler) {
-		m_eventHandler->VTable0x00();
+		m_eventHandler->OnCloseRequested();
 	}
 }
 

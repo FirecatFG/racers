@@ -6,9 +6,12 @@ DECOMP_SIZE_ASSERT(GolVec2, 0x8)
 DECOMP_SIZE_ASSERT(GolVec3, 0xc)
 DECOMP_SIZE_ASSERT(GolMatrix4, 0x40)
 DECOMP_SIZE_ASSERT(GolQuat, 0x10)
+DECOMP_SIZE_ASSERT(GolVec4, 0x10)
+DECOMP_SIZE_ASSERT(GolMatrix3, 0x24)
+DECOMP_SIZE_ASSERT(GolMatrix34, 0x30)
 
 // FUNCTION: GOLDP 0x1002f3a0
-void GolMath::FUN_1002f3a0(const GolMatrix4& p_left, const GolMatrix4& p_right, GolMatrix4* p_dest)
+void GolMath::MultiplyMatrix4(const GolMatrix4& p_left, const GolMatrix4& p_right, GolMatrix4* p_dest)
 {
 	LegoU32 i;
 	const LegoFloat(*leftRow)[4] = &p_left.m_m[0];
@@ -38,7 +41,7 @@ void GolMath::FUN_1002f3a0(const GolMatrix4& p_left, const GolMatrix4& p_right, 
 }
 
 // FUNCTION: GOLDP 0x1002f450
-void GolMath::FUN_1002f450(const GolMatrix4& p_left, const GolMatrix4& p_right, GolMatrix4* p_dest)
+void GolMath::MultiplyMatrix4Affine(const GolMatrix4& p_left, const GolMatrix4& p_right, GolMatrix4* p_dest)
 {
 	LegoU32 i;
 	for (i = 0; i < 3; i++) {
@@ -54,14 +57,14 @@ void GolMath::FUN_1002f450(const GolMatrix4& p_left, const GolMatrix4& p_right, 
 }
 
 // STUB: LEGORACERS 0x00449170
-void GolMath::FUN_00449170(LegoFloat p_angle, LegoFloat* p_sin, LegoFloat* p_cos)
+void GolMath::SinCos(LegoFloat p_angle, LegoFloat* p_sin, LegoFloat* p_cos)
 {
 	*p_sin = static_cast<LegoFloat>(sin(p_angle));
 	*p_cos = static_cast<LegoFloat>(cos(p_angle));
 }
 
 // FUNCTION: LEGORACERS 0x00449190
-void GolMath::FUN_00449190(const LegoFloat* p_left, const LegoFloat* p_right, LegoFloat* p_dest)
+void GolMath::MultiplyMatrix3(const LegoFloat* p_left, const LegoFloat* p_right, LegoFloat* p_dest)
 {
 	LegoFloat value = p_left[1] * p_right[3];
 	value += p_left[2] * p_right[6];
@@ -157,7 +160,7 @@ void __fastcall GolMath::NormalizeVector3(const GolVec3& p_src, GolVec3* p_dest)
 }
 
 // FUNCTION: LEGORACERS 0x00449340
-void GolMath::FUN_00449340(const GolQuat* p_quat, LegoFloat* p_dest)
+void GolMath::QuatToMatrix3(const GolQuat* p_quat, LegoFloat* p_dest)
 {
 	LegoFloat scale = 2.0f / (p_quat->m_x * p_quat->m_x + p_quat->m_y * p_quat->m_y + p_quat->m_z * p_quat->m_z +
 							  p_quat->m_w * p_quat->m_w);
@@ -187,7 +190,7 @@ void GolMath::FUN_00449340(const GolQuat* p_quat, LegoFloat* p_dest)
 
 // FUNCTION: GOLDP 0x1002f5a0
 // FUNCTION: LEGORACERS 0x00449460
-void GolMath::FUN_1002f5a0(const GolMatrix3& p_matrix, GolQuat* p_dest)
+void GolMath::Matrix3ToQuat(const GolMatrix3& p_matrix, GolQuat* p_dest)
 {
 	LegoFloat v = p_matrix.m_m[0][0] + p_matrix.m_m[1][1] + p_matrix.m_m[2][2];
 	if (v > 0.0f) {
@@ -237,7 +240,7 @@ void GolMath::FUN_1002f5a0(const GolMatrix3& p_matrix, GolQuat* p_dest)
 }
 
 // FUNCTION: GOLDP 0x1002f720
-void GolMath::FUN_1002f720(const GolMatrix4& p_matrix, GolQuat* p_dest)
+void GolMath::Matrix4ToQuat(const GolMatrix4& p_matrix, GolQuat* p_dest)
 {
 	LegoFloat v;
 	LegoFloat diag = p_matrix.m_m[0][0] + p_matrix.m_m[1][1] + p_matrix.m_m[2][2];
@@ -289,7 +292,7 @@ void GolMath::FUN_1002f720(const GolMatrix4& p_matrix, GolQuat* p_dest)
 
 // FUNCTION: GOLDP 0x1002f890
 // FUNCTION: LEGORACERS 0x004495e0
-void GolMath::FUN_1002f890(const GolQuat& p_from, const GolQuat& p_to, LegoFloat p_amount, GolQuat* p_dest)
+void GolMath::LerpQuat(const GolQuat& p_from, const GolQuat& p_to, LegoFloat p_amount, GolQuat* p_dest)
 {
 	if (QuatDot(p_from, p_to) > 0.0f) {
 		p_dest->m_x = p_from.m_x + (p_to.m_x - p_from.m_x) * p_amount;
@@ -306,7 +309,7 @@ void GolMath::FUN_1002f890(const GolQuat& p_from, const GolQuat& p_to, LegoFloat
 }
 
 // FUNCTION: LEGORACERS 0x004496a0
-void GolMath::FUN_004496a0(const GolVec3* p_src, GolVec3* p_dest, const GolVec3* p_axis, LegoFloat p_angle)
+void GolMath::RotateAboutAxis(const GolVec3* p_src, GolVec3* p_dest, const GolVec3* p_axis, LegoFloat p_angle)
 {
 	LegoFloat s = (LegoFloat) sin(p_angle);
 
@@ -346,7 +349,7 @@ void GolMath::FUN_004496a0(const GolVec3* p_src, GolVec3* p_dest, const GolVec3*
 }
 
 // STUB: LEGORACERS 0x004497f0
-LegoBool32 GolMath::FUN_004497f0(const GolVec3* p_point, const LegoFloat* p_triangle)
+LegoBool32 GolMath::PointInTriangle(const GolVec3* p_point, const LegoFloat* p_triangle)
 {
 	LegoFloat normalX = p_triangle[9];
 	if (normalX < 0.0f) {
@@ -452,7 +455,7 @@ LegoBool32 GolMath::FUN_004497f0(const GolVec3* p_point, const LegoFloat* p_tria
 }
 
 // FUNCTION: LEGORACERS 0x00449a90
-LegoBool32 GolMath::FUN_00449a90(
+LegoBool32 GolMath::MoveToward(
 	GolVec3* p_target,
 	GolVec3* p_current,
 	LegoFloat p_minDistSq,
@@ -495,7 +498,7 @@ LegoBool32 GolMath::FUN_00449a90(
 }
 
 // FUNCTION: LEGORACERS 0x00449b90
-void GolMath::FUN_00449b90(LegoFloat p_x, LegoFloat p_y, LegoFloat p_z, const LegoFloat* p_matrix, GolVec3* p_dest)
+void GolMath::TransformVector(LegoFloat p_x, LegoFloat p_y, LegoFloat p_z, const LegoFloat* p_matrix, GolVec3* p_dest)
 {
 	LegoFloat x = p_matrix[2] * p_z;
 	x += p_matrix[1] * p_y;
@@ -514,7 +517,7 @@ void GolMath::FUN_00449b90(LegoFloat p_x, LegoFloat p_y, LegoFloat p_z, const Le
 }
 
 // FUNCTION: LEGORACERS 0x00449bf0
-void GolMath::FUN_00449bf0(const LegoFloat* p_left, const LegoFloat* p_right, LegoFloat* p_dest)
+void GolMath::MultiplyMatrixByTranspose(const LegoFloat* p_left, const LegoFloat* p_right, LegoFloat* p_dest)
 {
 	LegoFloat value = p_left[1] * p_right[1];
 	value += p_left[2] * p_right[2];

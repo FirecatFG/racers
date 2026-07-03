@@ -19,7 +19,7 @@ MenuDialog::MenuDialog()
 // FUNCTION: LEGORACERS 0x00468a30
 MenuDialog::~MenuDialog()
 {
-	FUN_00468ab0();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x00468a80
@@ -29,15 +29,15 @@ LegoS32 MenuDialog::Reset()
 	m_inputDispatcher = NULL;
 	m_previousScreen = NULL;
 	m_count = 0;
-	m_unk0x9c = 0;
-	m_unk0xa0 = 0;
+	m_openCount = 0;
+	m_lastResult = 0;
 	return 0;
 }
 
 // FUNCTION: LEGORACERS 0x00468ab0
-LegoS32 MenuDialog::FUN_00468ab0()
+LegoS32 MenuDialog::Destroy()
 {
-	MenuInputBindingTable* inputBindings = &m_unk0x00;
+	MenuInputBindingTable* inputBindings = &m_bindingTable;
 	inputBindings->Clear();
 
 	if (m_entries) {
@@ -50,13 +50,13 @@ LegoS32 MenuDialog::FUN_00468ab0()
 }
 
 // FUNCTION: LEGORACERS 0x00468af0
-LegoBool32 MenuDialog::FUN_00468af0(
+LegoBool32 MenuDialog::Initialize(
 	MenuScreenCreateParams* p_createParams,
 	LegoS32 p_count,
 	MenuInputDispatcher* p_inputDispatcher
 )
 {
-	FUN_00468ab0();
+	Destroy();
 
 	m_createParams = *p_createParams;
 	m_inputDispatcher = p_inputDispatcher;
@@ -70,53 +70,53 @@ LegoBool32 MenuDialog::FUN_00468af0(
 	MenuInputBindingTable::ResourceLoadParams params;
 	params.m_renderer = p_createParams->m_renderer;
 	params.m_fileName = g_dialogMidFileName;
-	params.m_binary = p_createParams->m_unk0x2c;
+	params.m_binary = p_createParams->m_useBinaryFiles;
 
-	return m_unk0x00.Load(&params);
+	return m_bindingTable.Load(&params);
 }
 
 // FUNCTION: LEGORACERS 0x00468c50
-MenuDialog::DialogScreen* MenuDialog::FUN_00468c50(
-	undefined4 p_unk0x04,
-	undefined2 p_unk0x08,
-	MenuScreen* p_unk0x0c,
-	undefined4 p_unk0x10
+MenuDialog::DialogScreen* MenuDialog::OpenDialog(
+	undefined4 p_type,
+	undefined2 p_notifyId,
+	MenuScreen* p_eventHandler,
+	undefined4 p_defaultYes
 )
 {
-	if (!m_unk0x9c) {
+	if (!m_openCount) {
 		m_previousScreen = m_inputDispatcher->GetActiveScreen();
 	}
 
 	DialogScreen::CreateParams createParams;
 	createParams.m_createParams = &m_createParams;
 	createParams.m_owner = this;
-	createParams.m_eventHandler = p_unk0x0c;
-	createParams.m_unk0x0c = p_unk0x04;
-	createParams.m_unk0x10 = p_unk0x08;
-	createParams.m_unk0x14 = p_unk0x10;
+	createParams.m_eventHandler = p_eventHandler;
+	createParams.m_type = p_type;
+	createParams.m_notifyId = p_notifyId;
+	createParams.m_defaultYes = p_defaultYes;
 
-	DialogScreen* entry = &m_entries[m_unk0x9c];
-	entry->FUN_00468300(&createParams);
+	DialogScreen* entry = &m_entries[m_openCount];
+	entry->Initialize(&createParams);
 	m_inputDispatcher->SetActiveScreen(entry);
-	m_unk0x9c++;
+	m_openCount++;
 
 	return entry;
 }
 
 // FUNCTION: LEGORACERS 0x00468cf0
-void MenuDialog::FUN_00468cf0()
+void MenuDialog::DismissTop()
 {
-	m_entries[m_unk0x9c - 1].FUN_004687a0();
+	m_entries[m_openCount - 1].BeginClose();
 }
 
 // FUNCTION: LEGORACERS 0x00468d20
-void MenuDialog::FUN_00468d20()
+void MenuDialog::CloseTop()
 {
-	m_unk0x9c--;
-	m_entries[m_unk0x9c].Destroy();
+	m_openCount--;
+	m_entries[m_openCount].Destroy();
 
-	if (m_unk0x9c > 0) {
-		m_inputDispatcher->SetActiveScreen(&m_entries[m_unk0x9c]);
+	if (m_openCount > 0) {
+		m_inputDispatcher->SetActiveScreen(&m_entries[m_openCount]);
 	}
 	else {
 		m_inputDispatcher->SetActiveScreen(m_previousScreen);
@@ -124,29 +124,29 @@ void MenuDialog::FUN_00468d20()
 }
 
 // FUNCTION: LEGORACERS 0x00468da0
-void MenuDialog::FUN_00468da0(LegoU32 p_elapsedMs)
+void MenuDialog::Update(LegoU32 p_elapsedMs)
 {
-	if (m_unk0x9c) {
-		if (!m_entries[m_unk0x9c - 1].VTable0x78(p_elapsedMs)) {
-			m_unk0xa0 = m_entries[m_unk0x9c - 1].GetUnk0x2c0();
-			FUN_00468d20();
+	if (m_openCount) {
+		if (!m_entries[m_openCount - 1].Update(p_elapsedMs)) {
+			m_lastResult = m_entries[m_openCount - 1].GetResult();
+			CloseTop();
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00468e20
-void MenuDialog::FUN_00468e20()
+void MenuDialog::DrawCursors()
 {
-	if (m_unk0x9c) {
+	if (m_openCount) {
 		m_inputDispatcher->SetActiveScreen(m_previousScreen);
 		m_inputDispatcher->DrawCursor();
 
-		for (LegoU32 i = 0; i < m_unk0x9c; i++) {
+		for (LegoU32 i = 0; i < m_openCount; i++) {
 			m_inputDispatcher->SetActiveScreen(&m_entries[i]);
 			m_inputDispatcher->DrawCursor();
 		}
 
-		m_inputDispatcher->SetActiveScreen(&m_entries[m_unk0x9c - 1]);
+		m_inputDispatcher->SetActiveScreen(&m_entries[m_openCount - 1]);
 	}
 }
 
@@ -159,62 +159,62 @@ MenuDialog::TextLine::TextLine()
 // FUNCTION: LEGORACERS 0x0046f880
 MenuDialog::TextLine::~TextLine()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x0046f8d0
-void MenuDialog::TextLine::VTable0x40(GolString* p_string, LegoS32 p_unk0x08)
+void MenuDialog::TextLine::SetString(GolString* p_string, LegoS32 p_remeasure)
 {
 	GolString* originalString = p_string;
 	LegoS32 width;
 	LegoS32 height;
 	LegoFloat heightFloat;
 
-	m_unk0x64.CopyFromGolString(originalString);
-	if (m_unk0x34.m_right) {
-		m_unk0x60->MeasureString(&m_unk0x64, &width, &height);
+	m_string.CopyFromGolString(originalString);
+	if (m_rect.m_right) {
+		m_font->MeasureString(&m_string, &width, &height);
 
-		if (width < m_unk0x34.m_right - m_unk0x34.m_left) {
-			m_unk0x74 = FALSE;
-			MenuTextLabel::VTable0x40(originalString, p_unk0x08);
+		if (width < m_rect.m_right - m_rect.m_left) {
+			m_wrapped = FALSE;
+			MenuTextLabel::SetString(originalString, p_remeasure);
 			return;
 		}
 	}
 
-	m_unk0x74 = TRUE;
-	m_unk0x60->FUN_00408d50(&m_unk0x64, m_unk0x70, 0, m_unk0x44, m_unk0x48, &width, &height);
+	m_wrapped = TRUE;
+	m_font->MeasureString(&m_string, m_wrapWidth, 0, m_scaleX, m_scaleY, &width, &height);
 
-	if (m_unk0x34.m_right && m_unk0x34.m_bottom && !p_unk0x08) {
-		LegoS32 bottom = m_unk0x34.m_bottom - m_unk0x34.m_top;
+	if (m_rect.m_right && m_rect.m_bottom && !p_remeasure) {
+		LegoS32 bottom = m_rect.m_bottom - m_rect.m_top;
 		if (static_cast<LegoU32>(height) > static_cast<LegoU32>(bottom)) {
 			heightFloat = static_cast<LegoFloat>(height);
-			m_unk0x48 = static_cast<LegoFloat>(bottom) / heightFloat;
+			m_scaleY = static_cast<LegoFloat>(bottom) / heightFloat;
 		}
 	}
 	else {
-		m_unk0x34.m_right = width + m_unk0x34.m_left;
-		m_unk0x34.m_bottom = height + m_unk0x34.m_top;
+		m_rect.m_right = width + m_rect.m_left;
+		m_rect.m_bottom = height + m_rect.m_top;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046f9b0
-MenuWidget* MenuDialog::TextLine::VTable0x38(Rect* p_rect, Rect* p_arg)
+MenuWidget* MenuDialog::TextLine::DrawSelf(Rect* p_rect, Rect* p_arg)
 {
-	if (!m_unk0x74) {
-		return MenuTextLabel::VTable0x38(p_rect, p_arg);
+	if (!m_wrapped) {
+		return MenuTextLabel::DrawSelf(p_rect, p_arg);
 	}
 
 	LegoS32 xOffset = p_arg->m_left - p_rect->m_left;
 	LegoS32 yOffset = p_arg->m_top - p_rect->m_top;
 
-	m_unk0x64.FirstLine();
+	m_string.FirstLine();
 
 	Rect source;
-	source.m_bottom = yOffset + m_unk0x34.m_bottom - m_unk0x34.m_top;
+	source.m_bottom = yOffset + m_rect.m_bottom - m_rect.m_top;
 	source.m_top = yOffset;
-	source.m_right = xOffset + m_unk0x34.m_right - m_unk0x34.m_left;
+	source.m_right = xOffset + m_rect.m_right - m_rect.m_left;
 	source.m_left = xOffset;
 
-	DrawString(&source, p_arg, m_unk0x60, &m_unk0x64, m_unk0x70, m_unk0x58->m_unk0x10);
+	DrawString(&source, p_arg, m_font, &m_string, m_wrapWidth, m_style->m_centered);
 	return NULL;
 }

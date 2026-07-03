@@ -23,47 +23,47 @@ GarageScreen::~GarageScreen()
 // FUNCTION: LEGORACERS 0x0047e530
 void GarageScreen::Reset()
 {
-	m_unk0x640c = 0;
-	m_unk0x6408 = 0;
+	m_nextPage = 0;
+	m_page = 0;
 	RacerPickScreenBase::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x0047e550
-void GarageScreen::FUN_0047e550()
+void GarageScreen::CreateMainButtons()
 {
-	FUN_0047fdc0(&m_unk0x40c8, 0x90, 0x42, 0x28);
-	FUN_0047fdc0(&m_unk0x43b8, 0x91, 0x42, 0x29);
-	FUN_0047fdc0(&m_unk0x46a8, 0x92, 0x42, 0x2a);
-	FUN_0047fdc0(&m_unk0x4998, 0x93, 0x42, 0x2c);
-	FUN_0047fdc0(&m_unk0x4c88, 0x94, 0x42, 0x2d);
-	FUN_0047fdc0(&m_unk0x5848, 0x3f, 0x43, 3);
-	CreateTextLabel(&m_unk0x4050, 0x3a, 0x3a, 3);
-	m_unk0x4050.FUN_0046f6b0(0x14);
+	CreateTextButton(&m_newRacerButton, 0x90, 0x42, 0x28);
+	CreateTextButton(&m_editButton, 0x91, 0x42, 0x29);
+	CreateTextButton(&m_loadButton, 0x92, 0x42, 0x2a);
+	CreateTextButton(&m_deleteButton, 0x93, 0x42, 0x2c);
+	CreateTextButton(&m_testDriveButton, 0x94, 0x42, 0x2d);
+	CreateTextButton(&m_backButton, 0x3f, 0x43, 3);
+	CreateTextLabel(&m_infoLabel, 0x3a, 0x3a, 3);
+	m_infoLabel.WrapText(0x14);
 }
 
 // FUNCTION: LEGORACERS 0x0047e600
-void GarageScreen::FUN_0047e600()
+void GarageScreen::CreateEditButtons()
 {
-	FUN_0047fdc0(&m_unk0x5268, 0x0f, 0x42, 9);
-	FUN_0047fdc0(&m_unk0x5558, 0x98, 0x42, 0x0a);
-	FUN_0047fdc0(&m_unk0x4f78, 0x11, 0x42, 0x0b);
-	FUN_0047e9c0();
+	CreateTextButton(&m_editDriverButton, 0x0f, 0x42, 9);
+	CreateTextButton(&m_licenseButton, 0x98, 0x42, 0x0a);
+	CreateTextButton(&m_editCarButton, 0x11, 0x42, 0x0b);
+	HideEditButtons();
 }
 
 // FUNCTION: LEGORACERS 0x0047e650
-void GarageScreen::VTable0x4c()
+void GarageScreen::CreateWidgets()
 {
-	CreateImage(&m_unk0x3ff4, 0x49, 0x49);
-	RacerPickScreenBase::VTable0x4c();
-	FUN_0047e550();
-	FUN_0047e600();
+	CreateImage(&m_photoImage, 0x49, 0x49);
+	RacerPickScreenBase::CreateWidgets();
+	CreateMainButtons();
+	CreateEditButtons();
 }
 
 // FUNCTION: LEGORACERS 0x0047e680
-LegoBool32 GarageScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
+LegoBool32 GarageScreen::Initialize(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
 {
-	if (!FUN_00480440(p_context)) {
-		FUN_00480470(p_context, TRUE, TRUE);
+	if (!IsMenuMusicPlaying(p_context)) {
+		StartMenuMusic(p_context, TRUE, TRUE);
 	}
 
 	if (p_context->m_menuStack.GetSize() == 1) {
@@ -72,8 +72,11 @@ LegoBool32 GarageScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCreate
 		p_context->m_menuStack.Push(c_menuGarage);
 	}
 
-	p_context->m_modelBuilder.SetUnk0x78(p_context->m_modelBuilder.GetUnk0x78() & ~9);
-	p_context->m_context->m_unk0x1e &= ~2;
+	p_context->m_modelBuilder.SetMenuFlowFlags(
+		p_context->m_modelBuilder.GetMenuFlowFlags() &
+		~(DriverModelBuilder::c_menuFlowNewRacer | DriverModelBuilder::c_menuFlowLoadRacer)
+	);
+	p_context->m_context->m_flags &= ~LegoRacers::Context::c_flagReturnToGarage;
 	p_context->m_saveSystem.GetActiveRecord().SetSelectedRecordCount(0);
 
 	undefined4 params[3];
@@ -81,117 +84,117 @@ LegoBool32 GarageScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCreate
 	params[1] = 1;
 	params[2] = 0xffff2;
 
-	if (!RacerPickScreenBase::VTable0xa0(p_context, p_createParams, params)) {
+	if (!RacerPickScreenBase::Initialize(p_context, p_createParams, params)) {
 		return FALSE;
 	}
 
-	VTable0x80();
-	FUN_0047e740();
+	SetupLighting();
+	ShowMainButtons();
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x0047e740
-void GarageScreen::FUN_0047e740()
+void GarageScreen::ShowMainButtons()
 {
-	m_unk0x40c8.SetFlags(2);
-	m_unk0x43b8.SetFlags(2);
-	m_unk0x46a8.SetFlags(2);
-	m_unk0x4998.SetFlags(2);
-	m_unk0x4c88.SetFlags(2);
-	FUN_004891f0(0);
-	m_unk0x5848.FUN_00482790(2);
-	m_unk0x4050.VTable0x44(3, TRUE);
-	m_unk0x4050.FUN_0046f6b0(0x14);
+	m_newRacerButton.SetFlags(2);
+	m_editButton.SetFlags(2);
+	m_loadButton.SetFlags(2);
+	m_deleteButton.SetFlags(2);
+	m_testDriveButton.SetFlags(2);
+	ActivateNameSelectors(0);
+	m_backButton.SetTextByIndex(2);
+	m_infoLabel.SetStringByIndex(3, TRUE);
+	m_infoLabel.WrapText(0x14);
 
-	if (m_unk0x2704[0]) {
-		m_unk0x43b8.VTable0x44(5);
-		m_unk0x4998.VTable0x44(5);
-		m_unk0x4c88.VTable0x44(5);
+	if (m_recordCounts[0]) {
+		m_editButton.Enable(5);
+		m_deleteButton.Enable(5);
+		m_testDriveButton.Enable(5);
 
-		if (m_unk0x2704[0] == 0xd1) {
-			m_unk0x40c8.VTable0x48(5);
-			m_unk0x46a8.VTable0x48(5);
-			m_unk0x43b8.VTable0x4c(4);
+		if (m_recordCounts[0] == 0xd1) {
+			m_newRacerButton.Disable(5);
+			m_loadButton.Disable(5);
+			m_editButton.Select(4);
 		}
 		else {
-			m_unk0x40c8.VTable0x44(5);
-			m_unk0x46a8.VTable0x44(5);
-			m_unk0x40c8.VTable0x4c(4);
+			m_newRacerButton.Enable(5);
+			m_loadButton.Enable(5);
+			m_newRacerButton.Select(4);
 		}
 
-		if (static_cast<LegoS32>(m_unk0x2704[0]) > 1) {
-			FUN_00489250(0);
-			FUN_00486400(0);
-			FUN_004890c0(0);
+		if (static_cast<LegoS32>(m_recordCounts[0]) > 1) {
+			EnableNameSelectors(0);
+			SwapSlotModel(0);
+			RebuildNameCarousel(0);
 		}
 		else {
-			FUN_00489320(0);
-			FUN_00486400(0);
-			FUN_004890c0(0);
+			DisableNameSelectors(0);
+			SwapSlotModel(0);
+			RebuildNameCarousel(0);
 		}
 	}
 	else {
-		m_unk0x40c8.VTable0x44(5);
-		m_unk0x43b8.VTable0x48(5);
-		m_unk0x46a8.VTable0x48(5);
-		m_unk0x4998.VTable0x48(5);
-		m_unk0x4c88.VTable0x48(5);
-		m_unk0x40c8.VTable0x4c(5);
-		FUN_00489320(0);
-		FUN_004866e0(0);
-		FUN_004890c0(0);
+		m_newRacerButton.Enable(5);
+		m_editButton.Disable(5);
+		m_loadButton.Disable(5);
+		m_deleteButton.Disable(5);
+		m_testDriveButton.Disable(5);
+		m_newRacerButton.Select(5);
+		DisableNameSelectors(0);
+		DetachSlotWidgets(0);
+		RebuildNameCarousel(0);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047e900
-void GarageScreen::FUN_0047e900()
+void GarageScreen::HideMainButtons()
 {
-	m_unk0x40c8.ClearFlags(2);
-	m_unk0x43b8.ClearFlags(2);
-	m_unk0x46a8.ClearFlags(2);
-	m_unk0x4998.ClearFlags(2);
-	m_unk0x4c88.ClearFlags(2);
-	FUN_00489320(0);
+	m_newRacerButton.ClearFlags(2);
+	m_editButton.ClearFlags(2);
+	m_loadButton.ClearFlags(2);
+	m_deleteButton.ClearFlags(2);
+	m_testDriveButton.ClearFlags(2);
+	DisableNameSelectors(0);
 }
 
 // FUNCTION: LEGORACERS 0x0047e950
-void GarageScreen::FUN_0047e950()
+void GarageScreen::ShowEditButtons()
 {
-	m_unk0x4f78.SetFlags(2);
-	m_unk0x5268.SetFlags(2);
-	m_unk0x5558.SetFlags(2);
-	m_unk0x5268.VTable0x4c(5);
-	m_unk0x5848.FUN_00482790(3);
-	m_unk0x4050.VTable0x44(4, TRUE);
-	m_unk0x4050.FUN_0046f6b0(0x14);
+	m_editCarButton.SetFlags(2);
+	m_editDriverButton.SetFlags(2);
+	m_licenseButton.SetFlags(2);
+	m_editDriverButton.Select(5);
+	m_backButton.SetTextByIndex(3);
+	m_infoLabel.SetStringByIndex(4, TRUE);
+	m_infoLabel.WrapText(0x14);
 }
 
 // FUNCTION: LEGORACERS 0x0047e9c0
-void GarageScreen::FUN_0047e9c0()
+void GarageScreen::HideEditButtons()
 {
-	m_unk0x4f78.ClearFlags(2);
-	m_unk0x5268.ClearFlags(2);
-	m_unk0x5558.ClearFlags(2);
+	m_editCarButton.ClearFlags(2);
+	m_editDriverButton.ClearFlags(2);
+	m_licenseButton.ClearFlags(2);
 }
 
 // FUNCTION: LEGORACERS 0x0047e9f0
-void GarageScreen::FUN_0047e9f0(MenuGameContext* p_context)
+void GarageScreen::RefreshRecordAvailability(MenuGameContext* p_context)
 {
-	RacerUnlockState modelState;
+	SaveRecordCursor modelState;
 
-	modelState.FUN_00442e60(&p_context->m_saveSystem);
-	modelState.FUN_00442ef0(0xffff2);
-	m_unk0x2704[0] = modelState.FUN_00442e80(0xffff2);
-	modelState.FUN_00442e70();
+	modelState.SetSaveSystem(&p_context->m_saveSystem);
+	modelState.Begin(0xffff2);
+	m_recordCounts[0] = modelState.CountRecords(0xffff2);
+	modelState.Close();
 }
 
 // FUNCTION: LEGORACERS 0x0047ea50
-void GarageScreen::FUN_0047ea50()
+void GarageScreen::DeleteSelectedRecord()
 {
 	SaveRecordList* records = NULL;
-	RacerUnlockState* modelState = &m_unk0x22dc[0];
-	SaveRecordList::Record* record = modelState->FUN_004430b0();
-	SaveRecordList::Record* nextRecord = modelState->FUN_00442fe0();
+	SaveRecordCursor* modelState = &m_recordCursors[0];
+	SaveRecordList::Record* record = modelState->GetSelectedRecord();
+	SaveRecordList::Record* nextRecord = modelState->SelectNext();
 
 	switch (record->m_recordSource) {
 	case 1:
@@ -203,24 +206,24 @@ void GarageScreen::FUN_0047ea50()
 	}
 
 	records->RemoveRecord(record);
-	m_unk0x364 = TRUE;
-	m_unk0x360 = c_menuGarage;
-	modelState->FUN_00442ef0(modelState->GetUnk0x24());
+	m_navPending = TRUE;
+	m_nextMenuId = c_menuGarage;
+	modelState->Begin(modelState->GetSourceMask());
 
 	if (nextRecord != NULL && nextRecord != record) {
-		modelState->FUN_004430e0(nextRecord);
+		modelState->SeekTo(nextRecord);
 	}
 
-	FUN_0047e9f0(m_context);
-	FUN_0047e740();
+	RefreshRecordAvailability(m_context);
+	ShowMainButtons();
 
-	if (m_unk0x2704[0]) {
-		m_unk0x4998.VTable0x4c(5);
+	if (m_recordCounts[0]) {
+		m_deleteButton.Select(5);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047eb20
-void GarageScreen::FUN_0047eb20()
+void GarageScreen::StartTestDrive()
 {
 	LegoRacers::Context* context = m_context->m_context;
 	GolName name;
@@ -236,21 +239,21 @@ void GarageScreen::FUN_0047eb20()
 	context->m_raceSlots[0].m_enabled = TRUE;
 	context->m_raceSlots[0].m_mirror = raceName->GetMirror();
 	context->m_racerCount = 1;
-	context->m_unk0x1e |= LegoRacers::Context::c_flagReturnToGarage;
+	context->m_flags |= LegoRacers::Context::c_flagReturnToGarage;
 
 	m_context->m_saveSystem.GetActiveRecord().SetSelectedRecordCount(1);
-	undefined4 flags = m_context->m_modelBuilder.GetUnk0x78();
+	undefined4 flags = m_context->m_modelBuilder.GetMenuFlowFlags();
 	flags &= 0xfffffffd;
-	m_context->m_modelBuilder.SetUnk0x78(flags);
-	SaveRecordList::Record* record = m_unk0x22dc[0].FUN_004430b0();
+	m_context->m_modelBuilder.SetMenuFlowFlags(flags);
+	SaveRecordList::Record* record = m_recordCursors[0].GetSelectedRecord();
 	m_context->m_saveSystem.GetActiveRecord().SetSelectedRecord(record);
-	m_unk0x360 = 0x41;
+	m_nextMenuId = 0x41;
 }
 
 // FUNCTION: LEGORACERS 0x0047ec00
-void GarageScreen::VTable0x84()
+void GarageScreen::Navigate()
 {
-	switch (m_unk0x360) {
+	switch (m_nextMenuId) {
 	case c_menuGarage:
 		m_context->m_menuStack.Push(c_menuSaveAll);
 		return;
@@ -258,147 +261,151 @@ void GarageScreen::VTable0x84()
 		m_context->m_saveSystem.GetActiveRecord().SetSelectedRecord(0, NULL);
 		m_context->m_saveSystem.GetActiveRecord().SetSelectedRecord(1, NULL);
 		m_context->m_menuStack.Pop();
-		FUN_004804c0(m_context);
-		FUN_004861b0();
+		StopMenuMusic(m_context);
+		CommitRecordSelections();
 		return;
 	case c_menuNewRacer:
 		m_context->m_menuStack.Push(c_menuPickMem);
-		m_context->m_saveSystem.GetActiveRecord().FUN_0042b2f0(4, 0, 0, NULL);
-		m_context->m_modelBuilder.SetUnk0x78(m_context->m_modelBuilder.GetUnk0x78() | 1);
-		FUN_004861b0();
+		m_context->m_saveSystem.GetActiveRecord().Initialize(4, 0, 0, NULL);
+		m_context->m_modelBuilder.SetMenuFlowFlags(
+			m_context->m_modelBuilder.GetMenuFlowFlags() | DriverModelBuilder::c_menuFlowNewRacer
+		);
+		CommitRecordSelections();
 		return;
 	case c_menuEditDriver:
 	case c_menuDriverLicense:
 	case c_menuEditCar: {
 		{
-			RacerUnlockState* modelState = &m_unk0x22dc[0];
-			SaveRecordList::Record* record = modelState->FUN_004430b0();
+			SaveRecordCursor* modelState = &m_recordCursors[0];
+			SaveRecordList::Record* record = modelState->GetSelectedRecord();
 			m_context->m_saveSystem.GetActiveRecord().SetSelectedRecord(0, record);
-			m_context->m_saveSystem.GetActiveRecord().CopyFrom(modelState->FUN_004430b0());
-			m_context->m_menuStack.Push(m_unk0x360);
+			m_context->m_saveSystem.GetActiveRecord().CopyFrom(modelState->GetSelectedRecord());
+			m_context->m_menuStack.Push(m_nextMenuId);
 		}
-		FUN_004861b0();
+		CommitRecordSelections();
 		return;
 	}
 	case 0x41:
 		m_context->m_menuStack.ResetSize();
-		FUN_004861b0();
+		CommitRecordSelections();
 		return;
 	case c_menuPickMem: {
 		m_context->m_menuStack.Push(c_menuPickMem);
-		SaveRecordList::Record* record = m_unk0x22dc[0].FUN_004430b0();
+		SaveRecordList::Record* record = m_recordCursors[0].GetSelectedRecord();
 		m_context->m_saveSystem.GetActiveRecord().SetSelectedRecord(0, record);
-		m_context->m_modelBuilder.SetUnk0x78(m_context->m_modelBuilder.GetUnk0x78() | 8);
-		FUN_004861b0();
+		m_context->m_modelBuilder.SetMenuFlowFlags(
+			m_context->m_modelBuilder.GetMenuFlowFlags() | DriverModelBuilder::c_menuFlowLoadRacer
+		);
+		CommitRecordSelections();
 		return;
 	}
 	}
 
-	m_context->m_menuStack.Push(m_unk0x360);
-	FUN_004861b0();
+	m_context->m_menuStack.Push(m_nextMenuId);
+	CommitRecordSelections();
 }
 
 // FUNCTION: LEGORACERS 0x0047ee50
-void GarageScreen::VTable0x38(MenuWidget* p_source)
+void GarageScreen::OnIconUnfocused(MenuWidget* p_source)
 {
-	if (p_source == &m_unk0x5848) {
-		if (!m_unk0x6408) {
-			m_unk0x360 = c_menuMainMenu;
+	if (p_source == &m_backButton) {
+		if (!m_page) {
+			m_nextMenuId = c_menuMainMenu;
 		}
 		else {
-			m_unk0x640c = 0;
+			m_nextPage = 0;
 		}
 	}
 	else {
-		switch (m_unk0x6408) {
+		switch (m_page) {
 		case 1:
-			if (p_source == &m_unk0x4f78) {
-				m_unk0x360 = c_menuEditCar;
+			if (p_source == &m_editCarButton) {
+				m_nextMenuId = c_menuEditCar;
 			}
-			else if (p_source == &m_unk0x5268) {
-				m_unk0x360 = c_menuEditDriver;
+			else if (p_source == &m_editDriverButton) {
+				m_nextMenuId = c_menuEditDriver;
 			}
-			else if (p_source == &m_unk0x5558) {
-				m_unk0x360 = c_menuDriverLicense;
+			else if (p_source == &m_licenseButton) {
+				m_nextMenuId = c_menuDriverLicense;
 			}
 			break;
 		case 0:
-			if (p_source == &m_unk0x40c8) {
-				m_unk0x360 = c_menuNewRacer;
+			if (p_source == &m_newRacerButton) {
+				m_nextMenuId = c_menuNewRacer;
 			}
-			else if (p_source == &m_unk0x43b8) {
-				m_unk0x640c = 1;
+			else if (p_source == &m_editButton) {
+				m_nextPage = 1;
 			}
-			else if (p_source == &m_unk0x46a8) {
-				m_unk0x360 = c_menuPickMem;
+			else if (p_source == &m_loadButton) {
+				m_nextMenuId = c_menuPickMem;
 			}
-			else if (p_source == &m_unk0x4998) {
-				FUN_0047fdc0(&m_unk0x5b38, 0x99, 0x46, 0x73);
-				FUN_0047fdc0(&m_unk0x5e28, 0x99, 0x45, 0x74);
-				FUN_0046c6f0(&m_unk0x5b38, &m_unk0x5e28, 0x76);
+			else if (p_source == &m_deleteButton) {
+				CreateTextButton(&m_confirmYesButton, 0x99, 0x46, 0x73);
+				CreateTextButton(&m_confirmNoButton, 0x99, 0x45, 0x74);
+				ShowConfirmDialog(&m_confirmYesButton, &m_confirmNoButton, 0x76);
 			}
-			else if (p_source == &m_unk0x4c88) {
-				FUN_0047eb20();
+			else if (p_source == &m_testDriveButton) {
+				StartTestDrive();
 			}
-			else if (p_source == &m_unk0x5b38) {
-				FUN_0047ea50();
-				m_unk0x284->FUN_00468cf0();
+			else if (p_source == &m_confirmYesButton) {
+				DeleteSelectedRecord();
+				m_dialog->DismissTop();
 			}
-			else if (p_source == &m_unk0x5e28) {
-				m_unk0x284->FUN_00468cf0();
+			else if (p_source == &m_confirmNoButton) {
+				m_dialog->DismissTop();
 			}
 			break;
 		}
 	}
 
-	if (m_unk0x360 != 0xffff) {
-		m_unk0x364 = TRUE;
-		m_unk0x232c[0].SetFlags(m_unk0x232c[0].GetFlags() & ~0x10000);
+	if (m_nextMenuId != 0xffff) {
+		m_navPending = TRUE;
+		m_driverEntities[0].SetFlags(m_driverEntities[0].GetFlags() & ~0x10000);
 	}
 
-	m_unk0x35c = p_source;
+	m_clickedWidget = p_source;
 }
 
 // FUNCTION: LEGORACERS 0x0047efe0
-void GarageScreen::FUN_0047efe0()
+void GarageScreen::ApplyPageChange()
 {
-	switch (m_unk0x6408) {
+	switch (m_page) {
 	case 0:
-		FUN_0047e900();
+		HideMainButtons();
 		break;
 	case 1:
-		FUN_0047e9c0();
+		HideEditButtons();
 		break;
 	}
 
-	m_unk0x6408 = m_unk0x640c;
+	m_page = m_nextPage;
 
-	switch (m_unk0x6408) {
+	switch (m_page) {
 	case 1:
-		FUN_0047e950();
+		ShowEditButtons();
 		break;
 	case 0:
-		FUN_0047e740();
+		ShowMainButtons();
 		break;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0047f030
-LegoBool32 GarageScreen::VTable0x78(undefined4 p_elapsed)
+LegoBool32 GarageScreen::Update(undefined4 p_elapsed)
 {
-	if (m_unk0x640c != m_unk0x6408 && !(m_unk0x35c->GetUnk0x54() & 1)) {
-		FUN_0047efe0();
+	if (m_nextPage != m_page && !(m_clickedWidget->GetAnimFlags() & 1)) {
+		ApplyPageChange();
 	}
 
-	RacerUnlockState* modelState = &m_unk0x22dc[0];
-	if (modelState->FUN_004430b0() != NULL) {
-		if (modelState->FUN_004430b0()->m_recordSource == 1) {
-			m_unk0x46a8.FUN_00482790(0x2b);
+	SaveRecordCursor* modelState = &m_recordCursors[0];
+	if (modelState->GetSelectedRecord() != NULL) {
+		if (modelState->GetSelectedRecord()->m_recordSource == 1) {
+			m_loadButton.SetTextByIndex(0x2b);
 		}
 		else {
-			m_unk0x46a8.FUN_00482790(0x2a);
+			m_loadButton.SetTextByIndex(0x2a);
 		}
 	}
 
-	return RacerModelScreenBase::VTable0x78(p_elapsed);
+	return RacerModelScreenBase::Update(p_elapsed);
 }

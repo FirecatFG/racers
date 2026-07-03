@@ -11,11 +11,17 @@ class LegoColorTable;
 // SIZE 0x14
 class CarPartSet {
 public:
+	enum {
+		e_pieceType = 0x2e,
+		e_parts = 0x2f,
+		e_choices = 0x30,
+		e_name = 0x31,
+	};
+
 	// SIZE 0x04
 	struct PartChoice {
 		LegoU16 m_pieceType;       // 0x00
 		LegoU8 m_colorRecordIndex; // 0x02
-		undefined m_padding0x03;   // 0x03
 	};
 
 	// SIZE 0x18
@@ -23,14 +29,14 @@ public:
 	public:
 		Entry();
 		~Entry();
-		void FUN_004513d0(CarBuildModel* p_unk0x04);
+		void FUN_004513d0(CarBuildModel* p_buildModel);
 		void SetIndex(LegoS32 p_index) { m_index = p_index; }
 		LegoS32 GetPieceType() const { return m_pieceType; }
 		LegoS32 GetIndex() const { return m_index; }
 		void Load(
 			const LegoChar* p_filename,
 			LegoPieceLibrary* p_pieceLibrary,
-			LegoColorTable* p_verdantTide,
+			LegoColorTable* p_colorTable,
 			undefined4 p_binary
 		);
 		void FillChoiceIndices(LegoS32* p_dest, LegoS32 p_startIndex, LegoS32 p_count);
@@ -53,21 +59,21 @@ public:
 	~CarPartSet();
 
 	void Clear();
-	void SetUnk0x00(LegoColorTable* p_verdantTide) { m_verdantTide = p_verdantTide; }
+	void SetColorTable(LegoColorTable* p_colorTable) { m_colorTable = p_colorTable; }
 	void Load(
 		const LegoChar* p_filename,
 		LegoPieceLibrary* p_pieceLibrary,
-		LegoColorTable* p_unk0x0c,
+		LegoColorTable* p_colorTable,
 		undefined4 p_binary
 	);
 	Entry* FindEntry(LegoS32 p_index);
 	LegoS32 FindEntryIndex(LegoS32 p_index);
 	Entry* GetEntries() const { return m_entries; }
 	Entry* GetSelectedEntry() const { return m_selectedEntry; }
-	void SetSelectedEntry(Entry* p_unk0x10) { m_selectedEntry = p_unk0x10; }
+	void SetSelectedEntry(Entry* p_selectedEntry) { m_selectedEntry = p_selectedEntry; }
 
 private:
-	LegoColorTable* m_verdantTide;    // 0x00
+	LegoColorTable* m_colorTable;     // 0x00
 	LegoPieceLibrary* m_pieceLibrary; // 0x04
 	LegoS32 m_entryCount;             // 0x08
 	Entry* m_entries;                 // 0x0c

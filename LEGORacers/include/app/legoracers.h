@@ -22,7 +22,7 @@ class LegoRacers : public GolAppEventHandler {
 public:
 	// SIZE 0x18
 	struct RaceSlot {
-		undefined4 m_enabled; // 0x00
+		LegoBool32 m_enabled; // 0x00
 		undefined4 m_mirror;  // 0x04
 		GolName m_raceName;   // 0x08
 		GolName m_folderName; // 0x10
@@ -36,11 +36,11 @@ public:
 		struct PlayerSetupSlot {
 			GolName m_driverName;               // 0x00
 			GolName m_chassisName;              // 0x08
-			undefined4 m_unk0x10;               // 0x10
-			LegoFloat m_unk0x14;                // 0x14
-			LegoFloat m_unk0x18;                // 0x18
-			LegoFloat m_unk0x1c;                // 0x1c
-			LegoFloat m_unk0x20;                // 0x20
+			undefined4 m_slotState;             // 0x10
+			LegoFloat m_highPieceCount;         // 0x14
+			LegoFloat m_centroidX;              // 0x18
+			LegoFloat m_centroidY;              // 0x1c
+			LegoFloat m_centroidZ;              // 0x20
 			GolModelBase* m_model;              // 0x24
 			GolMaterialLibrary* m_materials;    // 0x28
 			GolTextureList* m_textures;         // 0x2c
@@ -51,7 +51,8 @@ public:
 			GolTextureList* m_altTextures;      // 0x50
 			DriverCosmetics m_cosmetics;        // 0x54
 			LegoU8 m_previewFaceIndex;          // 0x59
-			undefined m_unk0x5a[0x5c - 0x5a];   // 0x5a
+			LegoU8 m_finishPosition;            // 0x5a
+			undefined m_unk0x5b;                // 0x5b
 		};
 
 		// SIZE 0x0c
@@ -64,7 +65,7 @@ public:
 		enum {
 			c_flagRecordBeaten = 1 << 0,
 			c_flagReturnToGarage = 1 << 1,
-			c_flagBit2 = 1 << 2,
+			c_flagSaveStateValid = 1 << 2,
 			c_flagAbortRace = 1 << 3,
 			c_flagBestTimesPending = 1 << 4,
 			c_flagRestartCircuit = 1 << 5,
@@ -85,17 +86,17 @@ public:
 		LegoBool32 m_running;                                               // 0x00
 		Win32GolApp* m_golApp;                                              // 0x04
 		SoundManager* m_soundManager;                                       // 0x08
-		LegoFloat m_unk0x0c;                                                // 0x0c
-		LegoFloat m_unk0x10;                                                // 0x10
-		LegoFloat m_unk0x14;                                                // 0x14
-		undefined4 m_unk0x18;                                               // 0x18
+		LegoFloat m_cameraFov;                                              // 0x0c
+		LegoFloat m_cameraNearClip;                                         // 0x10
+		LegoFloat m_cameraFarClip;                                          // 0x14
+		undefined4 m_useBinaryFiles;                                        // 0x18
 		LegoU16 m_nextMenuId;                                               // 0x1c
-		LegoU8 m_unk0x1e;                                                   // 0x1e
+		LegoU8 m_flags;                                                     // 0x1e
 		undefined m_unk0x1f;                                                // 0x1f
-		LegoU32 m_unk0x20;                                                  // 0x20
-		undefined4 m_raceMode;                                              // 0x24
+		LegoU32 m_cheatFlags;                                               // 0x20
+		LegoU32 m_raceMode;                                                 // 0x24
 		LegoU32 m_languageIndex;                                            // 0x28
-		undefined m_unk0x2c;                                                // 0x2c
+		undefined m_lapCount;                                               // 0x2c
 		GolName m_circuitName;                                              // 0x2d
 		undefined m_unk0x35[0x38 - 0x35];                                   // 0x35
 		RaceSlot m_raceSlots[4];                                            // 0x38
@@ -106,21 +107,21 @@ public:
 		LegoU32 m_currentRaceIndex;                                         // 0xd8
 		LegoChar m_gameDataDirectory[18];                                   // 0xdc
 		LegoChar m_commonDataDirectory[18];                                 // 0xee
-		undefined4 m_racerCount;                                            // 0x100
+		LegoU32 m_racerCount;                                               // 0x100
 		PlayerSetupSlot m_playerSetupSlots[c_playerSetupSlotCount];         // 0x104
-		undefined4 m_playerCount;                                           // 0x32c
+		LegoU32 m_playerCount;                                              // 0x32c
 		PlayerRecordState m_playerRecordStates[c_playerRecordStateCount];   // 0x330
 		InputBindingState::Entry m_inputBindings[c_inputBindingEntryCount]; // 0x348
-		undefined4 m_unk0x398;                                              // 0x398
+		LegoU32 m_cameraViewIndex;                                          // 0x398
 		LegoU32 m_saveRecordCount;                                          // 0x39c
 		SaveRecordData m_saveRecords[5];                                    // 0x3a0
 		PersistentGameState m_saveState;                                    // 0xe81
 		undefined m_unk0x12ad[0x12b0 - 0x12ad];                             // 0x12ad
 
 		SoundManager* GetSoundManager() { return m_soundManager; }
-		LegoFloat GetUnk0x0c() const { return m_unk0x0c; }
-		LegoFloat GetUnk0x10() const { return m_unk0x10; }
-		LegoFloat GetUnk0x14() const { return m_unk0x14; }
+		LegoFloat GetCameraFov() const { return m_cameraFov; }
+		LegoFloat GetCameraNearClip() const { return m_cameraNearClip; }
+		LegoFloat GetCameraFarClip() const { return m_cameraFarClip; }
 	};
 #pragma pack(pop)
 
@@ -142,9 +143,9 @@ public:
 	void Destroy();
 	void Run();
 	void ReleaseContextAssets();
-	void FUN_0042bdc0();
-	void FUN_0042bde0();
-	void FUN_0042be00();
+	void RunMenus();
+	void RunRace();
+	void InitializeDisplayAndSound();
 	void Shutdown();
 	LegoS32 ParseArguments(LegoS32 p_argc, LegoChar** p_argv);
 	void ShowUsage();

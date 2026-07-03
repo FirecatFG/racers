@@ -8,7 +8,7 @@
 #include "types.h"
 
 class GolD3DRenderDevice;
-class DuskwindBananaRelic0x24;
+class GolMaterial;
 class GolCameraBase;
 
 // SIZE 0x8
@@ -41,7 +41,7 @@ public:
 		void Activate(
 			LegoU32 p_durationMs,
 			LegoBool32 p_fadeOut,
-			DuskwindBananaRelic0x24* p_material,
+			GolMaterial* p_material,
 			const GolCameraBase* p_rectSource
 		);
 		void Reset();
@@ -55,22 +55,15 @@ public:
 	private:
 		void Clear();
 
-		DuskwindBananaRelic0x24* m_material; // 0x00
-		const GolCameraBase* m_rectSource;   // 0x04
+		GolMaterial* m_material;           // 0x00
+		const GolCameraBase* m_rectSource; // 0x04
 		union {
-			struct {
-				LegoU8 m_red;        // 0x08
-				LegoU8 m_green;      // 0x09
-				LegoU8 m_blue;       // 0x0a
-				undefined m_unk0x0b; // 0x0b
-			};
 			ColorRGBA m_color;     // 0x08
 			LegoU32 m_colorPacked; // 0x08
 		};
-		LegoU32 m_remainingMs;  // 0x0c
-		LegoU32 m_durationMs;   // 0x10
-		LegoU8 m_flags;         // 0x14
-		undefined m_unk0x15[3]; // 0x15
+		LegoU32 m_remainingMs; // 0x0c
+		LegoU32 m_durationMs;  // 0x10
+		LegoU8 m_flags;        // 0x14
 	};
 
 	MenuAnimationList();
@@ -80,14 +73,14 @@ public:
 	Entry* Activate(
 		LegoU32 p_durationMs,
 		LegoBool32 p_fadeOut,
-		DuskwindBananaRelic0x24* p_material,
+		GolMaterial* p_material,
 		const GolCameraBase* p_rectSource
 	);
 	void Deactivate(Entry* p_entry);
 	LegoBool32 HasActive() const;
 	void Update(LegoU32 p_elapsedMs);
 	void Draw(GolD3DRenderDevice* p_renderer);
-	void FUN_00494fe0();
+	void DeactivateAll();
 
 private:
 	Entry* m_entries; // 0x00

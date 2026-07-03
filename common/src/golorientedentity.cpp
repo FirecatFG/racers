@@ -1,8 +1,12 @@
 #include "golorientedentity.h"
 
+#include "decomp.h"
+
+DECOMP_SIZE_ASSERT(GolOrientedEntity, 0x58)
+
 // FUNCTION: GOLDP 0x1001ad90 FOLDED
 // FUNCTION: LEGORACERS 0x00403c90
-void GolOrientedEntity::VTable0x48(GolVec3* p_dest1, GolVec3* p_dest2) const
+void GolOrientedEntity::GetAxes(GolVec3* p_dest1, GolVec3* p_dest2) const
 {
 	p_dest1->m_x = m_orientation.m_m[0][0];
 	p_dest1->m_y = m_orientation.m_m[0][1];
@@ -42,7 +46,7 @@ void GolOrientedEntity::Reset()
 
 // FUNCTION: GOLDP 0x10026b50
 // FUNCTION: LEGORACERS 0x00410900
-void GolOrientedEntity::VTable0x40(const GolVec3& p_v1, const GolVec3& p_v2)
+void GolOrientedEntity::SetDirectionUp(const GolVec3& p_v1, const GolVec3& p_v2)
 {
 	GolVec3 unit;
 	GolMath::NormalizeVector3(p_v1, &unit);
@@ -77,7 +81,7 @@ void GolOrientedEntity::VTable0x40(const GolVec3& p_v1, const GolVec3& p_v2)
 }
 
 // FUNCTION: LEGORACERS 0x00410a00
-void GolOrientedEntity::FUN_00410a00(const GolVec3& p_v1, const GolVec3& p_v2)
+void GolOrientedEntity::SetDirectionSide(const GolVec3& p_v1, const GolVec3& p_v2)
 {
 	GolVec3 unit;
 	GolMath::NormalizeVector3(p_v1, &unit);
@@ -112,7 +116,7 @@ void GolOrientedEntity::FUN_00410a00(const GolVec3& p_v1, const GolVec3& p_v2)
 }
 
 // FUNCTION: LEGORACERS 0x00410b00
-void GolOrientedEntity::FUN_00410b00(const GolVec3& p_v1, const GolVec3& p_v2)
+void GolOrientedEntity::SetUpDirection(const GolVec3& p_v1, const GolVec3& p_v2)
 {
 	GolVec3 unit;
 	GolMath::NormalizeVector3(p_v1, &unit);
@@ -147,7 +151,7 @@ void GolOrientedEntity::FUN_00410b00(const GolVec3& p_v1, const GolVec3& p_v2)
 }
 
 // FUNCTION: GOLDP 0x10026c50
-void GolOrientedEntity::FUN_10026c50(GolMatrix4* p_dest)
+void GolOrientedEntity::CopyOrientationToMatrix4(GolMatrix4* p_dest)
 {
 	p_dest->m_m[0][0] = m_orientation.m_m[0][0];
 	p_dest->m_m[0][1] = m_orientation.m_m[0][1];
@@ -162,7 +166,7 @@ void GolOrientedEntity::FUN_10026c50(GolMatrix4* p_dest)
 
 // FUNCTION: GOLDP 0x10026c90
 // FUNCTION: LEGORACERS 0x00410c00
-void GolOrientedEntity::VTable0x44(GolMatrix3* p_dest) const
+void GolOrientedEntity::CopyOrientation(GolMatrix3* p_dest) const
 {
 	p_dest->m_m[0][0] = m_orientation.m_m[0][0];
 	p_dest->m_m[0][1] = m_orientation.m_m[0][1];
@@ -177,7 +181,7 @@ void GolOrientedEntity::VTable0x44(GolMatrix3* p_dest) const
 
 // FUNCTION: GOLDP 0x10026cd0
 // FUNCTION: LEGORACERS 0x00410c40
-void GolOrientedEntity::VTable0x3c(const GolMatrix3& p_matrix)
+void GolOrientedEntity::SetOrientationMatrix(const GolMatrix3& p_matrix)
 {
 	m_orientation.m_m[0][0] = p_matrix.m_m[0][0];
 	m_orientation.m_m[0][1] = p_matrix.m_m[0][1];
@@ -192,7 +196,7 @@ void GolOrientedEntity::VTable0x3c(const GolMatrix3& p_matrix)
 
 // FUNCTION: GOLDP 0x10026d10
 // FUNCTION: LEGORACERS 0x00410c80
-void GolOrientedEntity::VTable0x34(const GolVec3& p_src, GolVec3* p_dest)
+void GolOrientedEntity::RotateToWorld(const GolVec3& p_src, GolVec3* p_dest)
 {
 	p_dest->m_x = m_orientation.m_m[0][0] * p_src.m_x;
 	p_dest->m_y = m_orientation.m_m[0][1] * p_src.m_x;
@@ -207,7 +211,7 @@ void GolOrientedEntity::VTable0x34(const GolVec3& p_src, GolVec3* p_dest)
 
 // FUNCTION: GOLDP 0x10026d80
 // FUNCTION: LEGORACERS 0x00410cf0
-void GolOrientedEntity::VTable0x38(const GolVec3& p_src, GolVec3* p_dest) const
+void GolOrientedEntity::RotateToLocal(const GolVec3& p_src, GolVec3* p_dest) const
 {
 	p_dest->m_x = m_orientation.m_m[0][0] * p_src.m_x;
 	p_dest->m_y = m_orientation.m_m[1][0] * p_src.m_x;
@@ -222,7 +226,7 @@ void GolOrientedEntity::VTable0x38(const GolVec3& p_src, GolVec3* p_dest) const
 
 // FUNCTION: GOLDP 0x10026df0
 // FUNCTION: LEGORACERS 0x00410d60
-void GolOrientedEntity::VTable0x2c(const GolVec3& p_src, GolVec3* p_dest) const
+void GolOrientedEntity::LocalToWorld(const GolVec3& p_src, GolVec3* p_dest) const
 {
 	p_dest->m_x = m_orientation.m_m[0][0] * p_src.m_x;
 	p_dest->m_y = m_orientation.m_m[0][1] * p_src.m_x;
@@ -240,7 +244,7 @@ void GolOrientedEntity::VTable0x2c(const GolVec3& p_src, GolVec3* p_dest) const
 
 // FUNCTION: GOLDP 0x10026e70
 // FUNCTION: LEGORACERS 0x00410de0
-void GolOrientedEntity::VTable0x30(const GolVec3& p_src, GolVec3* p_dest) const
+void GolOrientedEntity::WorldToLocal(const GolVec3& p_src, GolVec3* p_dest) const
 {
 	LegoFloat x = m_orientation.m_m[0][0];
 	x *= p_src.m_x;
@@ -288,7 +292,7 @@ void GolOrientedEntity::VTable0x30(const GolVec3& p_src, GolVec3* p_dest) const
 
 // FUNCTION: GOLDP 0x10026f30
 // FUNCTION: LEGORACERS 0x00410ea0
-void GolOrientedEntity::VTable0x04(GolVec3* p_dest) const
+void GolOrientedEntity::GetPosition(GolVec3* p_dest) const
 {
 	p_dest->m_x = m_position.m_x;
 	p_dest->m_y = m_position.m_y;
@@ -297,7 +301,7 @@ void GolOrientedEntity::VTable0x04(GolVec3* p_dest) const
 
 // FUNCTION: GOLDP 0x10026f50
 // FUNCTION: LEGORACERS 0x00410ec0
-void GolOrientedEntity::VTable0x08(const GolVec3& p_pos)
+void GolOrientedEntity::SetPosition(const GolVec3& p_pos)
 {
 	m_position.m_x = p_pos.m_x;
 	m_position.m_y = p_pos.m_y;
@@ -307,7 +311,7 @@ void GolOrientedEntity::VTable0x08(const GolVec3& p_pos)
 
 // FUNCTION: GOLDP 0x10026f70
 // FUNCTION: LEGORACERS 0x00410ee0
-void GolOrientedEntity::FUN_10026f70(const GolVec3& p_v)
+void GolOrientedEntity::SetBoundsCenterAndSpan(const GolVec3& p_v)
 {
 	m_center = p_v;
 	m_minX = m_center.m_x - m_radius;
@@ -317,7 +321,7 @@ void GolOrientedEntity::FUN_10026f70(const GolVec3& p_v)
 }
 
 // FUNCTION: LEGORACERS 0x00410f30
-void GolOrientedEntity::FUN_00410f30(const GolMatrix3& p_matrix, GolMatrix3* p_dest) const
+void GolOrientedEntity::TransformMatrixToLocal(const GolMatrix3& p_matrix, GolMatrix3* p_dest) const
 {
 	GolMatrix3 localMatrix;
 	LegoFloat value;
@@ -364,11 +368,11 @@ void GolOrientedEntity::FUN_00410f30(const GolMatrix3& p_matrix, GolMatrix3* p_d
 	value += m_orientation.m_m[0][2] * p_matrix.m_m[0][2];
 	localMatrix.m_m[2][2] = value + m_orientation.m_m[1][2] * p_matrix.m_m[1][2];
 
-	GolMath::FUN_00449190(&localMatrix.m_m[0][0], &m_orientation.m_m[0][0], &p_dest->m_m[0][0]);
+	GolMath::MultiplyMatrix3(&localMatrix.m_m[0][0], &m_orientation.m_m[0][0], &p_dest->m_m[0][0]);
 }
 
 // FUNCTION: LEGORACERS 0x00411040
-void GolOrientedEntity::FUN_00411040()
+void GolOrientedEntity::MirrorY()
 {
 	GolVec3 right;
 	right.m_x = m_orientation.m_m[0][0];
@@ -381,11 +385,11 @@ void GolOrientedEntity::FUN_00411040()
 	forward.m_z = m_orientation.m_m[2][2];
 
 	m_position.m_y = -m_position.m_y;
-	VTable0x40(right, forward);
+	SetDirectionUp(right, forward);
 }
 
 // FUNCTION: GOLDP 0x10026fc0
-void GolOrientedEntity::FUN_10026fc0(GolMatrix4* p_dest, LegoFloat p_scale) const
+void GolOrientedEntity::CopyScaledOrientationTo(GolMatrix4* p_dest, LegoFloat p_scale) const
 {
 	LegoFloat value = m_orientation.m_m[0][0];
 	p_dest->m_m[0][0] = value * p_scale;

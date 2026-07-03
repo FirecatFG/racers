@@ -17,33 +17,40 @@ class GolAnimatedEntity;
 class GolCameraBase {
 public:
 	GolCameraBase();
-	virtual void VTable0x00() = 0;                                                           // vtable+0x00
-	virtual void VTable0x04() = 0;                                                           // vtable+0x04
-	virtual ~GolCameraBase();                                                                // vtable+0x08
-	virtual void VTable0x0c(Rect* p_rect) = 0;                                               // vtable+0x0c
-	virtual void VTable0x10(const GolVec4* p_bounds) = 0;                                    // vtable+0x10
-	virtual void VTable0x14(GolMatrix4* p_dest) = 0;                                         // vtable+0x14
-	virtual void VTable0x18(GolMatrix4* p_dest) = 0;                                         // vtable+0x18
-	virtual void VTable0x1c(const GolVec3* p_src, GolVec3* p_dest) = 0;                      // vtable+0x1c
-	virtual void VTable0x20(const GolVec3* p_src, GolVec3* p_dest);                          // vtable+0x20
-	virtual LegoBool32 VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolVec4* p_bounds); // vtable+0x24
-	virtual void VTable0x28() = 0;                                                           // vtable+0x28
+	enum {
+		c_flagViewDirty = 1 << 0,
+		c_flagProjectionDirty = 1 << 1,
+		c_flagCustomViewBounds = 1 << 2,
+		c_flagFixedAspectRatio = 1 << 3,
+	};
+
+	virtual void UpdateViewMatrix() = 0;                                                        // vtable+0x00
+	virtual void UpdateProjectionMatrices() = 0;                                                // vtable+0x04
+	virtual ~GolCameraBase();                                                                   // vtable+0x08
+	virtual void SetViewport(Rect* p_rect) = 0;                                                 // vtable+0x0c
+	virtual void SetViewBounds(const GolVec4* p_bounds) = 0;                                    // vtable+0x10
+	virtual void GetViewMatrix(GolMatrix4* p_dest) = 0;                                         // vtable+0x14
+	virtual void GetViewScreenProjection(GolMatrix4* p_dest) = 0;                               // vtable+0x18
+	virtual void TransformToView(const GolVec3* p_src, GolVec3* p_dest) = 0;                    // vtable+0x1c
+	virtual void ProjectToScreen(const GolVec3* p_src, GolVec3* p_dest);                        // vtable+0x20
+	virtual LegoBool32 ProjectSphere(GolVec3* p_center, LegoFloat p_radius, GolVec4* p_bounds); // vtable+0x24
+	virtual void UpdateMatrices() = 0;                                                          // vtable+0x28
 
 	// SYNTHETIC: GOLDP 0x1001bf90
 	// GolCameraBase::`scalar deleting destructor'
 
-	void FUN_1001bfc0(GolViewFrustum* p_view);
-	void FUN_1001c450(GolViewFrustum* p_view);
-	static LegoFloat FUN_004044f0(GolVec3* p_left, GolVec3* p_right);
-	static GolVec3* FUN_00404510(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
-	static GolVec3* FUN_00404550(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
-	static GolVec3* FUN_00404580(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
-	static GolVec3* FUN_004045b0(GolVec3* p_src, LegoFloat p_scale, GolVec3* p_dest);
-	static LegoFloat FUN_00404680(GolVec3* p_left, GolVec3* p_right);
+	void ComputeFrustum(GolViewFrustum* p_view);
+	void ComputeFrustumFromBounds(GolViewFrustum* p_view);
+	static LegoFloat Dot2(GolVec3* p_left, GolVec3* p_right);
+	static GolVec3* Cross(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
+	static GolVec3* Add(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
+	static GolVec3* Subtract(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest);
+	static GolVec3* Scale(GolVec3* p_src, LegoFloat p_scale, GolVec3* p_dest);
+	static LegoFloat Dot(GolVec3* p_left, GolVec3* p_right);
 	void SetTrackedEntity(GolAnimatedEntity* p_trackedEntity, LegoU32 p_trackedNodeIndex);
 	void ClearTrackedEntity();
 	void LookAt(GolVec3* p_position, GolVec3* p_target, GolVec3* p_up);
-	void FUN_00404710(LegoFloat p_fov, LegoFloat p_nearClip, LegoFloat p_farClip, LegoFloat p_aspectRatio);
+	void SetLens(LegoFloat p_fov, LegoFloat p_nearClip, LegoFloat p_farClip, LegoFloat p_aspectRatio);
 	void SetAspectRatio(LegoFloat p_aspect);
 	void UpdateFromTrackedEntity();
 	LegoFloat GetFov() const { return m_fov; }

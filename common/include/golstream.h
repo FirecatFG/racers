@@ -34,7 +34,7 @@ public:
 		c_modeTextAppend = 0x08,
 		c_modeExclusive = 0x10,
 		c_modeKeepBuffer = 0x20,
-		c_unk0x40 = 0x40
+		c_modeNoFileSource = 0x40
 	};
 
 	enum {
@@ -88,8 +88,8 @@ public:
 
 	static LegoS32 FindFile(const LegoChar* p_fileName);
 #ifdef BUILDING_GOL
-	static void FUN_100320d0();
-	static void FUN_10032110(const LegoChar* p_arg1);
+	static void ClearSearchPaths();
+	static void AddSearchPath(const LegoChar* p_arg1);
 #endif
 
 	static const LegoChar* ErrorCodeToString(LegoS32 p_code);

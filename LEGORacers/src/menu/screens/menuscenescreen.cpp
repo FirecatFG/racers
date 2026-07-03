@@ -16,7 +16,7 @@
 DECOMP_SIZE_ASSERT(MenuSceneScreen, 0x658)
 
 // FUNCTION: LEGORACERS 0x004796a0
-MenuSceneScreen::MenuSceneScreen() : m_renderer(NULL), m_unk0x650(NULL), m_unk0x654(0)
+MenuSceneScreen::MenuSceneScreen() : m_renderer(NULL), m_savedCamera(NULL), m_firstUpdate(0)
 {
 }
 
@@ -27,7 +27,7 @@ MenuSceneScreen::~MenuSceneScreen()
 }
 
 // FUNCTION: LEGORACERS 0x004797a0
-LegoBool32 MenuSceneScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
+LegoBool32 MenuSceneScreen::Initialize(MenuGameContext* p_context, MenuScreenCreateParams* p_createParams)
 {
 	if (m_initialized) {
 		Destroy();
@@ -35,9 +35,9 @@ LegoBool32 MenuSceneScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCre
 
 	m_renderer = p_createParams->m_renderer;
 	p_context->m_context->m_golApp->ClearFileSourceDirectoryCaches();
-	m_unk0x650 = m_renderer->GetUnk0x0c();
+	m_savedCamera = m_renderer->GetCurrentCamera();
 
-	if (!MenuGameScreen::VTable0x8c(p_context, p_createParams)) {
+	if (!MenuGameScreen::Initialize(p_context, p_createParams)) {
 		return FALSE;
 	}
 
@@ -49,8 +49,8 @@ LegoBool32 MenuSceneScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCre
 		font->SetColor(0xff, 0xff, 0xff, 0xff);
 	}
 
-	CutscenePlayer* resourceHelper = &m_unk0x368.m_unk0x84;
-	if (resourceHelper->GetUnk0x118() && p_context->m_context->m_languageIndex) {
+	CutscenePlayer* resourceHelper = &m_sceneWidget.m_player;
+	if (resourceHelper->GetTextVisualCount() && p_context->m_context->m_languageIndex) {
 		LegoChar languageFile[12];
 		languageFile[0] = '\0';
 
@@ -87,11 +87,11 @@ LegoBool32 MenuSceneScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCre
 		}
 
 		::strcat(languageFile, ".srf");
-		m_unk0x638.UseOwnedBuffers();
+		m_languageStrings.UseOwnedBuffers();
 
-		if (m_unk0x638.Load(languageFile)) {
-			resourceHelper->SetStringTable(&m_unk0x638);
-			resourceHelper->FUN_004a24e0();
+		if (m_languageStrings.Load(languageFile)) {
+			resourceHelper->SetStringTable(&m_languageStrings);
+			resourceHelper->RefreshTextVisuals();
 		}
 	}
 
@@ -100,42 +100,42 @@ LegoBool32 MenuSceneScreen::VTable0x8c(MenuGameContext* p_context, MenuScreenCre
 	}
 
 	m_cursor->SetCursorEnabled(FALSE);
-	m_unk0x654 = TRUE;
+	m_firstUpdate = TRUE;
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x004799b0
 LegoBool32 MenuSceneScreen::Destroy()
 {
-	m_unk0x638.ReleaseOwnedBuffers();
-	m_unk0x368.VTable0x08();
+	m_languageStrings.ReleaseOwnedBuffers();
+	m_sceneWidget.Destroy();
 
-	if (m_renderer && m_unk0x650) {
-		m_renderer->VTable0x20(m_unk0x650);
+	if (m_renderer && m_savedCamera) {
+		m_renderer->SetCamera(m_savedCamera);
 	}
 
 	m_renderer = NULL;
-	m_unk0x650 = NULL;
+	m_savedCamera = NULL;
 	return MenuGameScreen::Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x00479a10
-LegoBool32 MenuSceneScreen::VTable0x78(undefined4 p_unk0x04)
+LegoBool32 MenuSceneScreen::Update(undefined4 p_elapsedMs)
 {
-	if (m_unk0x654) {
-		p_unk0x04 = 0x11;
-		m_unk0x654 = FALSE;
+	if (m_firstUpdate) {
+		p_elapsedMs = 0x11;
+		m_firstUpdate = FALSE;
 	}
 
-	if (m_unk0x368.m_unk0x2c8) {
-		m_unk0x364 = TRUE;
+	if (m_sceneWidget.m_finished) {
+		m_navPending = TRUE;
 	}
 
-	return MenuGameScreen::VTable0x78(p_unk0x04);
+	return MenuGameScreen::Update(p_elapsedMs);
 }
 
 // FUNCTION: LEGORACERS 0x00479a50
-void MenuSceneScreen::VTable0x84()
+void MenuSceneScreen::Navigate()
 {
 	m_cursor->SetCursorEnabled(TRUE);
 	m_context->m_menuStack.Pop();

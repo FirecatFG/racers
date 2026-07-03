@@ -1,17 +1,17 @@
 #include "render/golsoftwarerenderer.h"
 
-#include "duskwindbananarelic0x24.h"
 #include "golcpu.h"
+#include "golmaterial.h"
 #include "render/golrasterizers1.h"
 #include "render/golrasterizers2.h"
-#include "surface/purpledune0x7c.h"
+#include "surface/gold3dtexture.h"
 
 #include <stdlib.h>
 
 DECOMP_SIZE_ASSERT(GolSoftwareRenderer, 0x58)
 DECOMP_SIZE_ASSERT(GolSoftwareRenderer::RasterizerPipeline, 0x10)
-DECOMP_SIZE_ASSERT(GolSoftwareRenderer::Command0x14, 0x14)
-DECOMP_SIZE_ASSERT(GolSoftwareRenderer::Command0x14::SortKey, 0x04)
+DECOMP_SIZE_ASSERT(GolSoftwareRenderer::TriangleCommand, 0x14)
+DECOMP_SIZE_ASSERT(GolSoftwareRenderer::TriangleCommand::SortKey, 0x04)
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
 void NoopSpanRasterizer()
@@ -22,14 +22,14 @@ void NoopSpanRasterizer()
 static void NoopTriangleRasterizer(GolSoftwareRenderer*, D3DTLVERTEX*, D3DTLVERTEX*, D3DTLVERTEX*);
 
 static LegoS32 __fastcall BucketCommandArrayBySortByte0(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command,
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command,
 	LegoS32 p_count
 );
 
 static LegoU8 __fastcall BucketCommandsBySortByte0(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command
 );
 
 static LegoU8 GetSoftwareTextureSizeCode(const MipmapLevel* p_level)
@@ -58,12 +58,12 @@ static LegoU8 GetSoftwareTextureSizeCode(const MipmapLevel* p_level)
 
 // STUB: GOLDP 0x10041000
 static LegoU8 __fastcall BucketCommandsBySortByte3(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command
 )
 {
 	LegoU32 bucketIndex = 0;
-	GolSoftwareRenderer::Command0x14* command;
+	GolSoftwareRenderer::TriangleCommand* command;
 
 	for (; p_command != NULL; p_buckets[bucketIndex] = command) {
 		bucketIndex = p_command->m_sortKey.m_bytes[3];
@@ -77,12 +77,12 @@ static LegoU8 __fastcall BucketCommandsBySortByte3(
 
 // STUB: GOLDP 0x10041030
 static LegoU8 __fastcall BucketCommandsBySortByte2(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command
 )
 {
 	LegoU32 bucketIndex = 0;
-	GolSoftwareRenderer::Command0x14* command;
+	GolSoftwareRenderer::TriangleCommand* command;
 
 	for (; p_command != NULL; p_buckets[bucketIndex] = command) {
 		bucketIndex = p_command->m_sortKey.m_bytes[2];
@@ -96,12 +96,12 @@ static LegoU8 __fastcall BucketCommandsBySortByte2(
 
 // STUB: GOLDP 0x10041060
 static LegoU8 __fastcall BucketCommandsBySortByte1(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command
 )
 {
 	LegoU32 bucketIndex = 0;
-	GolSoftwareRenderer::Command0x14* command;
+	GolSoftwareRenderer::TriangleCommand* command;
 
 	for (; p_command != NULL; p_buckets[bucketIndex] = command) {
 		bucketIndex = p_command->m_sortKey.m_bytes[1];
@@ -115,12 +115,12 @@ static LegoU8 __fastcall BucketCommandsBySortByte1(
 
 // STUB: GOLDP 0x10041090
 static LegoU8 __fastcall BucketCommandsBySortByte0(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command
 )
 {
 	LegoU32 bucketIndex = 0;
-	GolSoftwareRenderer::Command0x14* command;
+	GolSoftwareRenderer::TriangleCommand* command;
 
 	for (; p_command != NULL; p_buckets[bucketIndex] = command) {
 		bucketIndex = p_command->m_sortKey.m_bytes[0];
@@ -133,16 +133,16 @@ static LegoU8 __fastcall BucketCommandsBySortByte0(
 }
 
 // FUNCTION: GOLDP 0x100410c0
-static void SortCommandListBySortKey(GolSoftwareRenderer::Command0x14** p_head)
+static void SortCommandListBySortKey(GolSoftwareRenderer::TriangleCommand** p_head)
 {
-	GolSoftwareRenderer::Command0x14* buckets0[256];
-	GolSoftwareRenderer::Command0x14* buckets1[256];
+	GolSoftwareRenderer::TriangleCommand* buckets0[256];
+	GolSoftwareRenderer::TriangleCommand* buckets1[256];
 
 	::memset(buckets0, 0, sizeof(buckets0));
 	BucketCommandsBySortByte0(buckets0, *p_head);
 
 	::memset(buckets1, 0, sizeof(buckets1));
-	GolSoftwareRenderer::Command0x14** bucket = &buckets0[255];
+	GolSoftwareRenderer::TriangleCommand** bucket = &buckets0[255];
 	LegoS32 i = 256;
 	do {
 		BucketCommandsBySortByte1(buckets1, *bucket);
@@ -172,10 +172,10 @@ static void SortCommandListBySortKey(GolSoftwareRenderer::Command0x14** p_head)
 	bucket = buckets1;
 	i = 256;
 	do {
-		GolSoftwareRenderer::Command0x14* command = *bucket;
+		GolSoftwareRenderer::TriangleCommand* command = *bucket;
 		if (command != NULL) {
 			do {
-				GolSoftwareRenderer::Command0x14* next = command->m_next;
+				GolSoftwareRenderer::TriangleCommand* next = command->m_next;
 				command->m_next = *p_head;
 				*p_head = command;
 				command = next;
@@ -187,36 +187,32 @@ static void SortCommandListBySortKey(GolSoftwareRenderer::Command0x14** p_head)
 }
 
 // FUNCTION: GOLDP 0x100411b0
-void GolSoftwareRenderer::FUN_100411b0(
-	RasterizerPipeline* p_buffer,
-	DuskwindBananaRelic0x24* p_material,
-	LegoU32 p_index
-)
+void GolSoftwareRenderer::SetupPipeline(RasterizerPipeline* p_buffer, GolMaterial* p_material, LegoU32 p_index)
 {
-	LegoU32 flags = p_material->GetUnk0x08();
+	LegoU32 flags = p_material->GetFlags();
 	LegoU32 rasterizerMode;
 
-	PurpleDune0x7c* texture = reinterpret_cast<PurpleDune0x7c*>(p_material->GetUnk0x04());
+	GolD3DTexture* texture = reinterpret_cast<GolD3DTexture*>(p_material->GetTexture());
 
 	if (texture) {
-		m_unk0x34 = NULL;
-		FUN_100330d0(this, &reinterpret_cast<PurpleDune0x7c*>(p_material->GetUnk0x04())->GetMipmaps()[p_index]);
+		m_currentMipmap = NULL;
+		FUN_100330d0(this, &reinterpret_cast<GolD3DTexture*>(p_material->GetTexture())->GetMipmaps()[p_index]);
 		rasterizerMode = c_flag0x2cBit8;
 
-		if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit19) {
+		if (flags & GolMaterial::c_flagBit19) {
 			rasterizerMode = c_flag0x2cBit8 | c_flag0x2cBit9;
 		}
 
-		if (texture->GetUnk0x36() & GoldDune0x38::c_unk0x36Bit5) {
+		if (texture->GetTextureFlags() & GolTexture::c_textureFlagColorKeyed) {
 			rasterizerMode |= c_flag0x2cBit1;
 		}
 
-		if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit12) {
+		if (flags & GolMaterial::c_flagTransparent) {
 			rasterizerMode |= c_flag0x2cBit2;
 		}
-		else if (!(flags & DuskwindBananaRelic0x24::c_flag0x08Bit4)) {
-			if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit8) {
-				if ((p_material->m_unk0x22 != 1) || (p_material->m_unk0x23 != 1)) {
+		else if (!(flags & GolMaterial::c_flagDecal)) {
+			if (flags & GolMaterial::c_flagAlphaBlend) {
+				if ((p_material->m_srcBlend != 1) || (p_material->m_destBlend != 1)) {
 					rasterizerMode |= c_flag0x2cBit2;
 				}
 				else {
@@ -224,7 +220,7 @@ void GolSoftwareRenderer::FUN_100411b0(
 				}
 			}
 			else {
-				if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit5) {
+				if (flags & GolMaterial::c_flagModulate) {
 					rasterizerMode |= c_flag0x2cBit3 | c_flag0x2cBit0;
 				}
 				else {
@@ -232,38 +228,38 @@ void GolSoftwareRenderer::FUN_100411b0(
 				}
 			}
 		}
-		else if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit8) {
+		else if (flags & GolMaterial::c_flagAlphaBlend) {
 			rasterizerMode |= c_flag0x2cBit2;
 		}
 	}
 	else {
 		FUN_100330d0(this, NULL);
 		// TODO: Can't get a `& 0xff` to appear
-		rasterizerMode = flags & DuskwindBananaRelic0x24::c_flag0x08Bit2 ? c_flag0x2cBit0 : 0;
+		rasterizerMode = flags & GolMaterial::c_flagGouraudShading ? c_flag0x2cBit0 : 0;
 	}
 
-	m_unk0x2c = rasterizerMode;
+	m_rasterizerFlags = rasterizerMode;
 
 	if (m_pixelFormat == e_formatIndex8) {
 		p_buffer->m_spanRasterizer = NULL;
-		if (m_unk0x34) {
-			switch (m_unk0x34->m_unk0x13) {
-			case MipmapLevel::c_unk0x13unknown3:
+		if (m_currentMipmap) {
+			switch (m_currentMipmap->m_sizeLog2) {
+			case MipmapLevel::c_size8:
 				p_buffer->m_triangleRasterizer = FUN_10045520;
 				break;
-			case MipmapLevel::c_unk0x13unknown4:
+			case MipmapLevel::c_size16:
 				p_buffer->m_triangleRasterizer = FUN_10044ce0;
 				break;
-			case MipmapLevel::c_unk0x13unknown5:
+			case MipmapLevel::c_size32:
 				p_buffer->m_triangleRasterizer = FUN_100444a0;
 				break;
-			case MipmapLevel::c_unk0x13unknown6:
+			case MipmapLevel::c_size64:
 				p_buffer->m_triangleRasterizer = FUN_10043c60;
 				break;
-			case MipmapLevel::c_unk0x13unknown7:
+			case MipmapLevel::c_size128:
 				p_buffer->m_triangleRasterizer = FUN_10043420;
 				break;
-			case MipmapLevel::c_unk0x13unknown8:
+			case MipmapLevel::c_size256:
 				p_buffer->m_triangleRasterizer = FUN_10042bd0;
 				break;
 			default:
@@ -285,9 +281,9 @@ void GolSoftwareRenderer::FUN_100411b0(
 		p_buffer->m_spanRasterizer = m_spanRasterizer;
 	}
 
-	if (m_unk0x34) {
-		if (flags & DuskwindBananaRelic0x24::c_flag0x08Bit21) {
-			if (m_unk0x34->m_paletteData) {
+	if (m_currentMipmap) {
+		if (flags & GolMaterial::c_flagBit21) {
+			if (m_currentMipmap->m_paletteData) {
 				if ((rasterizerMode & c_flag0x2cBit1)) {
 					if (m_spanRasterizer == FUN_10034980) {
 						p_buffer->m_triangleRasterizer = FUN_10046420;
@@ -401,9 +397,9 @@ void GolSoftwareRenderer::FUN_100411b0(
 		}
 	}
 
-	p_buffer->m_texture = m_unk0x34;
-	if (m_unk0x34) {
-		p_buffer->m_unk0x0c = m_unk0x34->m_paletteData;
+	p_buffer->m_texture = m_currentMipmap;
+	if (m_currentMipmap) {
+		p_buffer->m_unk0x0c = m_currentMipmap->m_paletteData;
 	}
 	else {
 		p_buffer->m_unk0x0c = NULL;
@@ -414,7 +410,7 @@ void GolSoftwareRenderer::FUN_100411b0(
 GolSoftwareRenderer::GolSoftwareRenderer()
 {
 	DetectCPU();
-	m_unk0x4c = 0;
+	m_tlVertices = 0;
 	m_nodes = NULL;
 	m_commandHead = 0;
 }
@@ -431,8 +427,8 @@ LegoBool GolSoftwareRenderer::Initialize(PixelFormat p_pixelFormat, LegoS32 p_no
 	PixelFormat indexedPixelFormat = e_formatIndex8;
 	m_currentTriangleRasterizer = NoopTriangleRasterizer;
 	m_triangleRasterizer = NoopTriangleRasterizer;
-	m_unk0x34 = 0;
-	m_unk0x2c = 0;
+	m_currentMipmap = 0;
+	m_rasterizerFlags = 0;
 	m_spanRasterizer = NoopSpanRasterizer;
 	m_unk0x38 = 10000.0f;
 	m_unk0x3c = 225.0f;
@@ -454,7 +450,7 @@ LegoBool GolSoftwareRenderer::Initialize(PixelFormat p_pixelFormat, LegoS32 p_no
 		p_nodeCapacity = 0xffff;
 	}
 
-	m_nodes = new Command0x14[p_nodeCapacity];
+	m_nodes = new TriangleCommand[p_nodeCapacity];
 	if (m_nodes == NULL) {
 		m_commandHead = NULL;
 		return FALSE;
@@ -475,7 +471,7 @@ GolSoftwareRenderer::~GolSoftwareRenderer()
 }
 
 // FUNCTION: GOLDP 0x100417a0
-void GolSoftwareRenderer::FUN_100417a0(Command0x14* p_cmds, LegoU32 p_count, LegoFloat p_arg3)
+void GolSoftwareRenderer::FUN_100417a0(TriangleCommand* p_cmds, LegoU32 p_count, LegoFloat p_arg3)
 {
 	while (p_count) {
 		p_cmds->m_sortKey.m_value = p_arg3;
@@ -485,16 +481,16 @@ void GolSoftwareRenderer::FUN_100417a0(Command0x14* p_cmds, LegoU32 p_count, Leg
 }
 
 // STUB: GOLDP 0x100417c0
-void GolSoftwareRenderer::FUN_100417c0(Command0x14* p_cmds, LegoU32 p_count)
+void GolSoftwareRenderer::FUN_100417c0(TriangleCommand* p_cmds, LegoU32 p_count)
 {
 	while (p_count != 0) {
-		LegoFloat sortKey = m_unk0x4c[p_cmds->m_vertexIndex0].sz;
+		LegoFloat sortKey = m_tlVertices[p_cmds->m_vertexIndex0].sz;
 
-		if (sortKey < m_unk0x4c[p_cmds->m_vertexIndex1].sz) {
-			sortKey = m_unk0x4c[p_cmds->m_vertexIndex1].sz;
+		if (sortKey < m_tlVertices[p_cmds->m_vertexIndex1].sz) {
+			sortKey = m_tlVertices[p_cmds->m_vertexIndex1].sz;
 		}
-		if (sortKey < m_unk0x4c[p_cmds->m_vertexIndex2].sz) {
-			sortKey = m_unk0x4c[p_cmds->m_vertexIndex2].sz;
+		if (sortKey < m_tlVertices[p_cmds->m_vertexIndex2].sz) {
+			sortKey = m_tlVertices[p_cmds->m_vertexIndex2].sz;
 		}
 
 		p_cmds->m_sortKey.m_value = sortKey;
@@ -506,8 +502,8 @@ void GolSoftwareRenderer::FUN_100417c0(Command0x14* p_cmds, LegoU32 p_count)
 // FUNCTION: GOLDP 0x10041830
 void GolSoftwareRenderer::FUN_10041830(LegoS32 p_count, LegoBool p_sort)
 {
-	Command0x14* buckets0[256];
-	Command0x14* buckets1[256];
+	TriangleCommand* buckets0[256];
+	TriangleCommand* buckets1[256];
 
 	if (p_count == 0) {
 		m_commandHead = NULL;
@@ -521,7 +517,7 @@ void GolSoftwareRenderer::FUN_10041830(LegoS32 p_count, LegoBool p_sort)
 		BucketCommandArrayBySortByte0(buckets0, m_nodes + p_count - 1, p_count);
 
 		::memset(buckets1, 0, sizeof(buckets1));
-		Command0x14** bucket = &buckets0[255];
+		TriangleCommand** bucket = &buckets0[255];
 		LegoS32 i = 256;
 		do {
 			BucketCommandsBySortByte1(buckets1, *bucket);
@@ -547,14 +543,14 @@ void GolSoftwareRenderer::FUN_10041830(LegoS32 p_count, LegoBool p_sort)
 			i--;
 		} while (i != 0);
 
-		Command0x14* head = NULL;
+		TriangleCommand* head = NULL;
 		bucket = buckets1;
 		i = 256;
 		do {
-			Command0x14* command = *bucket;
+			TriangleCommand* command = *bucket;
 			if (command != NULL) {
 				do {
-					Command0x14* next = command->m_next;
+					TriangleCommand* next = command->m_next;
 					command->m_next = head;
 					head = command;
 					command = next;
@@ -569,7 +565,7 @@ void GolSoftwareRenderer::FUN_10041830(LegoS32 p_count, LegoBool p_sort)
 
 	m_commandHead = m_nodes + p_count - 1;
 	if (p_count > 1) {
-		Command0x14* command = m_nodes + 1;
+		TriangleCommand* command = m_nodes + 1;
 		LegoS32 remaining = p_count - 1;
 		do {
 			command->m_next = command - 1;
@@ -582,8 +578,8 @@ void GolSoftwareRenderer::FUN_10041830(LegoS32 p_count, LegoBool p_sort)
 
 // STUB: GOLDP 0x10041980
 static LegoS32 __fastcall BucketCommandArrayBySortByte0(
-	GolSoftwareRenderer::Command0x14** p_buckets,
-	GolSoftwareRenderer::Command0x14* p_command,
+	GolSoftwareRenderer::TriangleCommand** p_buckets,
+	GolSoftwareRenderer::TriangleCommand* p_command,
 	LegoS32 p_count
 )
 {
@@ -592,7 +588,7 @@ static LegoS32 __fastcall BucketCommandArrayBySortByte0(
 
 	do {
 		bucketIndex = p_command->m_sortKey.m_bytes[0];
-		GolSoftwareRenderer::Command0x14* command = p_command;
+		GolSoftwareRenderer::TriangleCommand* command = p_command;
 		p_command--;
 		result--;
 		command->m_next = p_buckets[bucketIndex];
@@ -605,18 +601,18 @@ static LegoS32 __fastcall BucketCommandArrayBySortByte0(
 // STUB: GOLDP 0x100419b0
 void GolSoftwareRenderer::DrawCommandList()
 {
-	Command0x14* command = m_commandHead;
+	TriangleCommand* command = m_commandHead;
 
 	if (command != NULL) {
 		do {
 			RasterizerPipeline* rasterizer = command->m_rasterizer;
 			m_spanRasterizer = rasterizer->m_spanRasterizer;
-			m_unk0x34 = rasterizer->m_texture;
+			m_currentMipmap = rasterizer->m_texture;
 			rasterizer->m_triangleRasterizer(
 				this,
-				&m_unk0x4c[command->m_vertexIndex0],
-				&m_unk0x4c[command->m_vertexIndex1],
-				&m_unk0x4c[command->m_vertexIndex2]
+				&m_tlVertices[command->m_vertexIndex0],
+				&m_tlVertices[command->m_vertexIndex1],
+				&m_tlVertices[command->m_vertexIndex2]
 			);
 			command = command->m_next;
 		} while (command != NULL);

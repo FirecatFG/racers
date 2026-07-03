@@ -4,13 +4,13 @@
 #include "golbmpfile.h"
 #include "golerror.h"
 #include "golstring.h"
+#include "golsurface.h"
 #include "goltgafile.h"
 #include "render/gold3drenderdevice.h"
 #include "render/golrenderdevice.h"
 #include "render/rectangle.h"
-#include "silverdune0x30.h"
-#include "surface/purpledune0x7c.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/gold3dtexture.h"
+#include "surface/golrendertarget.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -24,7 +24,7 @@ DECOMP_SIZE_ASSERT(GolFontBase, 0x40)
 static LegoU8 g_glyphIndexBuffer[0x80];
 
 // GLOBAL: GOLDP 0x10063c9c
-SilverDune0x30* g_fontSourceImage;
+GolSurface* g_fontSourceImage;
 
 // FUNCTION: GOLDP 0x1001dea0
 GolFontBase::GolFontBase()
@@ -100,11 +100,11 @@ void GolFontBase::Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer)
 	GolTgaFile tgaFile;
 	GolBmpFile bmpFile;
 	GolImgFile* imageFile = &tgaFile;
-	if (!(m_flags & c_flagBit4)) {
+	if (!(m_flags & c_flagTgaSource)) {
 		imageFile = &bmpFile;
 	}
 
-	imageFile->VTable0x08(p_name);
+	imageFile->Open(p_name);
 	m_fontHeight = imageFile->GetHeight();
 
 	if (g_fontSourceImage == NULL) {
@@ -113,20 +113,20 @@ void GolFontBase::Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer)
 	}
 
 	ColorRGBA* colorKey = NULL;
-	if (m_flags & c_flagBit5) {
+	if (m_flags & c_flagColorKeyed) {
 		colorKey = &m_colorKey;
 	}
 
-	imageFile->VTable0x20(g_fontSourceImage, m_flags & c_flagBit2, colorKey);
+	imageFile->LoadSurface(g_fontSourceImage, m_flags & c_flagBit2, colorKey);
 	imageFile->Destroy();
 
 	ScanGlyphs(p_name);
 
 	GolSurfaceFormat surfaceFormat = g_fontSourceImage->GetTextureFormat();
 	GolSurfaceFormat textureFormat;
-	p_renderer->SelectTextureFormat(surfaceFormat, &textureFormat, m_flags & c_flagBit5);
+	p_renderer->SelectTextureFormat(surfaceFormat, &textureFormat, m_flags & c_flagColorKeyed);
 	PackGlyphTextures(p_renderer, &textureFormat);
-	VTable0x04(p_renderer, &textureFormat);
+	CreateSurfaces(p_renderer, &textureFormat);
 	CopyGlyphsToTextures();
 
 	::qsort(m_glyphs, m_glyphCount, sizeof(Glyph), CompareGlyphChars);
@@ -142,7 +142,7 @@ void GolFontBase::ScanGlyphs(const LegoChar* p_name)
 
 	LegoU8* pixels;
 	LegoU32 pitch;
-	g_fontSourceImage->LockPixels(&pixels, &pitch, SilverDune0x30::c_lockRequestRead);
+	g_fontSourceImage->LockPixels(&pixels, &pitch, GolSurface::c_lockRequestRead);
 	ReadSeparatorSignature(rowSignature, pixels, pitch);
 
 	LegoU32 step = g_fontSourceImage->GetTextureFormat().m_bitsPerPixel >> 2;
@@ -425,18 +425,18 @@ LegoU32 GolFontBase::PackGlyphTextures(GolD3DRenderDevice* p_renderer, GolSurfac
 void GolFontBase::CopyGlyphsToTextures()
 {
 	LegoU32 currentSurface = 0;
-	PurpleDune0x7c* texture = GetTexture(currentSurface);
+	GolD3DTexture* texture = GetTexture(currentSurface);
 	Rect sourceRect;
 	sourceRect.m_top = 0;
 	sourceRect.m_bottom = m_fontHeight;
 
 	LegoU8* sourcePixels;
 	LegoU32 sourcePitch;
-	g_fontSourceImage->LockPixels(&sourcePixels, &sourcePitch, SilverDune0x30::c_lockRequestRead);
+	g_fontSourceImage->LockPixels(&sourcePixels, &sourcePitch, GolSurface::c_lockRequestRead);
 
 	LegoU8* texturePixels;
 	LegoU32 texturePitch;
-	texture->LockPixels(&texturePixels, &texturePitch, SilverDune0x30::c_lockRequestWrite);
+	texture->LockPixels(&texturePixels, &texturePitch, GolSurface::c_lockRequestWrite);
 
 	for (LegoU32 i = 0; i < m_glyphCount; i++) {
 		Glyph* glyph = &m_glyphs[i];
@@ -444,7 +444,7 @@ void GolFontBase::CopyGlyphsToTextures()
 			texture->UnlockPixels();
 			currentSurface = glyph->m_surfaceIndex;
 			texture = GetTexture(currentSurface);
-			texture->LockPixels(&texturePixels, &texturePitch, SilverDune0x30::c_lockRequestWrite);
+			texture->LockPixels(&texturePixels, &texturePitch, GolSurface::c_lockRequestWrite);
 		}
 
 		sourceRect.m_left = glyph->m_sourceX;
@@ -542,10 +542,10 @@ void GolFontBase::MeasureString(const LegoChar* p_string, LegoS32* p_width, Lego
 }
 
 // STUB: LEGORACERS 0x00408d50
-void GolFontBase::FUN_00408d50(
+void GolFontBase::MeasureString(
 	GolString* p_string,
 	LegoS32 p_wrapWidth,
-	LegoS32 p_unk0x10,
+	LegoS32 p_lineSpacing,
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	LegoS32* p_width,
@@ -566,14 +566,14 @@ void GolFontBase::FUN_00408d50(
 		return;
 	}
 
-	if (p_unk0x10 < 0) {
-		*p_height = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(-p_unk0x10) * p_scaleY));
+	if (p_lineSpacing < 0) {
+		*p_height = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(-p_lineSpacing) * p_scaleY));
 	}
 
 	p_wrapWidth = static_cast<LegoS32>(::floor(static_cast<LegoFloat>(p_wrapWidth) / p_scaleX));
-	p_unk0x10 += m_fontHeight;
-	p_unk0x10 = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(p_unk0x10) * p_scaleY));
-	*p_height += p_unk0x10;
+	p_lineSpacing += m_fontHeight;
+	p_lineSpacing = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(p_lineSpacing) * p_scaleY));
+	*p_height += p_lineSpacing;
 
 	LegoU32 i = 0;
 	while (i < length) {
@@ -665,7 +665,7 @@ void GolFontBase::FUN_00408d50(
 		}
 
 		if (i < length) {
-			*p_height += p_unk0x10;
+			*p_height += p_lineSpacing;
 		}
 	}
 
@@ -677,18 +677,18 @@ void GolFontBase::FUN_00408d50(
 }
 
 // FUNCTION: LEGORACERS 0x00408fe0
-void GolFontBase::FUN_00408fe0(
+void GolFontBase::DrawString(
 	GolString* p_string,
 	GolRenderDevice* p_renderer,
 	LegoS32 p_x,
 	LegoS32 p_y,
 	LegoS32 p_wrapWidth,
-	LegoS32 p_unk0x18,
+	LegoS32 p_lineSpacing,
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	Rect* p_rect,
 	ColorRGBA* p_color,
-	LegoS32 p_unk0x2c
+	LegoS32 p_centered
 )
 {
 	GolFontBase* font = this;
@@ -696,8 +696,8 @@ void GolFontBase::FUN_00408fe0(
 
 	if (p_string->SelectionLength()) {
 		p_wrapWidth = static_cast<LegoS32>(::floor(static_cast<LegoFloat>(p_wrapWidth) / p_scaleX));
-		p_unk0x18 += font->m_fontHeight;
-		p_unk0x18 = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(p_unk0x18) * p_scaleY));
+		p_lineSpacing += font->m_fontHeight;
+		p_lineSpacing = static_cast<LegoS32>(::ceil(static_cast<LegoFloat>(p_lineSpacing) * p_scaleY));
 		LegoU32 length = p_string->SelectionLength();
 
 		if (length) {
@@ -777,7 +777,7 @@ void GolFontBase::FUN_00408fe0(
 				}
 
 				LegoS32 drawX = p_x;
-				if (p_unk0x2c == 1 && static_cast<LegoU32>(p_wrapWidth) > lineWidth) {
+				if (p_centered == 1 && static_cast<LegoU32>(p_wrapWidth) > lineWidth) {
 					drawX += (p_wrapWidth - lineWidth) >> 1;
 				}
 
@@ -805,7 +805,7 @@ void GolFontBase::FUN_00408fe0(
 					);
 				}
 
-				p_y += p_unk0x18;
+				p_y += p_lineSpacing;
 
 				if (*p_string->FromCursor(i) == '\r') {
 					i++;
@@ -860,7 +860,7 @@ void GolFontBase::DrawString(
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	Rect* p_rect,
-	undefined4 p_unk0x20
+	undefined4 p_centered
 )
 {
 	GolFontBase* font = this;
@@ -902,7 +902,7 @@ void GolFontBase::DrawString(
 				c = *cursor;
 			}
 
-			p_x = font->DrawGlyphRun(count, p_renderer, p_x, p_y, p_scaleX, p_scaleY, p_rect, p_unk0x20);
+			p_x = font->DrawGlyphRun(count, p_renderer, p_x, p_y, p_scaleX, p_scaleY, p_rect, p_centered);
 
 			if (!*cursor) {
 				return;
@@ -920,7 +920,7 @@ void GolFontBase::DrawString(
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	Rect* p_rect,
-	undefined4 p_unk0x20
+	undefined4 p_centered
 )
 {
 	GolFontBase* font = this;
@@ -969,7 +969,7 @@ void GolFontBase::DrawString(
 				g_glyphIndexBuffer[i] = static_cast<LegoU8>(mid);
 			}
 
-			p_x = font->DrawGlyphRun(count, p_renderer, p_x, p_y, p_scaleX, p_scaleY, p_rect, p_unk0x20);
+			p_x = font->DrawGlyphRun(count, p_renderer, p_x, p_y, p_scaleX, p_scaleY, p_rect, p_centered);
 			offset += count;
 		}
 	}
@@ -984,7 +984,7 @@ void GolFontBase::DrawStringFitted(
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	Rect* p_rect,
-	undefined4 p_unk0x20
+	undefined4 p_centered
 )
 {
 	if (p_string->SelectionLength()) {
@@ -999,7 +999,7 @@ void GolFontBase::DrawStringFitted(
 			p_scaleX / static_cast<LegoFloat>(width),
 			p_scaleY / static_cast<LegoFloat>(m_fontHeight),
 			p_rect,
-			p_unk0x20
+			p_centered
 		);
 	}
 }
@@ -1014,7 +1014,7 @@ LegoS32 GolFontBase::DrawGlyphRun(
 	LegoFloat p_scaleX,
 	LegoFloat p_scaleY,
 	Rect* p_rect,
-	undefined4 p_unk0x20
+	undefined4 p_centered
 )
 {
 	LegoS32 result = 0;
@@ -1050,7 +1050,7 @@ LegoS32 GolFontBase::DrawGlyphRun(
 	LegoFloat inverseScaleX = 1.0f / p_scaleX;
 	LegoFloat inverseScaleY = 1.0f / p_scaleY;
 
-	font->VTable0x0c(p_renderer, p_count);
+	font->BeginDrawing(p_renderer, p_count);
 
 	for (LegoU32 surface = 0; surface < font->m_surfaceCount; surface++) {
 		LegoFloat currentFloatX = static_cast<LegoFloat>(p_x);
@@ -1093,12 +1093,12 @@ LegoS32 GolFontBase::DrawGlyphRun(
 					selectedSurface = TRUE;
 				}
 
-				font->VTable0x14(&sourceRect, &destRect);
+				font->DrawGlyph(&sourceRect, &destRect);
 			}
 		}
 	}
 
-	font->VTable0x18();
+	font->EndDrawing();
 	return result;
 }
 

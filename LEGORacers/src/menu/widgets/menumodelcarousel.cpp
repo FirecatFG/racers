@@ -4,7 +4,7 @@
 #include "core/gol.h"
 #include "golerror.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/golrendertarget.h"
 
 #include <float.h>
 
@@ -19,7 +19,7 @@ extern const LegoFloat g_violetShoalTwo = 2.0f;
 const LegoFloat g_violetShoalMaxFloat = FLT_MAX;
 
 // FUNCTION: LEGORACERS 0x0046c9f0 FOLDED
-void MenuModelCarousel::VTable0x5c(undefined4, GolModelEntity*)
+void MenuModelCarousel::LayoutItem(undefined4, GolModelEntity*)
 {
 }
 
@@ -32,102 +32,102 @@ MenuModelCarousel::MenuModelCarousel()
 // FUNCTION: LEGORACERS 0x0046ca80
 MenuModelCarousel::~MenuModelCarousel()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x0046cad0
 void MenuModelCarousel::Reset()
 {
 	m_unk0xa4 = 1.0f;
-	m_unk0x80 = 0;
-	m_unk0x84 = 0;
-	m_unk0x7c = 0;
+	m_camera = 0;
+	m_savedCamera = 0;
+	m_items = 0;
 	m_unk0xa0 = 0;
 	m_unk0x9c = 0;
-	m_unk0xbc = 0;
+	m_scrollStep = 0;
 	MenuCarousel::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x0046cb10
-LegoBool32 MenuModelCarousel::FUN_0046cb10(CreateParams* p_createParams, MenuStyleTable::CarouselStyle* p_styleEntry)
+LegoBool32 MenuModelCarousel::Create(CreateParams* p_createParams, MenuStyleTable::CarouselStyle* p_styleEntry)
 {
-	if (!MenuCarousel::FUN_0046c970(p_createParams, p_styleEntry)) {
+	if (!MenuCarousel::Create(p_createParams, p_styleEntry)) {
 		return FALSE;
 	}
 
-	m_unk0xbc = p_createParams->m_unk0x40;
-	m_unk0x78 = p_createParams->m_unk0x6c;
-	FUN_0046cc10(p_createParams);
+	m_scrollStep = p_createParams->m_scrollStep;
+	m_viewportIndex = p_createParams->m_viewportIndex;
+	SetupCamera(p_createParams);
 
-	FUN_0046cdc0();
-	FUN_0046ce10(p_createParams);
-	FUN_0046cdf0();
+	PushCamera();
+	CreateItems(p_createParams);
+	PopCamera();
 
 	VisualStateColor state;
 	state.m_color.m_red = 0xff;
 	state.m_color.m_grn = 0xff;
 	state.m_color.m_blu = 0xff;
 	state.m_color.m_alp = 0xff;
-	VTable0x48(&state, &state);
-	VTable0x4c(&state, &state);
+	SetItemColors(&state, &state);
+	SetFocusedItemColors(&state, &state);
 
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x0046cba0
-LegoBool32 MenuModelCarousel::VTable0x08()
+LegoBool32 MenuModelCarousel::Destroy()
 {
 	LegoBool32 result = TRUE;
 
 	if (result & m_flags) {
-		if (m_unk0x7c) {
-			for (LegoS32 i = 0; i < m_unk0x60; i++) {
-				if (m_unk0x7c[i].m_model) {
-					m_golExport->VTable0x48(m_unk0x7c[i].m_model);
+		if (m_items) {
+			for (LegoS32 i = 0; i < m_slotCount; i++) {
+				if (m_items[i].m_model) {
+					m_golExport->DestroyModel(m_items[i].m_model);
 				}
 			}
 
-			delete[] m_unk0x7c;
+			delete[] m_items;
 		}
 
-		if (m_unk0x80) {
-			m_golExport->VTable0x54(m_unk0x80);
+		if (m_camera) {
+			m_golExport->DestroyCamera(m_camera);
 		}
 
-		result = MenuWidget::VTable0x08();
+		result = MenuWidget::Destroy();
 	}
 
 	return result;
 }
 
 // STUB: LEGORACERS 0x0046cc10
-void MenuModelCarousel::FUN_0046cc10(CreateParams* p_createParams)
+void MenuModelCarousel::SetupCamera(CreateParams* p_createParams)
 {
-	m_unk0xb4 = p_createParams->m_unk0x48[7];
-	GolCamera* camera = m_golExport->VTable0x20();
-	m_unk0x80 = camera;
+	m_cameraDistance = p_createParams->m_cameraVectors[7];
+	GolCamera* camera = m_golExport->CreateCamera();
+	m_camera = camera;
 
-	LegoFloat fov = p_createParams->m_unk0x48[6];
-	LegoU32 flags = camera->m_flags | GolCamera::c_flagBit1;
+	LegoFloat fov = p_createParams->m_cameraVectors[6];
+	LegoU32 flags = camera->m_flags | GolCamera::c_flagProjectionDirty;
 	camera->m_fov = fov;
 	camera->m_flags = flags;
 
-	camera = m_unk0x80;
-	LegoFloat nearClip = m_unk0xb4;
-	LegoU32 nearFlags = camera->m_flags | GolCamera::c_flagBit1;
+	camera = m_camera;
+	LegoFloat nearClip = m_cameraDistance;
+	LegoU32 nearFlags = camera->m_flags | GolCamera::c_flagProjectionDirty;
 	camera->m_nearClip = nearClip;
 	camera->m_flags = nearFlags;
 
-	camera = m_unk0x80;
-	LegoFloat farClip = p_createParams->m_unk0x48[8];
-	LegoU32 farFlags = camera->m_flags | GolCamera::c_flagBit1;
+	camera = m_camera;
+	LegoFloat farClip = p_createParams->m_cameraVectors[8];
+	LegoU32 farFlags = camera->m_flags | GolCamera::c_flagProjectionDirty;
 	camera->m_farClip = farClip;
 	camera->m_flags = farFlags;
 
 	GolVec3 position;
 	GolVec3 target;
 	GolVec3 up;
-	position.m_x = m_unk0xb4;
+	position.m_x = m_cameraDistance;
 	up.m_x = 0.0f;
 	up.m_y = 0.0f;
 	up.m_z = 1.0f;
@@ -137,10 +137,10 @@ void MenuModelCarousel::FUN_0046cc10(CreateParams* p_createParams)
 	target.m_y = 0.0f;
 	target.m_z = 0.0f;
 
-	m_unk0x80->LookAt(&position, &target, &up);
-	FUN_0046cd30();
+	m_camera->LookAt(&position, &target, &up);
+	UpdateViewport();
 
-	const Rect* viewport = m_unk0x80->GetViewport();
+	const Rect* viewport = m_camera->GetViewport();
 	LegoS32 left = viewport->m_left;
 	LegoS32 top = viewport->m_top;
 	LegoS32 right = viewport->m_right;
@@ -151,16 +151,16 @@ void MenuModelCarousel::FUN_0046cc10(CreateParams* p_createParams)
 	LegoFloat aspect = static_cast<LegoFloat>(width);
 	LegoFloat divisor = static_cast<LegoFloat>(height);
 	aspect /= divisor;
-	aspect *= p_createParams->m_unk0x70;
-	m_unk0x80->SetAspectRatio(aspect);
+	aspect *= p_createParams->m_aspectScale;
+	m_camera->SetAspectRatio(aspect);
 }
 
 // FUNCTION: LEGORACERS 0x0046cd30
-void MenuModelCarousel::FUN_0046cd30()
+void MenuModelCarousel::UpdateViewport()
 {
-	const SlatePeak0x58* renderTarget = m_renderer->GetRenderTargetInfo();
+	const GolRenderTarget* renderTarget = m_renderer->GetRenderTargetInfo();
 
-	if (m_unk0x80) {
+	if (m_camera) {
 		Rect rect = *GetGlobalRect();
 
 		if (rect.m_left < 0) {
@@ -176,111 +176,111 @@ void MenuModelCarousel::FUN_0046cd30()
 			rect.m_bottom = renderTarget->GetHeight();
 		}
 
-		m_unk0x80->VTable0x0c(&rect);
+		m_camera->SetViewport(&rect);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046cdc0
-void MenuModelCarousel::FUN_0046cdc0()
+void MenuModelCarousel::PushCamera()
 {
-	m_unk0x84 = m_renderer->GetUnk0x0c();
-	m_renderer->VTable0x20(m_unk0x80);
-	m_renderer->VTable0x5c();
+	m_savedCamera = m_renderer->GetCurrentCamera();
+	m_renderer->SetCamera(m_camera);
+	m_renderer->ApplyCamera();
 }
 
 // FUNCTION: LEGORACERS 0x0046cdf0
-void MenuModelCarousel::FUN_0046cdf0()
+void MenuModelCarousel::PopCamera()
 {
-	if (m_unk0x84) {
-		m_renderer->VTable0x20(m_unk0x84);
-		m_renderer->VTable0x5c();
+	if (m_savedCamera) {
+		m_renderer->SetCamera(m_savedCamera);
+		m_renderer->ApplyCamera();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046ce10
-void MenuModelCarousel::FUN_0046ce10(CreateParams* p_createParams)
+void MenuModelCarousel::CreateItems(CreateParams* p_createParams)
 {
-	m_unk0x60 = p_createParams->m_unk0x38;
-	m_unk0x64 = p_createParams->m_unk0x44;
+	m_slotCount = p_createParams->m_slotCount;
+	m_focusedSlot = p_createParams->m_focusedSlot;
 
-	m_unk0x7c = new Item[m_unk0x60];
-	if (!m_unk0x7c) {
+	m_items = new Item[m_slotCount];
+	if (!m_items) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	Item* item = m_unk0x7c;
-	for (LegoS32 i = 0; i < m_unk0x60; i++) {
-		item->m_model = m_golExport->VTable0x14();
+	Item* item = m_items;
+	for (LegoS32 i = 0; i < m_slotCount; i++) {
+		item->m_model = m_golExport->CreateModel();
 		if (!item->m_model) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
 
-		item->m_rect = p_createParams->m_unk0x3c[i];
+		item->m_rect = p_createParams->m_slotRects[i];
 		item++;
 	}
 
-	FUN_0046cf20();
+	DestroyItems();
 }
 
 // FUNCTION: LEGORACERS 0x0046cf20
-void MenuModelCarousel::FUN_0046cf20()
+void MenuModelCarousel::DestroyItems()
 {
-	LegoS32 left = m_unk0x34.m_left;
-	LegoS32 width = m_unk0x34.m_right - left;
-	LegoS32 top = m_unk0x34.m_top;
-	LegoS32 height = m_unk0x34.m_bottom - top;
+	LegoS32 left = m_rect.m_left;
+	LegoS32 width = m_rect.m_right - left;
+	LegoS32 top = m_rect.m_top;
+	LegoS32 height = m_rect.m_bottom - top;
 	LegoS32 halfWidth = -(width >> 1);
-	Item* item = m_unk0x7c;
+	Item* item = m_items;
 	LegoS32 zero = 0;
 	LegoS32 i = zero;
 
 	LegoFloat widthFloat = static_cast<LegoFloat>(width);
-	m_unk0x44 = (m_unk0x80->m_nearHalfWidth + m_unk0x80->m_nearHalfWidth) / widthFloat;
-	LegoFloat heightNumerator = m_unk0x80->m_nearHalfHeight;
+	m_scaleX = (m_camera->m_nearHalfWidth + m_camera->m_nearHalfWidth) / widthFloat;
+	LegoFloat heightNumerator = m_camera->m_nearHalfHeight;
 	heightNumerator += heightNumerator;
 	LegoFloat heightFloat = static_cast<LegoFloat>(height);
-	m_unk0x48 = heightNumerator / heightFloat;
+	m_scaleY = heightNumerator / heightFloat;
 
-	if (m_unk0x60 > zero) {
+	if (m_slotCount > zero) {
 		do {
 			Rect* rect = &item->m_rect;
 
 			LegoS32 rectLeft = rect->m_left;
 			rectLeft += halfWidth;
-			item->m_unk0x00 = static_cast<LegoFloat>(rectLeft) * m_unk0x44;
-			item->m_unk0x08 = item->m_unk0x00 + static_cast<LegoFloat>(rect->m_right - rect->m_left) * m_unk0x44;
-			item->m_unk0x04 = static_cast<LegoFloat>(rect->m_bottom - rect->m_top) * m_unk0x48;
+			item->m_left = static_cast<LegoFloat>(rectLeft) * m_scaleX;
+			item->m_right = item->m_left + static_cast<LegoFloat>(rect->m_right - rect->m_left) * m_scaleX;
+			item->m_height = static_cast<LegoFloat>(rect->m_bottom - rect->m_top) * m_scaleY;
 			item->m_unk0x0c = 0.0f;
-			item->m_unk0x24 = 0.0f;
+			item->m_positionZ = 0.0f;
 
-			LegoFloat center = item->m_unk0x08;
-			center += item->m_unk0x00;
-			item->m_unk0x20 = center * 0.5f;
+			LegoFloat center = item->m_right;
+			center += item->m_left;
+			item->m_centerY = center * 0.5f;
 
-			LegoFloat range = item->m_unk0x08 - item->m_unk0x00;
-			if (range > item->m_unk0x04) {
-				item->m_unk0x28 = item->m_unk0x04;
+			LegoFloat range = item->m_right - item->m_left;
+			if (range > item->m_height) {
+				item->m_fitSize = item->m_height;
 			}
 			else {
-				item->m_unk0x28 = range;
+				item->m_fitSize = range;
 			}
 
 			i++;
 			item++;
-		} while (i < m_unk0x60);
+		} while (i < m_slotCount);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046d010
-void MenuModelCarousel::FUN_0046d010(Item* p_item)
+void MenuModelCarousel::InitializeItem(Item* p_item)
 {
 	GolVec3 center;
-	p_item->m_entity.FUN_10027fe0(0, &center, &p_item->m_modelRadius);
+	p_item->m_entity.GetModelBounds(0, &center, &p_item->m_modelRadius);
 	p_item->m_modelRadius += p_item->m_modelRadius;
 }
 
 // FUNCTION: LEGORACERS 0x0046d040
-void MenuModelCarousel::FUN_0046d040(Item* p_item, GolVec3* p_position)
+void MenuModelCarousel::GetItemPosition(Item* p_item, GolVec3* p_position)
 {
 	LegoFloat scale;
 	LegoFloat radius;
@@ -288,10 +288,10 @@ void MenuModelCarousel::FUN_0046d040(Item* p_item, GolVec3* p_position)
 	GolVec3 center;
 	GolVec3 oldPosition;
 
-	LegoFloat x = p_item->m_modelRadius - p_item->m_unk0x28;
+	LegoFloat x = p_item->m_modelRadius - p_item->m_fitSize;
 
 	if (x > 0.0f) {
-		x = -(m_unk0xb4 / p_item->m_unk0x28 * x);
+		x = -(m_cameraDistance / p_item->m_fitSize * x);
 	}
 
 	LegoFloat minX = p_item->m_modelRadius;
@@ -301,98 +301,98 @@ void MenuModelCarousel::FUN_0046d040(Item* p_item, GolVec3* p_position)
 		x = minX;
 	}
 
-	itemPosition.m_y = p_item->m_unk0x20;
-	itemPosition.m_z = p_item->m_unk0x24;
-	scale = (m_unk0xb4 - x) / m_unk0xb4;
+	itemPosition.m_y = p_item->m_centerY;
+	itemPosition.m_z = p_item->m_positionZ;
+	scale = (m_cameraDistance - x) / m_cameraDistance;
 	GolModelEntity* entity = &p_item->m_entity;
 
-	entity->VTable0x04(&oldPosition);
+	entity->GetPosition(&oldPosition);
 
 	p_position->m_x = x;
 	p_position->m_y = scale * itemPosition.m_y;
 	p_position->m_z = scale * itemPosition.m_z;
-	entity->VTable0x08(*p_position);
+	entity->SetPosition(*p_position);
 
-	entity->FUN_10027fe0(0, &center, &radius);
+	entity->GetModelBounds(0, &center, &radius);
 
 	p_position->m_x -= center.m_x - p_position->m_x;
 	p_position->m_y -= center.m_y - p_position->m_y;
 	p_position->m_z -= center.m_z - p_position->m_z;
-	entity->VTable0x08(oldPosition);
+	entity->SetPosition(oldPosition);
 }
 
 // FUNCTION: LEGORACERS 0x0046d140
 GolModelEntity* MenuModelCarousel::GetItemEntity(LegoS32 p_index)
 {
-	return &m_unk0x7c[p_index].m_entity;
+	return &m_items[p_index].m_entity;
 }
 
 // FUNCTION: LEGORACERS 0x0046d160
 GolModelBase* MenuModelCarousel::GetItemModel(LegoS32 p_index)
 {
-	return m_unk0x7c[p_index].m_model;
+	return m_items[p_index].m_model;
 }
 
 // FUNCTION: LEGORACERS 0x0046d180
-void MenuModelCarousel::VTable0x60(LegoS32 p_index)
+void MenuModelCarousel::RefreshItemModel(LegoS32 p_index)
 {
-	Item* item = &m_unk0x7c[p_index];
-	FUN_0046d010(item);
+	Item* item = &m_items[p_index];
+	InitializeItem(item);
 
 	GolVec3 position;
-	FUN_0046d040(item, &position);
-	item->m_entity.VTable0x08(position);
+	GetItemPosition(item, &position);
+	item->m_entity.SetPosition(position);
 	item->m_model = item->m_entity.GetModel(0);
 }
 
 // FUNCTION: LEGORACERS 0x0046d1d0
-void MenuModelCarousel::VTable0x48(VisualStateColor* p_unk0x04, VisualStateColor* p_unk0x08)
+void MenuModelCarousel::SetItemColors(VisualStateColor* p_primaryColor, VisualStateColor* p_secondaryColor)
 {
-	Item* item = m_unk0x7c;
-	for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
-		item->m_unk0xc8.m_unk0x00 = p_unk0x04->m_unk0x00;
-		item->m_unk0xcc.m_unk0x00 = p_unk0x08->m_unk0x00;
+	Item* item = m_items;
+	for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
+		item->m_primaryColor.m_packed = p_primaryColor->m_packed;
+		item->m_secondaryColor.m_packed = p_secondaryColor->m_packed;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046d210
-void MenuModelCarousel::VTable0x4c(VisualStateColor* p_unk0x04, VisualStateColor* p_unk0x08)
+void MenuModelCarousel::SetFocusedItemColors(VisualStateColor* p_primaryColor, VisualStateColor* p_secondaryColor)
 {
-	Item* item = &m_unk0x7c[m_unk0x64];
-	item->m_unk0xc8.m_unk0x00 = p_unk0x04->m_unk0x00;
-	item->m_unk0xcc.m_unk0x00 = p_unk0x08->m_unk0x00;
+	Item* item = &m_items[m_focusedSlot];
+	item->m_primaryColor.m_packed = p_primaryColor->m_packed;
+	item->m_secondaryColor.m_packed = p_secondaryColor->m_packed;
 }
 
 // FUNCTION: LEGORACERS 0x0046d240
-void MenuModelCarousel::VTable0x40()
+void MenuModelCarousel::SnapToSelection()
 {
-	Item* item = m_unk0x7c;
-	for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
+	Item* item = m_items;
+	for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
 		if (item->m_entity.HasModel()) {
 			GolVec3 position;
-			FUN_0046d040(item, &position);
-			item->m_entity.VTable0x08(position);
+			GetItemPosition(item, &position);
+			item->m_entity.SetPosition(position);
 			item->m_entity.ClearVelocity();
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046d2a0
-void MenuModelCarousel::VTable0x44(undefined4)
+void MenuModelCarousel::StartScroll(undefined4)
 {
-	m_unk0x74 = m_unk0x58->m_unk0x0c;
-	m_unk0x70 = 1;
+	m_scrollDurationMs = m_style->m_scrollDurationMs;
+	m_scrolling = 1;
 
-	Item* item = m_unk0x7c;
-	for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
+	Item* item = m_items;
+	for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
 		if (item->m_entity.HasModel()) {
 			GolVec3 currentPosition;
-			item->m_entity.VTable0x04(&currentPosition);
+			item->m_entity.GetPosition(&currentPosition);
 
 			GolVec3 targetPosition;
-			FUN_0046d040(item, &targetPosition);
+			GetItemPosition(item, &targetPosition);
 
-			LegoFloat duration = static_cast<LegoFloat>(m_unk0x74);
+			LegoFloat duration = static_cast<LegoFloat>(m_scrollDurationMs);
 			GolVec3 velocity;
 			velocity.m_x = (targetPosition.m_x - currentPosition.m_x) / duration;
 			velocity.m_y = (targetPosition.m_y - currentPosition.m_y) / duration;
@@ -403,73 +403,73 @@ void MenuModelCarousel::VTable0x44(undefined4)
 }
 
 // FUNCTION: LEGORACERS 0x0046d350
-LegoS32 MenuModelCarousel::VTable0x54()
+LegoS32 MenuModelCarousel::ScrollNext()
 {
-	GolModelBase* model = m_unk0x7c[0].m_model;
-	Item* item = m_unk0x7c;
+	GolModelBase* model = m_items[0].m_model;
+	Item* item = m_items;
 
-	for (LegoS32 i = 0; i < m_unk0x60 - 1; i++, item++) {
+	for (LegoS32 i = 0; i < m_slotCount - 1; i++, item++) {
 		GolModelEntity* entity = &item->m_entity;
 
 		item->m_model = item[1].m_model;
 		if (item[1].m_entity.HasModel()) {
-			entity->VTable0x50(item->m_model, g_violetShoalMaxFloat);
+			entity->SetPrimaryModel(item->m_model, g_violetShoalMaxFloat);
 			entity->CopyOrientationAndPositionFrom(item[1].m_entity);
 			entity->InvalidateRadius();
 			entity->SetPrimaryMaterialTable(item[1].m_entity.GetPrimaryMaterialTable());
 			item->m_modelRadius = item[1].m_modelRadius;
-			FUN_0046d010(item);
+			InitializeItem(item);
 		}
 		else {
-			entity->VTable0x54();
+			entity->ResetModelState();
 		}
 	}
 
-	item->m_entity.VTable0x54();
+	item->m_entity.ResetModelState();
 	item->m_model = model;
-	VTable0x44(0);
-	return m_unk0x6c;
+	StartScroll(0);
+	return m_selectedIndex;
 }
 
 // FUNCTION: LEGORACERS 0x0046d470
-LegoS32 MenuModelCarousel::VTable0x58()
+LegoS32 MenuModelCarousel::ScrollPrevious()
 {
-	Item* item = &m_unk0x7c[m_unk0x60 - 1];
+	Item* item = &m_items[m_slotCount - 1];
 	GolModelBase* model = item->m_model;
 
-	for (LegoS32 i = m_unk0x60 - 1; i > 0; i--, item--) {
+	for (LegoS32 i = m_slotCount - 1; i > 0; i--, item--) {
 		GolModelEntity* entity = &item->m_entity;
 		GolModelBase* shiftedModel = item[-1].m_model;
 
 		item->m_model = shiftedModel;
 		if (item[-1].m_entity.HasModel()) {
-			entity->VTable0x50(shiftedModel, g_violetShoalMaxFloat);
+			entity->SetPrimaryModel(shiftedModel, g_violetShoalMaxFloat);
 			entity->CopyOrientationAndPositionFrom(item[-1].m_entity);
 			entity->InvalidateRadius();
 			entity->SetPrimaryMaterialTable(item[-1].m_entity.GetPrimaryMaterialTable());
 			item->m_modelRadius = item[-1].m_modelRadius;
-			FUN_0046d010(item);
+			InitializeItem(item);
 		}
 		else {
-			entity->VTable0x54();
+			entity->ResetModelState();
 		}
 	}
 
-	item->m_entity.VTable0x54();
+	item->m_entity.ResetModelState();
 	item->m_model = model;
-	VTable0x44(0);
-	return m_unk0x6c;
+	StartScroll(0);
+	return m_selectedIndex;
 }
 
 // FUNCTION: LEGORACERS 0x0046d5a0
 void MenuModelCarousel::SetParent(MenuWidget* p_parent)
 {
 	MenuWidget::SetParent(p_parent);
-	FUN_0046cd30();
+	UpdateViewport();
 }
 
 // FUNCTION: LEGORACERS 0x0046d5c0
-MenuWidget* MenuModelCarousel::VTable0x30(InputEventQueue::Event* p_event, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuModelCarousel::OnKeyDown(InputEventQueue::Event* p_event, undefined4 p_x, undefined4 p_y)
 {
 	if (!HitTest(p_x, p_y)) {
 		return NULL;
@@ -479,13 +479,13 @@ MenuWidget* MenuModelCarousel::VTable0x30(InputEventQueue::Event* p_event, undef
 		return NULL;
 	}
 
-	for (LegoS32 i = 0; i < m_unk0x60; i++) {
-		if (FUN_00473a20(&m_unk0x7c[i].m_rect, p_x, p_y)) {
-			LegoS32 index = FUN_0046c9a0(i + m_unk0x6c - m_unk0x64);
-			VTable0x50(index);
+	for (LegoS32 i = 0; i < m_slotCount; i++) {
+		if (PointInRect(&m_items[i].m_rect, p_x, p_y)) {
+			LegoS32 index = WrapIndex(i + m_selectedIndex - m_focusedSlot);
+			SetSelection(index);
 
-			if (m_unk0x28) {
-				m_unk0x28->VTable0x18(this, p_event, p_x, p_y);
+			if (m_notifyHandler) {
+				m_notifyHandler->HandleKeyDown(this, p_event, p_x, p_y);
 			}
 
 			return this;
@@ -496,70 +496,70 @@ MenuWidget* MenuModelCarousel::VTable0x30(InputEventQueue::Event* p_event, undef
 }
 
 // FUNCTION: LEGORACERS 0x0046d670
-MenuWidget* MenuModelCarousel::VTable0x38(Rect*, Rect*)
+MenuWidget* MenuModelCarousel::DrawSelf(Rect*, Rect*)
 {
-	Item* item = m_unk0x7c;
+	Item* item = m_items;
 
-	m_renderer->VTable0xe4();
-	FUN_0046cdc0();
-	m_renderer->VTable0xec(m_unk0x78);
+	m_renderer->EnableZBuffer();
+	PushCamera();
+	m_renderer->SelectViewport(m_viewportIndex);
 
 	GolVec3 direction = m_renderer->GetCurrentLight(0)->m_direction;
-	m_unk0x8c.SetDirection(direction);
+	m_light.SetDirection(direction);
 
-	m_renderer->VTable0x28();
-	m_renderer->VTable0x2c(&m_unk0x88);
-	m_renderer->VTable0x30(&m_unk0x8c);
+	m_renderer->ClearLights();
+	m_renderer->SetAmbient(&m_materialColor);
+	m_renderer->AddLight(&m_light);
 
 	LegoU8 hasModelFlag = 1;
-	for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
+	for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
 		if (item->m_entity.HasModel() & hasModelFlag) {
-			m_renderer->GetCurrentMaterialColor()->SetColor(item->m_unk0xc8.m_color);
-			m_renderer->GetCurrentLight(0)->SetColor(item->m_unk0xcc.m_color);
-			m_renderer->VTable0x60();
-			m_renderer->VTable0x94(&item->m_entity);
+			m_renderer->GetCurrentMaterialColor()->SetColor(item->m_primaryColor.m_color);
+			m_renderer->GetCurrentLight(0)->SetColor(item->m_secondaryColor.m_color);
+			m_renderer->ApplyLights();
+			m_renderer->DrawModelEntity(&item->m_entity);
 		}
 	}
 
-	FUN_0046cdf0();
-	m_renderer->VTable0xec(6);
-	m_renderer->VTable0xe8(FALSE);
+	PopCamera();
+	m_renderer->SelectViewport(6);
+	m_renderer->DisableZBuffer(FALSE);
 
 	return NULL;
 }
 
 // FUNCTION: LEGORACERS 0x0046d780
-undefined4 MenuModelCarousel::VTable0x3c(undefined4 p_elapsed)
+undefined4 MenuModelCarousel::OnEvent(undefined4 p_elapsed)
 {
 	undefined4 elapsed;
 
-	if (m_unk0x70) {
-		if (!m_unk0x74) {
-			Item* item = m_unk0x7c;
-			for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
+	if (m_scrolling) {
+		if (!m_scrollDurationMs) {
+			Item* item = m_items;
+			for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
 				if (item->m_entity.HasModel()) {
 					item->m_entity.ClearVelocity();
 				}
 			}
 
-			m_unk0x70 = 0;
-			VTable0x40();
+			m_scrolling = 0;
+			SnapToSelection();
 		}
 
 		elapsed = p_elapsed;
-		if (p_elapsed > static_cast<undefined4>(m_unk0x74)) {
-			elapsed = m_unk0x74;
+		if (p_elapsed > static_cast<undefined4>(m_scrollDurationMs)) {
+			elapsed = m_scrollDurationMs;
 		}
-		m_unk0x74 -= elapsed;
+		m_scrollDurationMs -= elapsed;
 	}
 	else {
 		elapsed = p_elapsed;
 	}
 
-	Item* item = m_unk0x7c;
-	for (LegoS32 i = 0; i < m_unk0x60; i++, item++) {
-		VTable0x5c(elapsed, &item->m_entity);
-		item->m_entity.VTable0x10(elapsed);
+	Item* item = m_items;
+	for (LegoS32 i = 0; i < m_slotCount; i++, item++) {
+		LayoutItem(elapsed, &item->m_entity);
+		item->m_entity.Update(elapsed);
 	}
 
 	return 0;

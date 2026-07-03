@@ -10,13 +10,13 @@
 DECOMP_SIZE_ASSERT(GolCameraBase, 0x120)
 
 // FUNCTION: LEGORACERS 0x004044f0
-LegoFloat GolCameraBase::FUN_004044f0(GolVec3* p_left, GolVec3* p_right)
+LegoFloat GolCameraBase::Dot2(GolVec3* p_left, GolVec3* p_right)
 {
 	return p_left->m_z * p_right->m_z + p_left->m_y * p_right->m_y + p_left->m_x * p_right->m_x;
 }
 
 // FUNCTION: LEGORACERS 0x00404510
-GolVec3* GolCameraBase::FUN_00404510(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
+GolVec3* GolCameraBase::Cross(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
 {
 	LegoFloat x = p_left->m_y;
 	x *= p_right->m_z;
@@ -41,7 +41,7 @@ GolVec3* GolCameraBase::FUN_00404510(GolVec3* p_left, GolVec3* p_right, GolVec3*
 }
 
 // FUNCTION: LEGORACERS 0x00404550
-GolVec3* GolCameraBase::FUN_00404550(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
+GolVec3* GolCameraBase::Add(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
 {
 	p_dest->m_x = p_left->m_x + p_right->m_x;
 	p_dest->m_y = p_left->m_y + p_right->m_y;
@@ -51,7 +51,7 @@ GolVec3* GolCameraBase::FUN_00404550(GolVec3* p_left, GolVec3* p_right, GolVec3*
 }
 
 // FUNCTION: LEGORACERS 0x00404580
-GolVec3* GolCameraBase::FUN_00404580(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
+GolVec3* GolCameraBase::Subtract(GolVec3* p_left, GolVec3* p_right, GolVec3* p_dest)
 {
 	p_dest->m_x = p_left->m_x - p_right->m_x;
 	p_dest->m_y = p_left->m_y - p_right->m_y;
@@ -61,7 +61,7 @@ GolVec3* GolCameraBase::FUN_00404580(GolVec3* p_left, GolVec3* p_right, GolVec3*
 }
 
 // FUNCTION: LEGORACERS 0x004045b0
-GolVec3* GolCameraBase::FUN_004045b0(GolVec3* p_src, LegoFloat p_scale, GolVec3* p_dest)
+GolVec3* GolCameraBase::Scale(GolVec3* p_src, LegoFloat p_scale, GolVec3* p_dest)
 {
 	p_dest->m_x = p_scale * p_src->m_x;
 
@@ -79,7 +79,7 @@ GolVec3* GolCameraBase::FUN_004045b0(GolVec3* p_src, LegoFloat p_scale, GolVec3*
 // TODO: Unique section prevents ICF; the original keeps both dot helpers as distinct functions.
 #pragma code_seg(".text$golcamerabase_00404680")
 // FUNCTION: LEGORACERS 0x00404680
-LegoFloat GolCameraBase::FUN_00404680(GolVec3* p_left, GolVec3* p_right)
+LegoFloat GolCameraBase::Dot(GolVec3* p_left, GolVec3* p_right)
 {
 	return p_left->m_z * p_right->m_z + p_left->m_y * p_right->m_y + p_left->m_x * p_right->m_x;
 }
@@ -103,7 +103,7 @@ void GolCameraBase::LookAt(GolVec3* p_position, GolVec3* p_target, GolVec3* p_up
 }
 
 // FUNCTION: LEGORACERS 0x00404710
-void GolCameraBase::FUN_00404710(LegoFloat p_fov, LegoFloat p_nearClip, LegoFloat p_farClip, LegoFloat p_aspectRatio)
+void GolCameraBase::SetLens(LegoFloat p_fov, LegoFloat p_nearClip, LegoFloat p_farClip, LegoFloat p_aspectRatio)
 {
 	m_fov = p_fov;
 	m_nearClip = p_nearClip;
@@ -116,13 +116,13 @@ void GolCameraBase::SetAspectRatio(LegoFloat p_aspect)
 {
 	if (p_aspect > 0.0f) {
 		m_aspectRatio = p_aspect;
-		m_flags |= 8;
+		m_flags |= c_flagFixedAspectRatio;
 	}
 	else {
-		m_flags &= ~8;
+		m_flags &= ~c_flagFixedAspectRatio;
 	}
 
-	m_flags |= 3;
+	m_flags |= c_flagViewDirty | c_flagProjectionDirty;
 }
 
 // FUNCTION: GOLDP 0x1001bf30
@@ -137,7 +137,7 @@ GolCameraBase::GolCameraBase()
 	m_nearHalfHeight = 0.0f;
 	m_farHalfHeight = 0.0f;
 	m_farHalfWidth = 0.0f;
-	m_flags = 3;
+	m_flags = c_flagViewDirty | c_flagProjectionDirty;
 	m_viewport.m_left = 0;
 	m_viewport.m_right = 0;
 	m_viewport.m_top = 0;
@@ -152,7 +152,7 @@ GolCameraBase::~GolCameraBase()
 }
 
 // STUB: GOLDP 0x1001bfc0
-void GolCameraBase::FUN_1001bfc0(GolViewFrustum* p_view)
+void GolCameraBase::ComputeFrustum(GolViewFrustum* p_view)
 {
 	m_transform->GetPosition(&p_view->m_position);
 
@@ -164,22 +164,22 @@ void GolCameraBase::FUN_1001bfc0(GolViewFrustum* p_view)
 	source.m_x = -m_farHalfWidth;
 	source.m_y = -m_farHalfHeight;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[0]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[0]);
 
 	source.m_x = -m_farHalfWidth;
 	source.m_y = m_farHalfHeight;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[2]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[2]);
 
 	source.m_x = m_farHalfWidth;
 	source.m_y = -m_farHalfHeight;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[1]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[1]);
 
 	source.m_x = m_farHalfWidth;
 	source.m_y = m_farHalfHeight;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[3]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[3]);
 
 	m_nearHalfHeight = m_nearClip * tangent;
 	m_nearHalfWidth = m_aspectRatio * m_nearHalfHeight;
@@ -187,22 +187,22 @@ void GolCameraBase::FUN_1001bfc0(GolViewFrustum* p_view)
 	source.m_x = -m_nearHalfWidth;
 	source.m_y = -m_nearHalfHeight;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[4]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[4]);
 
 	source.m_x = -m_nearHalfWidth;
 	source.m_y = m_nearHalfHeight;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[6]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[6]);
 
 	source.m_x = m_nearHalfWidth;
 	source.m_y = -m_nearHalfHeight;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[5]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[5]);
 
 	source.m_x = m_nearHalfWidth;
 	source.m_y = m_nearHalfHeight;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[7]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[7]);
 
 	GolVec3 edge0;
 	GolVec3 edge1;
@@ -256,7 +256,7 @@ void GolCameraBase::FUN_1001bfc0(GolViewFrustum* p_view)
 }
 
 // STUB: GOLDP 0x1001c450
-void GolCameraBase::FUN_1001c450(GolViewFrustum* p_view)
+void GolCameraBase::ComputeFrustumFromBounds(GolViewFrustum* p_view)
 {
 	m_transform->GetPosition(&p_view->m_position);
 
@@ -273,42 +273,42 @@ void GolCameraBase::FUN_1001c450(GolViewFrustum* p_view)
 	source.m_x = farLeft;
 	source.m_y = farBottom;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[0]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[0]);
 
 	source.m_x = farLeft;
 	source.m_y = farTop;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[2]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[2]);
 
 	source.m_x = farRight;
 	source.m_y = farBottom;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[1]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[1]);
 
 	source.m_x = farRight;
 	source.m_y = farTop;
 	source.m_z = m_farClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[3]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[3]);
 
 	source.m_x = m_viewBounds.m_x;
 	source.m_y = m_viewBounds.m_y;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[4]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[4]);
 
 	source.m_x = m_viewBounds.m_x;
 	source.m_y = m_viewBounds.m_u;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[6]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[6]);
 
 	source.m_x = m_viewBounds.m_z;
 	source.m_y = m_viewBounds.m_y;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[5]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[5]);
 
 	source.m_x = m_viewBounds.m_z;
 	source.m_y = m_viewBounds.m_u;
 	source.m_z = m_nearClip;
-	m_transform->VTable0x04(&source, &p_view->m_corners[7]);
+	m_transform->TransformPoint(&source, &p_view->m_corners[7]);
 
 	GolVec3 edge0;
 	GolVec3 edge1;
@@ -362,7 +362,7 @@ void GolCameraBase::FUN_1001c450(GolViewFrustum* p_view)
 }
 
 // STUB: GOLDP 0x1001c900
-LegoBool32 GolCameraBase::VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolVec4* p_bounds)
+LegoBool32 GolCameraBase::ProjectSphere(GolVec3* p_center, LegoFloat p_radius, GolVec4* p_bounds)
 {
 	LegoBool32 visibility = m_viewFrustum.ClassifySphere(*p_center, p_radius);
 
@@ -390,7 +390,7 @@ LegoBool32 GolCameraBase::VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolV
 	tangentPoint.m_x = scaledAxis.m_x + p_center->m_x;
 	tangentPoint.m_y = scaledAxis.m_y + p_center->m_y;
 	tangentPoint.m_z = scale * up.m_z + p_center->m_z;
-	VTable0x20(&tangentPoint, &projectedPlanes[1]);
+	ProjectToScreen(&tangentPoint, &projectedPlanes[1]);
 
 	plane = &m_viewFrustum.m_planes[0];
 	dot = plane->m_normal.m_z;
@@ -403,7 +403,7 @@ LegoBool32 GolCameraBase::VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolV
 	tangentPoint.m_x = scaledAxis.m_x + p_center->m_x;
 	tangentPoint.m_y = scaledAxis.m_y + p_center->m_y;
 	tangentPoint.m_z = scale * up.m_z + p_center->m_z;
-	VTable0x20(&tangentPoint, &projectedPlanes[0]);
+	ProjectToScreen(&tangentPoint, &projectedPlanes[0]);
 
 	m_transform->GetForward(&forward);
 
@@ -418,7 +418,7 @@ LegoBool32 GolCameraBase::VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolV
 	tangentPoint.m_x = scaledAxis.m_x + p_center->m_x;
 	tangentPoint.m_y = scaledAxis.m_y + p_center->m_y;
 	tangentPoint.m_z = scale * forward.m_z + p_center->m_z;
-	VTable0x20(&tangentPoint, &projectedPlanes[2]);
+	ProjectToScreen(&tangentPoint, &projectedPlanes[2]);
 
 	plane = &m_viewFrustum.m_planes[2];
 	dot = plane->m_normal.m_z;
@@ -432,7 +432,7 @@ LegoBool32 GolCameraBase::VTable0x24(GolVec3* p_center, LegoFloat p_radius, GolV
 	tangentPoint.m_x = scaledAxis.m_x + p_center->m_x;
 	tangentPoint.m_y = scaledAxis.m_y + p_center->m_y;
 	tangentPoint.m_z = scale * forward.m_z + p_center->m_z;
-	VTable0x20(&tangentPoint, &projectedPlanes[3]);
+	ProjectToScreen(&tangentPoint, &projectedPlanes[3]);
 
 	p_bounds->m_x = projectedPlanes[0].m_x;
 	p_bounds->m_z = projectedPlanes[1].m_x;
@@ -464,9 +464,9 @@ void GolCameraBase::UpdateFromTrackedEntity()
 		return;
 	}
 
-	m_trackedEntity->VTable0x5c(0);
-	GolSceneNode* frameSet = m_trackedEntity->VTable0x58(0);
-	GolTransformBase* orbit = frameSet->VTable0x18(m_trackedNodeIndex);
+	m_trackedEntity->ApplyPartAnimation(0);
+	GolSceneNode* frameSet = m_trackedEntity->GetSceneNode(0);
+	GolTransformBase* orbit = frameSet->GetTransform(m_trackedNodeIndex);
 
 	GolVec3 position;
 	GolVec3 right;
@@ -477,31 +477,31 @@ void GolCameraBase::UpdateFromTrackedEntity()
 	orbit->GetPosition(&position);
 	orbit->VTable0x20(&right, &forward);
 
-	for (GolTransformBase* parent = orbit->m_unk0x04; parent != NULL; parent = parent->m_unk0x04) {
-		parent->VTable0x04(&position, &transformedPosition);
-		parent->VTable0x0c(&right, &transformedRight);
-		parent->VTable0x0c(&forward, &transformedForward);
+	for (GolTransformBase* parent = orbit->m_parent; parent != NULL; parent = parent->m_parent) {
+		parent->TransformPoint(&position, &transformedPosition);
+		parent->TransformVector(&right, &transformedRight);
+		parent->TransformVector(&forward, &transformedForward);
 
 		position = transformedPosition;
 		right = transformedRight;
 		forward = transformedForward;
 	}
 
-	m_trackedEntity->VTable0x2c(position, &transformedPosition);
-	m_trackedEntity->VTable0x34(right, &transformedRight);
-	m_trackedEntity->VTable0x34(forward, &transformedForward);
+	m_trackedEntity->LocalToWorld(position, &transformedPosition);
+	m_trackedEntity->RotateToWorld(right, &transformedRight);
+	m_trackedEntity->RotateToWorld(forward, &transformedForward);
 
 	m_transform->SetPosition(&transformedPosition);
 	transformedForward.m_x = -transformedForward.m_x;
-	m_flags |= 1;
+	m_flags |= c_flagViewDirty;
 	transformedForward.m_y = -transformedForward.m_y;
 	transformedForward.m_z = -transformedForward.m_z;
 	m_transform->VTable0x24(&transformedRight, &transformedForward);
-	m_flags |= 1;
+	m_flags |= c_flagViewDirty;
 }
 
 // FUNCTION: GOLDP 0x1002c010 FOLDED
-void GolCameraBase::VTable0x20(const GolVec3*, GolVec3*)
+void GolCameraBase::ProjectToScreen(const GolVec3*, GolVec3*)
 {
 	// empty
 }

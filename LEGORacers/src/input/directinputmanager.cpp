@@ -97,7 +97,7 @@ BOOL DirectInputManager::MarkForceFeedbackJoystickCallback(LPCDIDEVICEINSTANCEA 
 LegoBool32 DirectInputManager::AddJoystickDevice(LPCDIDEVICEINSTANCE p_deviceInstance)
 {
 	LegoS32 i;
-	JoystickInputDevice* joystick;
+	JoystickDevice* joystick;
 
 	for (i = 0; i < m_joystickCount; i++) {
 		joystick = m_joysticks[i];
@@ -107,7 +107,7 @@ LegoBool32 DirectInputManager::AddJoystickDevice(LPCDIDEVICEINSTANCE p_deviceIns
 		}
 	}
 
-	joystick = new JoystickInputDevice;
+	joystick = new JoystickDevice;
 
 	if (joystick == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
@@ -116,7 +116,7 @@ LegoBool32 DirectInputManager::AddJoystickDevice(LPCDIDEVICEINSTANCE p_deviceIns
 	m_joysticks[m_joystickCount] = joystick;
 	m_joystickPresent[m_joystickCount] = TRUE;
 
-	CreateDirectInputDeviceParams params;
+	DirectInputDevice::CreateParams params;
 	params.m_dinput = m_directInput;
 	params.m_hWnd = m_hWnd;
 	params.m_guid = &p_deviceInstance->guidInstance;
@@ -132,7 +132,7 @@ LegoBool32 DirectInputManager::AddJoystickDevice(LPCDIDEVICEINSTANCE p_deviceIns
 LegoBool32 DirectInputManager::MarkForceFeedbackJoystick(const LPCDIDEVICEINSTANCE p_deviceInfo)
 {
 	LegoS32 i;
-	JoystickInputDevice* joystick;
+	JoystickDevice* joystick;
 
 	for (i = 0; i < m_joystickCount; i++) {
 		joystick = m_joysticks[i];
@@ -149,13 +149,13 @@ LegoBool32 DirectInputManager::MarkForceFeedbackJoystick(const LPCDIDEVICEINSTAN
 // FUNCTION: LEGORACERS 0x004506a0
 LegoBool32 DirectInputManager::DetectKeyboard()
 {
-	KeyboardInputDevice* keyboard = new KeyboardInputDevice;
+	KeyboardDevice* keyboard = new KeyboardDevice;
 
 	if (keyboard == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	CreateDirectInputDeviceParams params;
+	DirectInputDevice::CreateParams params;
 	::memset(&params, 0, sizeof(params));
 	params.m_dinput = m_directInput;
 	params.m_hWnd = m_hWnd;
@@ -176,13 +176,13 @@ LegoBool32 DirectInputManager::DetectKeyboard()
 // FUNCTION: LEGORACERS 0x00450790
 LegoBool32 DirectInputManager::DetectMouse()
 {
-	MouseInputDevice* mouse = new MouseInputDevice;
+	MouseDevice* mouse = new MouseDevice;
 
 	if (mouse == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	CreateDirectInputDeviceParams params;
+	DirectInputDevice::CreateParams params;
 	::memset(&params, 0, sizeof(params));
 	params.m_dinput = m_directInput;
 	params.m_hWnd = m_hWnd;

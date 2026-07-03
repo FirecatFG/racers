@@ -38,13 +38,13 @@ public:
 	void Reset();
 	void Initialize(GolD3DRenderDevice* p_renderer, GolExport* p_golExport, LegoBool32 p_binary, LegoBool32 p_mirror);
 	void Shutdown();
-	void FUN_00422710(LegoU32 p_elapsedMs);
-	void FUN_00422960(GolD3DRenderDevice* p_renderer);
-	void FUN_00422de0();
-	void FUN_00422eb0(RaceState::Racer* p_racer);
+	void Update(LegoU32 p_elapsedMs);
+	void Draw(GolD3DRenderDevice* p_renderer);
+	void PrepareRun();
+	void AttachRacer(Racer* p_racer);
 	void UpdateBestRun();
 	LegoBool32 HasBeatenRecord();
-	GhostRunData* FUN_004234f0();
+	GhostRunData* ResetRun();
 	LegoU32* GetScratchLapTimes() { return m_scratchRun->m_lapTimes; }
 	const LegoU32* GetRecordLapTimes() const { return m_recordRun->m_lapTimes; }
 	const LegoU32* GetBestLapTimes() const { return m_bestRun->m_lapTimes; }
@@ -80,12 +80,12 @@ public:
 
 private:
 	enum {
-		c_flag0x3b4Bit0 = 1 << 0,
-		c_flag0x3b4Bit1 = 1 << 1,
-		c_flag0x3b4Bit2 = 1 << 2,
-		c_flag0x3b4Bit3 = 1 << 3,
-		c_flag0x3b4Bit4 = 1 << 4,
-		c_flag0x3b4Bit5 = 1 << 5,
+		c_flagBestRunValid = 1 << 0,
+		c_flagRunning = 1 << 1,
+		c_flagBinaryGhosts = 1 << 2,
+		c_flagRecordRunValid = 1 << 3,
+		c_flagBit4 = 1 << 4,
+		c_flagMirror = 1 << 5,
 		c_lapCount = 3,
 		c_ghostSampleIntervalMs = 250,
 		c_ghostRaceDurationLimitMs = 240000,
@@ -101,34 +101,34 @@ private:
 	};
 
 public:
-	LegoBool32 HasBestGhostMarker() const { return (m_flags0x3b4 & c_flag0x3b4Bit0) && !m_bestRun->m_finished; }
-	LegoBool32 HasRecordGhostMarker() const { return (m_flags0x3b4 & c_flag0x3b4Bit3) && !m_recordRun->m_finished; }
-	LegoBool32 HasBestRunLapTimes() const { return m_flags0x3b4 & c_flag0x3b4Bit0; }
-	LegoBool32 HasRecordRunLapTimes() const { return m_flags0x3b4 & c_flag0x3b4Bit3; }
-	GolAnimatedEntity* GetBestGhostMarkerEntity() { return &m_unk0x1c; }
-	GolAnimatedEntity* GetRecordGhostMarkerEntity() { return m_unk0x110; }
+	LegoBool32 HasBestGhostMarker() const { return (m_flags & c_flagBestRunValid) && !m_bestRun->m_finished; }
+	LegoBool32 HasRecordGhostMarker() const { return (m_flags & c_flagRecordRunValid) && !m_recordRun->m_finished; }
+	LegoBool32 HasBestRunLapTimes() const { return m_flags & c_flagBestRunValid; }
+	LegoBool32 HasRecordRunLapTimes() const { return m_flags & c_flagRecordRunValid; }
+	GolAnimatedEntity* GetBestGhostMarkerEntity() { return &m_bestGhostMarker; }
+	GolAnimatedEntity* GetRecordGhostMarkerEntity() { return m_recordGhostMarker; }
 
 private:
-	void FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_name);
+	void LoadGhostRun(GhostRunData* p_ghostRun, const LegoChar* p_name);
 
-	GolWorldDatabase* m_worldDatabase; // 0x04
-	GolExport* m_golExport;            // 0x08
-	GhostRunData* m_recordRun;         // 0x0c
-	GhostRunData* m_bestRun;           // 0x10
-	GhostRunData* m_scratchRun;        // 0x14
-	RaceState::Racer* m_racer;         // 0x18
-	GolAnimatedEntity m_unk0x1c;       // 0x1c
-	GolAnimatedEntity* m_unk0x110;     // 0x110
-	GolAnimatedEntity m_unk0x114;      // 0x114
-	GolAnimatedEntity* m_unk0x208;     // 0x208
-	GolAnimatedEntity m_unk0x20c;      // 0x20c
-	GolModelEntity m_unk0x300;         // 0x300
-	GolModelEntity* m_unk0x390;        // 0x390
-	GolVec3 m_unk0x394;                // 0x394
-	GolVec3 m_unk0x3a0;                // 0x3a0
-	LegoU32 m_unk0x3ac;                // 0x3ac
-	LegoU32 m_unk0x3b0;                // 0x3b0
-	LegoU8 m_flags0x3b4;               // 0x3b4
+	GolWorldDatabase* m_worldDatabase;      // 0x04
+	GolExport* m_golExport;                 // 0x08
+	GhostRunData* m_recordRun;              // 0x0c
+	GhostRunData* m_bestRun;                // 0x10
+	GhostRunData* m_scratchRun;             // 0x14
+	Racer* m_racer;                         // 0x18
+	GolAnimatedEntity m_bestGhostMarker;    // 0x1c
+	GolAnimatedEntity* m_recordGhostMarker; // 0x110
+	GolAnimatedEntity m_bestGhostDriver;    // 0x114
+	GolAnimatedEntity* m_recordGhostDriver; // 0x208
+	GolAnimatedEntity m_bestGhostSecondary; // 0x20c
+	GolModelEntity m_bestGhostCarModel;     // 0x300
+	GolModelEntity* m_recordGhostCarModel;  // 0x390
+	GolVec3 m_bestDriverMountOffset;        // 0x394
+	GolVec3 m_recordDriverMountOffset;      // 0x3a0
+	LegoU32 m_sampleCountdownMs;            // 0x3ac
+	LegoU32 m_elapsedTotalMs;               // 0x3b0
+	LegoU8 m_flags;                         // 0x3b4
 };
 
 #endif // TIMERACEMANAGER_H

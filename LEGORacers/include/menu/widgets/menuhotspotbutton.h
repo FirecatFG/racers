@@ -6,7 +6,7 @@
 #include "menu/style/menustyletable.h"
 #include "menu/widgets/menubutton.h"
 
-class UtopianPan0xa4;
+class GolImage;
 
 // VTABLE: LEGORACERS 0x004b1ef0
 // SIZE 0x228
@@ -15,21 +15,21 @@ public:
 	// SIZE 0xa0
 	class CreateParams : public MenuButton::CreateParams {
 	public:
-		UtopianPan0xa4* m_unk0x9c; // 0x9c
+		GolImage* m_highlightImage; // 0x9c
 	};
 
 	MenuHotspotButton();
 
-	void Reset() override;                                                            // vtable+0x00
-	~MenuHotspotButton() override;                                                    // vtable+0x04
-	LegoBool32 VTable0x08() override;                                                 // vtable+0x08
-	MenuWidget* VTable0x30(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
-	MenuWidget* VTable0x34(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x34
-	MenuWidget* VTable0x38(Rect*, Rect*) override;                                    // vtable+0x38
-	void VTable0x58(undefined4) override;                                             // vtable+0x58
+	void Reset() override;                                                           // vtable+0x00
+	~MenuHotspotButton() override;                                                   // vtable+0x04
+	LegoBool32 Destroy() override;                                                   // vtable+0x08
+	MenuWidget* OnKeyDown(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
+	MenuWidget* OnKeyUp(InputEventQueue::Event*, undefined4, undefined4) override;   // vtable+0x34
+	MenuWidget* DrawSelf(Rect*, Rect*) override;                                     // vtable+0x38
+	void Unfocus(undefined4) override;                                               // vtable+0x58
 
-	LegoBool32 FUN_004665f0(CreateParams* p_createParams, MenuStyleTable::HotspotStyle* p_styleEntry);
-	LegoU32 GetUnk0x224() const { return m_unk0x224; }
+	LegoBool32 Create(CreateParams* p_createParams, MenuStyleTable::HotspotStyle* p_styleEntry);
+	LegoU32 GetHotspotIndex() const { return m_hotspotIndex; }
 
 	// SYNTHETIC: LEGORACERS 0x00466560
 	// MenuHotspotButton::`scalar deleting destructor'
@@ -43,13 +43,13 @@ protected:
 		c_sourceRegion = 0x50000000,
 	};
 
-	Rect* FUN_00466640(Rect* p_rect1, Rect* p_rect2, Rect* p_out);
-	void FUN_00466690(LegoU32 p_code);
-	MenuWidget* FUN_00466800(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y);
+	Rect* IntersectRects(Rect* p_rect1, Rect* p_rect2, Rect* p_out);
+	void SelectHotspotByCode(LegoU32 p_code);
+	MenuWidget* HitTestHotspots(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y);
 
-	MenuStyleTable::HotspotStyle* m_unk0x21c; // 0x21c
-	UtopianPan0xa4* m_unk0x220;               // 0x220
-	undefined4 m_unk0x224;                    // 0x224
+	MenuStyleTable::HotspotStyle* m_hotspotStyle; // 0x21c
+	GolImage* m_highlightImage;                   // 0x220
+	LegoU32 m_hotspotIndex;                       // 0x224
 };
 
 #endif // MENUHOTSPOTBUTTON_H

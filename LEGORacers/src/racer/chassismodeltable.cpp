@@ -52,7 +52,7 @@ void ChassisModelTable::Reset()
 // FUNCTION: LEGORACERS 0x0041d9b0
 void ChassisModelTable::Clear()
 {
-	FUN_0041dae0();
+	ReleaseInstances();
 
 	if (m_modelParts != NULL) {
 		delete[] m_modelParts;
@@ -61,7 +61,7 @@ void ChassisModelTable::Clear()
 
 	if (m_sceneNodes != NULL) {
 		for (LegoU32 i = 0; i < m_instantiatedCount; i++) {
-			m_golExport->VTable0x4c(m_sceneNodes[i]);
+			m_golExport->DestroySceneNode(m_sceneNodes[i]);
 			m_sceneNodes[i] = NULL;
 		}
 		delete[] m_sceneNodes;
@@ -88,7 +88,7 @@ void ChassisModelTable::Clear()
 
 	if (m_models != NULL) {
 		for (LegoU32 i = 0; i < m_instantiatedCount; i++) {
-			m_golExport->VTable0x48(m_models[i]);
+			m_golExport->DestroyModel(m_models[i]);
 			m_models[i] = NULL;
 		}
 		delete[] m_models;
@@ -104,7 +104,7 @@ void ChassisModelTable::Clear()
 }
 
 // FUNCTION: LEGORACERS 0x0041dae0 FOLDED
-void ChassisModelTable::FUN_0041dae0()
+void ChassisModelTable::ReleaseInstances()
 {
 	GolNameTable::Clear();
 
@@ -115,7 +115,7 @@ void ChassisModelTable::FUN_0041dae0()
 }
 
 // FUNCTION: LEGORACERS 0x0041db10
-LegoU32 ChassisModelTable::FUN_0041db10(const Params* p_params)
+LegoU32 ChassisModelTable::Load(const Params* p_params)
 {
 	if (m_items != NULL) {
 		Clear();
@@ -137,7 +137,7 @@ LegoU32 ChassisModelTable::FUN_0041db10(const Params* p_params)
 	}
 
 	parser->OpenFileForRead(p_params->m_filename);
-	parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+	parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(CmbTxtParser::e_chassis));
 	LegoU32 count = parser->ReadBracketedCountAndLeftCurly();
 	if (count != 0) {
 		m_items = new Item[count];
@@ -156,89 +156,89 @@ LegoU32 ChassisModelTable::FUN_0041db10(const Params* p_params)
 	::memset(m_items, 0, count * sizeof(Item));
 	LegoU32 i;
 	for (i = 0; i < count; i++) {
-		parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+		parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(CmbTxtParser::e_chassis));
 		GolName name;
 		::strncpy(name, parser->ReadStringWithMaxLength(sizeof(name)), sizeof(name));
 		parser->ReadLeftCurly();
-		m_items[i].m_unk0x100 = '2';
-		m_items[i].m_unk0x102 = '2';
-		m_items[i].m_unk0x101 = 'P';
+		m_items[i].m_handlingStat = '2';
+		m_items[i].m_topSpeedStat = '2';
+		m_items[i].m_accelerationStat = 'P';
 		GolFileParser::ParserTokenType token;
 		while ((token = parser->GetNextToken()) != GolFileParser::e_rightCurly) {
 			switch (token) {
-			case GolFileParser::e_unknown0x28:
+			case CmbTxtParser::e_variantModels:
 				ParseVariantNames(parser, i, 0);
 				break;
-			case GolFileParser::e_unknown0x29:
+			case CmbTxtParser::e_altVariantModels:
 				ParseVariantNames(parser, i, 1);
 				break;
-			case GolFileParser::e_unknown0x39:
+			case CmbTxtParser::e_shadow:
 				::strncpy(
-					m_items[i].m_unk0x50,
-					parser->ReadStringWithMaxLength(sizeof(m_items[i].m_unk0x50)),
-					sizeof(m_items[i].m_unk0x50)
+					m_items[i].m_shadowName,
+					parser->ReadStringWithMaxLength(sizeof(m_items[i].m_shadowName)),
+					sizeof(m_items[i].m_shadowName)
 				);
 				break;
-			case GolFileParser::e_unknown0x2a:
-				m_items[i].m_unk0xb8.m_x = parser->ReadFloat();
-				m_items[i].m_unk0xb8.m_y = parser->ReadFloat();
-				m_items[i].m_unk0xb8.m_z = parser->ReadFloat();
+			case CmbTxtParser::e_centerOfMass:
+				m_items[i].m_centerOfMass.m_x = parser->ReadFloat();
+				m_items[i].m_centerOfMass.m_y = parser->ReadFloat();
+				m_items[i].m_centerOfMass.m_z = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x2b:
-				m_items[i].m_unk0xc4.m_x = parser->ReadFloat();
-				m_items[i].m_unk0xc4.m_y = parser->ReadFloat();
-				m_items[i].m_unk0xc4.m_z = parser->ReadFloat();
+			case CmbTxtParser::e_driverMountOffset:
+				m_items[i].m_driverMountOffset.m_x = parser->ReadFloat();
+				m_items[i].m_driverMountOffset.m_y = parser->ReadFloat();
+				m_items[i].m_driverMountOffset.m_z = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x2c:
-				m_items[i].m_unk0xd0 = parser->ReadFloat();
+			case CmbTxtParser::e_mass:
+				m_items[i].m_baseMass = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x2d:
+			case CmbTxtParser::e_unknown0x2d:
 				m_items[i].m_unk0xd4.m_x = parser->ReadFloat();
 				m_items[i].m_unk0xd4.m_y = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x2e:
-				m_items[i].m_unk0xdc.m_x = parser->ReadFloat();
-				m_items[i].m_unk0xdc.m_y = parser->ReadFloat();
+			case CmbTxtParser::e_shadowSize:
+				m_items[i].m_shadowSize.m_x = parser->ReadFloat();
+				m_items[i].m_shadowSize.m_y = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x2f:
-				m_items[i].m_unk0xec = parser->ReadFloat();
+			case CmbTxtParser::e_enginePitch:
+				m_items[i].m_enginePitchScale = parser->ReadFloat();
 				break;
-			case GolFileParser::e_unknown0x30: {
+			case CmbTxtParser::e_skidWidths: {
 				parser->ReadLeftCurly();
-				m_items[i].m_unk0xe4.m_x = parser->ReadFloat();
-				m_items[i].m_unk0xe4.m_y = parser->ReadFloat();
+				m_items[i].m_skidWidths.m_x = parser->ReadFloat();
+				m_items[i].m_skidWidths.m_y = parser->ReadFloat();
 				for (LegoS32 j = 0; j < 4; j++) {
-					m_items[i].m_unk0x58[j].m_x = parser->ReadFloat();
-					m_items[i].m_unk0x58[j].m_y = parser->ReadFloat();
-					m_items[i].m_unk0x58[j].m_z = parser->ReadFloat();
+					m_items[i].m_wheelOffsets[j].m_x = parser->ReadFloat();
+					m_items[i].m_wheelOffsets[j].m_y = parser->ReadFloat();
+					m_items[i].m_wheelOffsets[j].m_z = parser->ReadFloat();
 				}
 				parser->ReadRightCurly();
 				break;
 			}
-			case GolFileParser::e_unknown0x31: {
+			case CmbTxtParser::e_wheelPositions: {
 				parser->ReadLeftCurly();
 				for (LegoS32 j = 0; j < 4; j++) {
-					m_items[i].m_unk0x88[j].m_x = parser->ReadFloat();
-					m_items[i].m_unk0x88[j].m_y = parser->ReadFloat();
-					m_items[i].m_unk0x88[j].m_z = parser->ReadFloat();
+					m_items[i].m_wheelPositions[j].m_x = parser->ReadFloat();
+					m_items[i].m_wheelPositions[j].m_y = parser->ReadFloat();
+					m_items[i].m_wheelPositions[j].m_z = parser->ReadFloat();
 				}
 				parser->ReadRightCurly();
 				break;
 			}
-			case GolFileParser::e_unknown0x32:
+			case CmbTxtParser::e_unknown0x32:
 				m_items[i].m_unk0xf0 = parser->ReadInteger();
 				break;
-			case GolFileParser::e_unknown0x33:
+			case CmbTxtParser::e_unknown0x33:
 				m_items[i].m_unk0xf4 = parser->ReadInteger();
 				break;
-			case GolFileParser::e_unknown0x3a:
-				m_items[i].m_unk0x100 = static_cast<LegoU8>(parser->ReadInteger());
+			case CmbTxtParser::e_handlingStat:
+				m_items[i].m_handlingStat = static_cast<LegoU8>(parser->ReadInteger());
 				break;
-			case GolFileParser::e_unknown0x3b:
-				m_items[i].m_unk0x102 = static_cast<LegoU8>(parser->ReadInteger());
+			case CmbTxtParser::e_topSpeedStat:
+				m_items[i].m_topSpeedStat = static_cast<LegoU8>(parser->ReadInteger());
 				break;
-			case GolFileParser::e_unknown0x3c:
-				m_items[i].m_unk0x101 = static_cast<LegoU8>(parser->ReadInteger());
+			case CmbTxtParser::e_accelerationStat:
+				m_items[i].m_accelerationStat = static_cast<LegoU8>(parser->ReadInteger());
 				break;
 			default:
 				parser->HandleUnexpectedToken(GolFileParser::e_syntaxerror);
@@ -274,7 +274,7 @@ LegoU32 ChassisModelTable::FUN_0041db10(const Params* p_params)
 		if (m_sceneNodes == NULL) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
-		m_modelParts = new CmbModelPart0x34[modelCount];
+		m_modelParts = new CmbModelPart[modelCount];
 		if (m_modelParts == NULL) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
@@ -305,35 +305,35 @@ void ChassisModelTable::ParseVariantNames(GolFileParser* p_parser, LegoU32 p_ind
 		LegoU32 index = p_index;
 		do {
 			switch (token) {
-			case GolFileParser::e_unknown0x34:
+			case CmbTxtParser::e_materialLibrary:
 				::strncpy(
 					m_items[index].m_materialNames[variant],
 					p_parser->ReadStringWithMaxLength(sizeof(GolName)),
 					sizeof(GolName)
 				);
 				break;
-			case GolFileParser::e_unknown0x35:
+			case CmbTxtParser::e_textureList:
 				::strncpy(
 					m_items[index].m_textureNames[variant],
 					p_parser->ReadStringWithMaxLength(sizeof(GolName)),
 					sizeof(GolName)
 				);
 				break;
-			case GolFileParser::e_unknown0x36:
+			case CmbTxtParser::e_model:
 				::strncpy(
 					m_items[index].m_modelNames[variant],
 					p_parser->ReadStringWithMaxLength(sizeof(GolName)),
 					sizeof(GolName)
 				);
 				break;
-			case GolFileParser::e_unknown0x37:
+			case CmbTxtParser::e_sceneNode:
 				::strncpy(
 					m_items[index].m_nodeNames[variant],
 					p_parser->ReadStringWithMaxLength(sizeof(GolName)),
 					sizeof(GolName)
 				);
 				break;
-			case GolFileParser::e_unknown0x38:
+			case CmbTxtParser::e_modelPart:
 				::strncpy(
 					m_items[index].m_modelPartNames[variant],
 					p_parser->ReadStringWithMaxLength(sizeof(GolName)),
@@ -384,28 +384,28 @@ LegoU32 ChassisModelTable::InstantiateModels(
 		m_textureLists[m_instantiatedCount] = m_golExport->CreateTextureList();
 		::strncpy(name, p_item->m_textureNames[i], sizeof(GolName));
 		name[sizeof(GolName)] = '\0';
-		m_textureLists[m_instantiatedCount]->VTable0x24(m_renderer, name, m_binary);
+		m_textureLists[m_instantiatedCount]->Load(m_renderer, name, m_binary);
 
 		m_materialLists[m_instantiatedCount] = m_golExport->CreateMaterialList();
 		::strncpy(name, p_item->m_materialNames[i], sizeof(GolName));
 		name[sizeof(GolName)] = '\0';
-		m_materialLists[m_instantiatedCount]->VTable0x24(m_renderer, name, m_binary);
+		m_materialLists[m_instantiatedCount]->Load(m_renderer, name, m_binary);
 
-		m_sceneNodes[m_instantiatedCount] = m_golExport->VTable0x18();
+		m_sceneNodes[m_instantiatedCount] = m_golExport->CreateSceneNode();
 		::strncpy(name, p_item->m_nodeNames[i], sizeof(GolName));
 		name[sizeof(GolName)] = '\0';
-		m_sceneNodes[m_instantiatedCount]->VTable0x14(name, m_binary);
+		m_sceneNodes[m_instantiatedCount]->Load(name, m_binary);
 
 		::strncpy(name, p_item->m_modelPartNames[i], sizeof(GolName));
 		name[sizeof(GolName)] = '\0';
-		m_modelParts[m_instantiatedCount].VTable0x14(name, m_binary);
+		m_modelParts[m_instantiatedCount].Load(name, m_binary);
 
-		m_models[m_instantiatedCount] = m_golExport->VTable0x14();
+		m_models[m_instantiatedCount] = m_golExport->CreateModel();
 		::strncpy(name, p_item->m_modelNames[i], sizeof(GolName));
 		name[sizeof(GolName)] = '\0';
-		m_models[m_instantiatedCount]->VTable0x1c(m_renderer, name, m_binary);
+		m_models[m_instantiatedCount]->Load(m_renderer, name, m_binary);
 
-		m_animatedEntities[m_instantiatedCount].FUN_0040d550(
+		m_animatedEntities[m_instantiatedCount].SetModel(
 			m_models[m_instantiatedCount],
 			m_sceneNodes[m_instantiatedCount],
 			&m_modelParts[m_instantiatedCount],

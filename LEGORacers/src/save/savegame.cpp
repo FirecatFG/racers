@@ -25,13 +25,13 @@ SaveGame::~SaveGame()
 }
 
 // FUNCTION: LEGORACERS 0x004426d0
-void SaveGame::Initialize(undefined4 p_count, undefined4 p_unk0x08, undefined4 p_unk0x0c)
+void SaveGame::Initialize(undefined4 p_count, undefined4 p_recordSource, undefined4 p_saveIndex)
 {
 	if (m_records) {
 		Destroy();
 	}
 
-	AllocateRecords(p_count, p_unk0x08, p_unk0x0c);
+	AllocateRecords(p_count, p_recordSource, p_saveIndex);
 }
 
 // FUNCTION: LEGORACERS 0x00442700
@@ -88,7 +88,7 @@ LegoS32 SaveGame::LoadFromFile(GolFile& p_file)
 
 	for (LegoU32 i = 0; i < recordCount; i++) {
 		Record* record = AllocateRecord();
-		record->FUN_0042b2f0(m_unk0x08, m_unk0x0c, i, NULL);
+		record->Initialize(m_recordSource, m_saveIndex, i, NULL);
 		result = ReadBlocks(p_file, record->m_data, sizeof(record->m_data));
 		if (result) {
 			return result;
@@ -279,9 +279,9 @@ void SaveGame::WritePersistentGameState(PersistentGameState* p_state)
 	m_fileImage[c_persistentHeaderOffset + 0x12] = p_state->m_unk0x1e;
 	m_fileImage[c_persistentHeaderOffset + 0x13] = p_state->m_musicVolume;
 	m_fileImage[c_persistentHeaderOffset + 0x14] = p_state->m_soundVolume;
-	m_fileImage[c_persistentHeaderOffset + 0x15] = p_state->m_unk0x21;
+	m_fileImage[c_persistentHeaderOffset + 0x15] = p_state->m_stereo;
 	m_fileImage[c_persistentHeaderOffset + 0x16] = p_state->m_languageIndex;
-	m_fileImage[c_persistentHeaderOffset + 0x17] = p_state->m_unk0x23;
+	m_fileImage[c_persistentHeaderOffset + 0x17] = p_state->m_lapCount;
 
 	dest = &m_fileImage[c_inputBindingHeaderOffset + 1];
 	for (i = 0; i < sizeOfArray(p_state->m_inputBindings.m_players); i++) {

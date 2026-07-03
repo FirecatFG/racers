@@ -33,16 +33,16 @@ public:
 
 	void Reset() override;                                 // vtable+0x00
 	~CarPartCarousel() override;                           // vtable+0x04
-	LegoBool32 VTable0x08() override;                      // vtable+0x08
-	undefined4 VTable0x3c(undefined4) override;            // vtable+0x3c
-	void VTable0x50(undefined4) override;                  // vtable+0x50
-	LegoS32 VTable0x54() override;                         // vtable+0x54
-	LegoS32 VTable0x58() override;                         // vtable+0x58
-	void VTable0x5c(undefined4, GolModelEntity*) override; // vtable+0x5c
-	void VTable0x60(LegoS32) override;                     // vtable+0x60
+	LegoBool32 Destroy() override;                         // vtable+0x08
+	undefined4 OnEvent(undefined4) override;               // vtable+0x3c
+	void SetSelection(undefined4) override;                // vtable+0x50
+	LegoS32 ScrollNext() override;                         // vtable+0x54
+	LegoS32 ScrollPrevious() override;                     // vtable+0x58
+	void LayoutItem(undefined4, GolModelEntity*) override; // vtable+0x5c
+	void RefreshItemModel(LegoS32) override;               // vtable+0x60
 
 	LegoBool32 Create(CreateParams* p_createParams, MenuStyleTable::CarouselStyle* p_styleEntry);
-	LegoS32 FUN_004853a0();
+	LegoS32 InitializeItemModels();
 	void RefreshChoiceIndices();
 	void SelectPartByType(LegoS32 p_pieceType);
 	void SelectChoice(LegoS32 p_pieceType, LegoS32 p_colorRecordIndex);

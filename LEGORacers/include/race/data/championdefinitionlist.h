@@ -21,18 +21,30 @@ class ChampionDefinitionList : public GolNameTable {
 public:
 	// VTABLE: LEGORACERS 0x004afdf4
 	// SIZE 0x1fc
-	class CcbTxtParser : public GolTxtParser {};
+	class CcbTxtParser : public GolTxtParser {
+	public:
+		// .ccb tokens; ids proven by the field each one fills
+		enum {
+			e_champion = GolFileParser::e_unknown0x27,
+			e_materialLibrary = GolFileParser::e_unknown0x28,
+			e_textureList = GolFileParser::e_unknown0x29,
+			e_model = GolFileParser::e_unknown0x2a,
+			e_chassis = GolFileParser::e_unknown0x2b,
+			e_mass = GolFileParser::e_unknown0x2c,
+			e_centerOfMass = GolFileParser::e_unknown0x2d,
+		};
+	};
 
 	// SIZE 0x30
 	struct ChampionDefinition {
-		GolName m_unk0x00;   // 0x00
-		GolName m_unk0x08;   // 0x08
-		GolName m_unk0x10;   // 0x10
-		GolName m_unk0x18;   // 0x18
-		LegoFloat m_unk0x20; // 0x20
-		LegoFloat m_unk0x24; // 0x24
-		LegoFloat m_unk0x28; // 0x28
-		LegoFloat m_unk0x2c; // 0x2c
+		GolName m_materialLibraryName; // 0x00
+		GolName m_textureListName;     // 0x08
+		GolName m_modelName;           // 0x10
+		GolName m_chassisName;         // 0x18
+		LegoFloat m_mass;              // 0x20
+		LegoFloat m_centerOfMassX;     // 0x24
+		LegoFloat m_centerOfMassY;     // 0x28
+		LegoFloat m_centerOfMassZ;     // 0x2c
 	};
 
 	// SIZE 0x14
@@ -49,7 +61,7 @@ public:
 
 	void Clear() override; // vtable+0x08
 	void ClearDefinitions();
-	void FUN_0041d370(const LoadParams* p_params);
+	void Load(const LoadParams* p_params);
 	LegoBool32 HasDefinitions() const { return m_definitions != NULL; }
 
 	// SYNTHETIC: LEGORACERS 0x0041d1f0
@@ -59,8 +71,8 @@ private:
 	friend class RaceState;
 
 	void Reset();
-	GolModelEntity* FUN_0041d780(const LegoChar* p_name);
-	GolModelEntity* FUN_0041d7a0(ChampionDefinition* p_definition);
+	GolModelEntity* CreateChampionModel(const LegoChar* p_name);
+	GolModelEntity* CreateChampionModel(ChampionDefinition* p_definition);
 
 	GolExport* m_golExport;               // 0x0c
 	GolD3DRenderDevice* m_renderer;       // 0x10

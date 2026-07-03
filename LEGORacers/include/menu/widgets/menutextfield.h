@@ -30,49 +30,48 @@ public:
 	// SIZE 0xa0
 	class CreateParams : public MenuIcon::CreateParams {
 	public:
-		GolStringTable* m_unk0x84;        // 0x84
-		undefined2 m_unk0x88;             // 0x88
+		GolStringTable* m_stringTable;    // 0x84
+		undefined2 m_charsetStringId;     // 0x88
 		undefined m_unk0x8a[0x8c - 0x8a]; // 0x8a
-		GolFontBase* m_unk0x8c;           // 0x8c
-		GolString* m_unk0x90;             // 0x90
-		undefined2 m_unk0x94;             // 0x94
-		SoundIdSet m_soundIds;            // 0x96
-		undefined m_unk0x9e[0xa0 - 0x9e]; // 0x9e
+		GolFontBase* m_font;              // 0x8c
+		GolString* m_initialText;         // 0x90
+		undefined2 m_maxLength;           // 0x94
+		SoundIdSet m_editSoundIds;        // 0x96
 	};
 
 	MenuTextField();
 
-	void Reset() override;                                                            // vtable+0x00
-	~MenuTextField() override;                                                        // vtable+0x04
-	MenuWidget* VTable0x2c(void*, undefined4, undefined4) override;                   // vtable+0x2c
-	MenuWidget* VTable0x30(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
-	MenuWidget* VTable0x34(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x34
-	MenuWidget* VTable0x38(Rect*, Rect*) override;                                    // vtable+0x38
-	void VTable0x4c(undefined4) override;                                             // vtable+0x4c
-	void VTable0x50(undefined4) override;                                             // vtable+0x50
-	virtual LegoBool32 VTable0x70(CreateParams*, const MenuIcon::CreateState*);       // vtable+0x70
-	void FUN_00471100(undefined4 p_unk0x04);
-	void FUN_004711f0(GolString* p_string);
+	void Reset() override;                                                           // vtable+0x00
+	~MenuTextField() override;                                                       // vtable+0x04
+	MenuWidget* OnCursorEvent(void*, undefined4, undefined4) override;               // vtable+0x2c
+	MenuWidget* OnKeyDown(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
+	MenuWidget* OnKeyUp(InputEventQueue::Event*, undefined4, undefined4) override;   // vtable+0x34
+	MenuWidget* DrawSelf(Rect*, Rect*) override;                                     // vtable+0x38
+	void Select(undefined4) override;                                                // vtable+0x4c
+	void Deselect(undefined4) override;                                              // vtable+0x50
+	virtual LegoBool32 CreateField(CreateParams*, const MenuIcon::CreateState*);     // vtable+0x70
+	void HandleEditAction(undefined4 p_action);
+	void SetText(GolString* p_string);
 	undefined2* GetBuffer() { return m_buffer; }
 
 	// SYNTHETIC: LEGORACERS 0x00470f20
 	// MenuTextField::`scalar deleting destructor'
 
 private:
-	MenuWidget* FUN_004713f0(InputEventQueue::Event* p_event);
-	MenuWidget* FUN_00471560(InputEventQueue::Event* p_event);
+	MenuWidget* HandleCharacterInput(InputEventQueue::Event* p_event);
+	MenuWidget* HandleJoystickInput(InputEventQueue::Event* p_event);
 
 protected:
-	SoundIdSet m_soundIds;                    // 0x1a8
+	SoundIdSet m_editSoundIds;                // 0x1a8
 	GolStringTable* m_stringTable;            // 0x1b0
 	undefined2 m_buffer[(0x1f4 - 0x1b4) / 2]; // 0x1b4
-	undefined2 m_unk0x1f4;                    // 0x1f4
+	undefined2 m_charsetIndex;                // 0x1f4
 	undefined2 m_unk0x1f6;                    // 0x1f6
-	undefined4 m_unk0x1f8;                    // 0x1f8
+	LegoU32 m_inputMode;                      // 0x1f8
 	GolString m_charset;                      // 0x1fc
 	GolString m_text;                         // 0x208
 	GolFontBase* m_font;                      // 0x214
-	Rect m_unk0x218;                          // 0x218
+	Rect m_textRect;                          // 0x218
 	undefined m_unk0x228[0x238 - 0x228];      // 0x228
 	undefined2 m_maxLength;                   // 0x238
 	undefined2 m_length;                      // 0x23a

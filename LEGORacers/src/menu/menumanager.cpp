@@ -1,34 +1,38 @@
 #include "menu/menumanager.h"
 
-#include "amethystbreeze0x104.h"
+#include "app/cheatflags.h"
+#include "app/win32golapp.h"
 #include "audio/musicinstance.h"
 #include "camera/golcamera.h"
-#include "cmbmodelpart0x34.h"
-#include "duskwindbananarelic0x24.h"
-#include "gdbvertexarray0xc.h"
+#include "cmbmodelpart.h"
+#include "gdbvertexarray.h"
 #include "golanimatedentity.h"
 #include "golbmpwriterfile.h"
-#include "golddune0x38.h"
 #include "golhashtable.h"
+#include "golmaterial.h"
 #include "golmateriallibrary.h"
 #include "golmodelbase.h"
 #include "golmodelentity.h"
 #include "golmodelmaterialtable.h"
+#include "golmodelrenderstate.h"
 #include "golname.h"
 #include "golstream.h"
+#include "goltexture.h"
 #include "input/inputmanager.h"
 #include "input/keyboarddevice.h"
-#include "material/awakekite0x20.h"
+#include "material/golimagedefinitionlist.h"
 #include "material/goltexturelist.h"
 #include "menu/menuscreenid.h"
 #include "menu/screens/menugamescreen.h"
+#include "race/racemoderunner.h"
 #include "render/golcommondrawstate.h"
 #include "render/goldrawstate.h"
 #include "save/memorycardsavegame.h"
-#include "surface/purpledune0x7c.h"
+#include "surface/gold3dtexture.h"
 
 #include <float.h>
 #include <golerror.h>
+#include <golstream.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -42,10 +46,10 @@ DECOMP_SIZE_ASSERT(GolCamera, 0x344)
 const LegoFloat g_menuManagerMaxFloat = FLT_MAX;
 
 // GLOBAL: LEGORACERS 0x004b05d8
-LegoFloat g_unk0x4b05d8 = 1.0f / 255.0f;
+LegoFloat g_inv255 = 1.0f / 255.0f;
 
 // GLOBAL: LEGORACERS 0x004beb78
-LegoFloat g_unk0x4beb78[7] = {0.04f, 0.04f, 0.04f, 0.04f, 0.39f, 0.4f, 0.04f};
+LegoFloat g_menuViewportParams[7] = {0.04f, 0.04f, 0.04f, 0.04f, 0.39f, 0.4f, 0.04f};
 
 // GLOBAL: LEGORACERS 0x004c4918
 MenuManager* g_menuManager = NULL;
@@ -53,8 +57,33 @@ MenuManager* g_menuManager = NULL;
 // GLOBAL: LEGORACERS 0x004c4928
 DisplayDriverGuid g_displayDriverGuid = {0};
 
-extern LegoU16 g_unk0x004befec[1024];
-extern LegoU32 g_unk0x004c6ee4;
+extern LegoU16 g_randomTable[1024];
+extern LegoU32 g_randomTableIndex;
+
+DECOMP_SIZE_ASSERT(RaceModeRunner, 0x37b8)
+
+// GLOBAL: LEGORACERS 0x004c4914
+RaceModeRunner* g_raceModeRunner = NULL;
+
+// GLOBAL: LEGORACERS 0x004c491c
+LegoChar g_raceNameBuffer[9];
+
+// FUNCTION: LEGORACERS 0x0042b130
+void RaceModeRunner::Run(LegoRacers::Context* p_context)
+{
+	g_raceModeRunner = new RaceModeRunner();
+	if (!g_raceModeRunner) {
+		GolFatalError(c_golErrorOutOfMemory, NULL, 0);
+	}
+
+	g_raceModeRunner->Initialize(p_context);
+	g_raceModeRunner->Run();
+	g_raceModeRunner->Shutdown();
+
+	if (g_raceModeRunner) {
+		delete g_raceModeRunner;
+	}
+}
 
 // FUNCTION: LEGORACERS 0x0042b1e0
 void MenuManager::Run(LegoRacers::Context* p_context)
@@ -73,6 +102,144 @@ void MenuManager::Run(LegoRacers::Context* p_context)
 	}
 }
 
+// FUNCTION: LEGORACERS 0x0042c1b0
+RaceModeRunner::RaceModeRunner()
+{
+	m_context = NULL;
+}
+
+// FUNCTION: LEGORACERS 0x0042c210
+RaceModeRunner::~RaceModeRunner()
+{
+	Shutdown();
+}
+
+// FUNCTION: LEGORACERS 0x0042c280
+void RaceModeRunner::Initialize(LegoRacers::Context* p_context)
+{
+	m_context = p_context;
+	m_context->m_flags &= ~LegoRacers::Context::c_flagAbortRace;
+
+	if (p_context->m_raceMode == LegoRacers::Context::c_raceModeTimeRace) {
+		if (g_hashTable) {
+			g_hashTable->SetCurrentEntryFromString("GAMEDATA\\COMMON");
+		}
+		m_timeRaceManager.Initialize(
+			p_context->m_golApp->GetRenderer(),
+			p_context->m_golApp->GetGolExport(),
+			p_context->m_useBinaryFiles,
+			p_context->m_raceSlots[0].m_mirror
+		);
+	}
+
+	if (p_context->m_flags & LegoRacers::Context::c_flagReturnToGarage) {
+		p_context->m_nextMenuId = c_menuGarage;
+	}
+	else {
+		p_context->m_nextMenuId = c_menuMainMenu;
+	}
+
+	p_context->m_currentRaceIndex = 0;
+	p_context->m_golApp->ClearFileSourceDirectoryCaches();
+
+	if (!p_context->m_raceMode) {
+		m_circuitRunner.Initialize(m_context, &m_session);
+		return;
+	}
+
+	InitializeRaceScene();
+}
+
+// FUNCTION: LEGORACERS 0x0042c330
+void RaceModeRunner::Run()
+{
+	if (!m_context->m_raceMode) {
+		m_circuitRunner.Run();
+		m_context->m_flags &= ~LegoRacers::Context::c_flagBit7;
+		return;
+	}
+
+	m_session.Run();
+	m_timeRaceManager.Shutdown();
+	m_context->m_flags &= ~LegoRacers::Context::c_flagBit7;
+}
+
+// FUNCTION: LEGORACERS 0x0042c380
+void RaceModeRunner::Shutdown()
+{
+	if (g_hashTable) {
+		g_hashTable->SetCurrentEntryFromString(NULL);
+	}
+
+	m_timeRaceManager.Shutdown();
+	m_circuitRunner.Shutdown();
+	m_session.Shutdown();
+	ReleaseContextAssets();
+	m_context = NULL;
+}
+
+// FUNCTION: LEGORACERS 0x0042c3d0
+void RaceModeRunner::ReleaseContextAssets()
+{
+	if (!m_context) {
+		return;
+	}
+
+	GolExport* golExport = m_context->m_golApp->GetGolExport();
+
+	for (LegoU32 i = 0; i < m_context->m_playerCount; i++) {
+		LegoRacers::Context::PlayerSetupSlot& slot = m_context->m_playerSetupSlots[i];
+
+		if (slot.m_chassisName[0]) {
+			if (slot.m_model) {
+				golExport->DestroyModel(slot.m_model);
+				slot.m_model = NULL;
+			}
+			if (slot.m_materials) {
+				golExport->DestroyMaterialList(slot.m_materials);
+				slot.m_materials = NULL;
+			}
+			if (slot.m_textures) {
+				golExport->DestroyTextureList(slot.m_textures);
+				slot.m_textures = NULL;
+			}
+			if (slot.m_altModel) {
+				golExport->DestroyModel(slot.m_altModel);
+				slot.m_altModel = NULL;
+			}
+			if (slot.m_altMaterials) {
+				golExport->DestroyMaterialList(slot.m_altMaterials);
+				slot.m_altMaterials = NULL;
+			}
+			if (slot.m_altTextures) {
+				golExport->DestroyTextureList(slot.m_altTextures);
+				slot.m_altTextures = NULL;
+			}
+		}
+	}
+}
+
+// FUNCTION: LEGORACERS 0x0042c4e0
+void RaceModeRunner::InitializeRaceScene()
+{
+	sprintf(m_context->m_commonDataDirectory, "GAMEDATA\\COMMON");
+	strcpy(m_context->m_gameDataDirectory, "GAMEDATA\\");
+	memcpy(g_raceNameBuffer, m_context->m_raceSlots[0].m_folderName, sizeof(m_context->m_raceSlots[0].m_folderName));
+	g_raceNameBuffer[sizeof(m_context->m_raceSlots[0].m_folderName)] = '\0';
+	strcat(m_context->m_gameDataDirectory, g_raceNameBuffer);
+
+	LegoChar* gameDataDirectory = m_context->m_gameDataDirectory;
+	if (g_hashTable) {
+		g_hashTable->SetCurrentEntryFromString(gameDataDirectory);
+	}
+
+	if (m_timeRaceManager.GetScratchLapTimes()) {
+		m_session.Initialize(m_context, g_raceNameBuffer, m_context->m_raceSlots[0].m_mirror, &m_timeRaceManager);
+		return;
+	}
+
+	m_session.Initialize(m_context, g_raceNameBuffer, m_context->m_raceSlots[0].m_mirror, NULL);
+}
 // FUNCTION: LEGORACERS 0x0042c5d0
 MenuManager::MenuManager()
 {
@@ -93,18 +260,18 @@ MenuManager::~MenuManager()
 // FUNCTION: LEGORACERS 0x0042cb00
 void MenuManager::Reset()
 {
-	m_unk0x04.m_context = NULL;
-	m_unk0x04.m_saveSystem.GetActiveRecord().Reset();
-	m_unk0x04.m_modelBuilder.Reset();
+	m_gameContext.m_context = NULL;
+	m_gameContext.m_saveSystem.GetActiveRecord().Reset();
+	m_gameContext.m_modelBuilder.Reset();
 	m_golExport = NULL;
 	m_renderer = NULL;
 	m_soundGroup = NULL;
-	m_unk0x4dc8 = NULL;
+	m_activeScreen = NULL;
 	m_imageTable = NULL;
 	m_fontTable = NULL;
 	m_running = FALSE;
-	m_unk0x4d24.Reset();
-	m_unk0x4d30.Reset();
+	m_cursorImageName.Reset();
+	m_screenName.Reset();
 	m_menuStyles.Clear();
 }
 
@@ -112,7 +279,7 @@ void MenuManager::Reset()
 LegoS32 MenuManager::Initialize(LegoRacers::Context* p_context)
 {
 	LegoBool32 flag = FALSE;
-	m_unk0x04.m_context = p_context;
+	m_gameContext.m_context = p_context;
 	m_golExport = p_context->m_golApp->GetGolExport();
 	m_renderer = p_context->m_golApp->GetRenderer();
 
@@ -121,35 +288,35 @@ LegoS32 MenuManager::Initialize(LegoRacers::Context* p_context)
 	}
 
 	LoadMenuImages();
-	FUN_0042d0e0();
-	LoadLocalizedMenuResources(m_unk0x04.m_saveSystem.GetLanguageIndex(), TRUE);
+	InitializeSaveSystem();
+	LoadLocalizedMenuResources(m_gameContext.m_saveSystem.GetLanguageIndex(), TRUE);
 	LoadMenuData();
-	FUN_0042e1f0();
-	FUN_0042cde0();
+	ApplySettings();
+	SetupCamera();
 	InitializeInputBindings();
 	InitializeAudio();
 	InitializeInputDispatcher();
 
-	if (FUN_0042e490()) {
+	if (CommitBestTimes()) {
 		flag = TRUE;
 	}
-	if (FUN_0042e680()) {
+	if (ProcessRecordBeaten()) {
 		flag = TRUE;
 	}
 
-	m_renderer->VTable0x34(7, g_unk0x4beb78);
+	m_renderer->SetViewportRect(7, g_menuViewportParams);
 
-	m_unk0x04.m_menuStack.Allocate(10);
-	m_unk0x04.m_menuStack.Push(m_unk0x04.m_context->m_nextMenuId);
+	m_gameContext.m_menuStack.Allocate(10);
+	m_gameContext.m_menuStack.Push(m_gameContext.m_context->m_nextMenuId);
 
-	if (flag && FUN_0042e450()) {
-		m_unk0x04.m_menuStack.Push(c_menuSaveAll);
+	if (flag && HasPendingMemoryCardSaves()) {
+		m_gameContext.m_menuStack.Push(c_menuSaveAll);
 	}
 
-	LegoU16 top = m_unk0x04.m_menuStack.Peek();
-	FUN_0042d3e0(top);
+	LegoU16 top = m_gameContext.m_menuStack.Peek();
+	OpenScreen(top);
 
-	m_unk0x4bd0.FUN_00468af0(&m_unk0x4d98, 2, &m_inputDispatcher);
+	m_dialog.Initialize(&m_screenCreateParams, 2, &m_inputDispatcher);
 	return 1;
 }
 
@@ -160,17 +327,17 @@ LegoS32 MenuManager::Shutdown()
 		g_hashTable->SetCurrentEntryFromString(NULL);
 	}
 
-	if (m_unk0x04.m_context) {
-		if (m_unk0x4dc8) {
-			m_unk0x4dc8->Destroy();
+	if (m_gameContext.m_context) {
+		if (m_activeScreen) {
+			m_activeScreen->Destroy();
 
-			if (m_unk0x4dc8) {
-				delete m_unk0x4dc8;
+			if (m_activeScreen) {
+				delete m_activeScreen;
 			}
 		}
 
 		m_inputDispatcher.Shutdown();
-		m_unk0x4bd0.FUN_00468ab0();
+		m_dialog.Destroy();
 		UnloadMenuData();
 		ReleaseRendererObject();
 		ShutdownInputBindings();
@@ -180,7 +347,7 @@ LegoS32 MenuManager::Shutdown()
 		Reset();
 	}
 
-	return m_unk0x04.m_context == NULL;
+	return m_gameContext.m_context == NULL;
 }
 
 // FUNCTION: LEGORACERS 0x0042cd60
@@ -189,32 +356,32 @@ void MenuManager::InitializeInputDispatcher()
 	GolName name;
 	MenuInputDispatcher::InitStruct initStruct;
 
-	m_menuNameStrings.CopyStringByIndex(&m_unk0x4d24, c_menuCursorImageName);
-	m_unk0x4d24.CopyToBuf8(name);
+	m_menuNameStrings.CopyStringByIndex(&m_cursorImageName, c_menuCursorImageName);
+	m_cursorImageName.CopyToBuf8(name);
 
 	initStruct.m_golExport = m_golExport;
 	initStruct.m_renderer = m_renderer;
 	initStruct.m_cursorImage = m_renderer->FindImageByName(name);
-	initStruct.m_inputManager = m_unk0x04.m_context->m_golApp->GetInputManager();
-	initStruct.m_inputEvents = m_unk0x04.m_inputBindings.GetUnk0x208();
+	initStruct.m_inputManager = m_gameContext.m_context->m_golApp->GetInputManager();
+	initStruct.m_inputEvents = m_gameContext.m_inputBindings.GetInputEvents();
 
 	m_inputDispatcher.Initialize(&initStruct);
 }
 
 // FUNCTION: LEGORACERS 0x0042cde0
-void MenuManager::FUN_0042cde0()
+void MenuManager::SetupCamera()
 {
 	GolVec3 position;
 	GolVec3 forward;
 	GolVec3 right;
-	GolCamera* lens = m_golExport->VTable0x20();
+	GolCamera* lens = m_golExport->CreateCamera();
 
-	lens->m_fov = m_unk0x04.m_context->GetUnk0x0c();
-	lens->m_flags |= GolCamera::c_flagBit1;
-	lens->m_nearClip = m_unk0x04.m_context->GetUnk0x10();
-	lens->m_flags |= GolCamera::c_flagBit1;
-	lens->m_farClip = m_unk0x04.m_context->GetUnk0x14();
-	lens->m_flags |= GolCamera::c_flagBit1;
+	lens->m_fov = m_gameContext.m_context->GetCameraFov();
+	lens->m_flags |= GolCamera::c_flagProjectionDirty;
+	lens->m_nearClip = m_gameContext.m_context->GetCameraNearClip();
+	lens->m_flags |= GolCamera::c_flagProjectionDirty;
+	lens->m_farClip = m_gameContext.m_context->GetCameraFarClip();
+	lens->m_flags |= GolCamera::c_flagProjectionDirty;
 
 	position.m_x = 0.0f;
 	position.m_y = 0.0f;
@@ -227,90 +394,90 @@ void MenuManager::FUN_0042cde0()
 	right.m_z = 0.0f;
 
 	lens->GetTransform()->SetPosition(&position);
-	lens->m_flags |= GolCamera::c_flagBit0;
+	lens->m_flags |= GolCamera::c_flagViewDirty;
 	lens->GetTransform()->VTable0x24(&right, &forward);
-	lens->m_flags |= GolCamera::c_flagBit0;
-	m_renderer->VTable0x20(lens);
+	lens->m_flags |= GolCamera::c_flagViewDirty;
+	m_renderer->SetCamera(lens);
 }
 
 // FUNCTION: LEGORACERS 0x0042ceb0
 void MenuManager::ReleaseRendererObject()
 {
-	GolCamera* object = m_renderer->GetUnk0x0c();
+	GolCamera* object = m_renderer->GetCurrentCamera();
 	if (object) {
-		m_golExport->VTable0x54(object);
+		m_golExport->DestroyCamera(object);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0042ced0
 void MenuManager::InitializeInputBindings()
 {
-	m_unk0x04.m_inputBindings.Initialize(m_unk0x04.m_context->m_golApp->GetInputManager());
+	m_gameContext.m_inputBindings.Initialize(m_gameContext.m_context->m_golApp->GetInputManager());
 }
 
 // FUNCTION: LEGORACERS 0x0042cef0
 void MenuManager::ShutdownInputBindings()
 {
-	m_unk0x04.m_inputBindings.Shutdown();
+	m_gameContext.m_inputBindings.Shutdown();
 }
 
 // FUNCTION: LEGORACERS 0x0042cf00
 void MenuManager::InitializeAudio()
 {
-	m_unk0x04.m_modelBuilder.m_musicGroup = m_unk0x04.m_context->m_soundManager->CreateMusicGroup();
-	if (!m_unk0x04.m_modelBuilder.m_musicGroup) {
+	m_gameContext.m_modelBuilder.m_musicGroup = m_gameContext.m_context->m_soundManager->CreateMusicGroup();
+	if (!m_gameContext.m_modelBuilder.m_musicGroup) {
 		GOL_FATALERROR(c_golErrorGeneral);
 	}
 
-	m_unk0x04.m_modelBuilder.m_musicGroup->Load("legomsc");
-	LegoRacers::Context* context = m_unk0x04.m_context;
-	m_unk0x04.m_modelBuilder.m_musicInstance = NULL;
+	m_gameContext.m_modelBuilder.m_musicGroup->Load("legomsc");
+	LegoRacers::Context* context = m_gameContext.m_context;
+	m_gameContext.m_modelBuilder.m_musicInstance = NULL;
 	m_soundGroup = context->GetSoundManager()->CreateSoundGroup();
 	if (!m_soundGroup) {
 		GOL_FATALERROR(c_golErrorGeneral);
 	}
 
 	m_soundGroup->Load("genc0r0");
-	m_soundGroupBinding.SetSoundGroup(m_unk0x04.m_context->m_soundManager, m_soundGroup, FALSE);
+	m_soundGroupBinding.SetSoundGroup(m_gameContext.m_context->m_soundManager, m_soundGroup, FALSE);
 }
 
 // FUNCTION: LEGORACERS 0x0042cf90
 void MenuManager::ShutdownAudio()
 {
-	if (m_unk0x04.m_modelBuilder.m_musicInstance) {
-		m_unk0x04.m_modelBuilder.m_musicInstance->Stop();
-		m_unk0x04.m_modelBuilder.m_musicGroup->DestroyMusicInstance(m_unk0x04.m_modelBuilder.m_musicInstance);
+	if (m_gameContext.m_modelBuilder.m_musicInstance) {
+		m_gameContext.m_modelBuilder.m_musicInstance->Stop();
+		m_gameContext.m_modelBuilder.m_musicGroup->DestroyMusicInstance(m_gameContext.m_modelBuilder.m_musicInstance);
 	}
 
 	m_soundGroupBinding.ResetSoundGroup();
 	m_soundGroup->Unload();
 
-	if (m_unk0x04.m_modelBuilder.m_musicGroup) {
-		m_unk0x04.m_modelBuilder.m_musicGroup->Unload();
+	if (m_gameContext.m_modelBuilder.m_musicGroup) {
+		m_gameContext.m_modelBuilder.m_musicGroup->Unload();
 	}
 
-	m_unk0x04.m_context->GetSoundManager()->DestroySoundGroup(m_soundGroup);
+	m_gameContext.m_context->GetSoundManager()->DestroySoundGroup(m_soundGroup);
 
-	if (m_unk0x04.m_modelBuilder.m_musicGroup) {
-		m_unk0x04.m_context->GetSoundManager()->DestroyMusicGroup(m_unk0x04.m_modelBuilder.m_musicGroup);
+	if (m_gameContext.m_modelBuilder.m_musicGroup) {
+		m_gameContext.m_context->GetSoundManager()->DestroyMusicGroup(m_gameContext.m_modelBuilder.m_musicGroup);
 	}
 
-	m_unk0x04.m_modelBuilder.m_musicGroup = NULL;
-	m_unk0x04.m_modelBuilder.m_musicInstance = NULL;
+	m_gameContext.m_modelBuilder.m_musicGroup = NULL;
+	m_gameContext.m_modelBuilder.m_musicInstance = NULL;
 }
 
 // FUNCTION: LEGORACERS 0x0042d020
 void MenuManager::LoadMenuImages()
 {
 	if (!m_imageTable) {
-		m_imageTable = m_golExport->VTable0x34();
+		m_imageTable = m_golExport->CreateImageList();
 	}
 
 	if (!m_fontTable) {
 		m_fontTable = m_golExport->CreateFontTable();
 	}
 
-	m_imageTable->LoadImageDefinitions(m_renderer, "GImages", m_unk0x04.m_context->m_unk0x18);
+	m_imageTable->LoadImageDefinitions(m_renderer, "GImages", m_gameContext.m_context->m_useBinaryFiles);
 }
 
 // FUNCTION: LEGORACERS 0x0042d080
@@ -318,7 +485,7 @@ void MenuManager::UnloadMenuImages()
 {
 	if (m_imageTable) {
 		m_imageTable->Clear();
-		m_golExport->VTable0x68(m_imageTable);
+		m_golExport->DestroyImageList(m_imageTable);
 		m_imageTable = NULL;
 	}
 
@@ -330,9 +497,9 @@ void MenuManager::UnloadMenuImages()
 }
 
 // FUNCTION: LEGORACERS 0x0042d0e0
-void MenuManager::FUN_0042d0e0()
+void MenuManager::InitializeSaveSystem()
 {
-	const GUID* displayDriverGuid = m_unk0x04.m_context->m_golApp->GetDrawState()->GetCurrentDriverGuid();
+	const GUID* displayDriverGuid = m_gameContext.m_context->m_golApp->GetDrawState()->GetCurrentDriverGuid();
 	GUID currentDisplayDriverGuid;
 
 	if (!displayDriverGuid) {
@@ -343,25 +510,25 @@ void MenuManager::FUN_0042d0e0()
 	}
 	g_displayDriverGuid.m_guid = currentDisplayDriverGuid;
 
-	m_unk0x04.m_saveSystem.Initialize(m_unk0x04.m_context->m_golApp->GetInputManager(), FALSE);
+	m_gameContext.m_saveSystem.Initialize(m_gameContext.m_context->m_golApp->GetInputManager(), FALSE);
 
-	if (m_unk0x04.m_context->m_unk0x1e & LegoRacers::Context::c_flagBit2) {
-		SaveGame* saveGame = &m_unk0x04.m_saveSystem.GetSessionSave();
+	if (m_gameContext.m_context->m_flags & LegoRacers::Context::c_flagSaveStateValid) {
+		SaveGame* saveGame = &m_gameContext.m_saveSystem.GetSessionSave();
 		::memcpy(
-			m_unk0x04.m_saveSystem.GetSessionSave().GetFileImage(),
-			&m_unk0x04.m_context->m_saveState,
-			sizeof(m_unk0x04.m_context->m_saveState)
+			m_gameContext.m_saveSystem.GetSessionSave().GetFileImage(),
+			&m_gameContext.m_context->m_saveState,
+			sizeof(m_gameContext.m_context->m_saveState)
 		);
-		m_unk0x04.m_context->m_unk0x1e &= ~LegoRacers::Context::c_flagBit2;
-		m_unk0x04.m_saveSystem.GetGameState().LoadFromSaveGame(
+		m_gameContext.m_context->m_flags &= ~LegoRacers::Context::c_flagSaveStateValid;
+		m_gameContext.m_saveSystem.GetGameState().LoadFromSaveGame(
 			saveGame,
-			m_unk0x04.m_saveSystem.GetGameState().GetActiveSaveIndex()
+			m_gameContext.m_saveSystem.GetGameState().GetActiveSaveIndex()
 		);
 	}
 
-	SaveRecordData* saveRecord = m_unk0x04.m_context->m_saveRecords;
-	for (LegoU32 i = 0; i < m_unk0x04.m_context->m_saveRecordCount; i++, saveRecord++) {
-		SaveRecordList::Record* record = m_unk0x04.m_saveSystem.GetSessionSave().AllocateRecord();
+	SaveRecordData* saveRecord = m_gameContext.m_context->m_saveRecords;
+	for (LegoU32 i = 0; i < m_gameContext.m_context->m_saveRecordCount; i++, saveRecord++) {
+		SaveRecordList::Record* record = m_gameContext.m_saveSystem.GetSessionSave().AllocateRecord();
 		::memcpy(record->m_data, *saveRecord, sizeof(*saveRecord));
 	}
 }
@@ -370,12 +537,12 @@ void MenuManager::FUN_0042d0e0()
 void MenuManager::LoadMenuData()
 {
 	GolStringTable* raceStrings = &m_raceStrings;
-	CircuitDefinitionList* circuitList = &m_unk0x04.m_circuitList;
+	CircuitDefinitionList* circuitList = &m_gameContext.m_circuitList;
 
-	circuitList->Load(raceStrings, "LEGORace", m_unk0x04.m_context->m_unk0x18);
-	m_unk0x04.m_raceNames.Load(raceStrings, circuitList, "LEGORace", m_unk0x04.m_context->m_unk0x18);
-	m_unk0x4bcc.Initialize();
-	m_unk0x04.m_menuAnimations.Allocate(2);
+	circuitList->Load(raceStrings, "LEGORace", m_gameContext.m_context->m_useBinaryFiles);
+	m_gameContext.m_raceNames.Load(raceStrings, circuitList, "LEGORace", m_gameContext.m_context->m_useBinaryFiles);
+	m_screenFactory.Initialize();
+	m_gameContext.m_menuAnimations.Allocate(2);
 
 	GolStringTable* menuNameStrings = &m_menuNameStrings;
 	menuNameStrings->UseOwnedBuffers();
@@ -385,26 +552,26 @@ void MenuManager::LoadMenuData()
 // FUNCTION: LEGORACERS 0x0042d260
 void MenuManager::UnloadMenuData()
 {
-	m_unk0x04.m_raceNames.Clear();
-	m_unk0x04.m_circuitList.Clear();
+	m_gameContext.m_raceNames.Clear();
+	m_gameContext.m_circuitList.Clear();
 	m_raceStrings.ReleaseOwnedBuffers();
-	m_unk0x04.m_saveSystem.Destroy();
-	m_unk0x04.m_pieceLibrary.Destroy();
-	m_unk0x04.m_unk0x21f4.Destroy();
-	m_unk0x04.m_unk0x4224.Destroy();
-	m_unk0x04.m_modelBuilder.ReleaseMenuResources();
-	m_unk0x04.m_partResources.ReleaseResources();
-	m_unk0x04.m_partCatalog.Destroy();
-	m_unk0x4bcc.Shutdown();
-	m_unk0x04.m_menuAnimations.Reset();
+	m_gameContext.m_saveSystem.Destroy();
+	m_gameContext.m_pieceLibrary.Destroy();
+	m_gameContext.m_carBuildModel.Destroy();
+	m_gameContext.m_colorTable.Destroy();
+	m_gameContext.m_modelBuilder.ReleaseMenuResources();
+	m_gameContext.m_partResources.ReleaseResources();
+	m_gameContext.m_partCatalog.Destroy();
+	m_screenFactory.Shutdown();
+	m_gameContext.m_menuAnimations.Reset();
 }
 
 // FUNCTION: LEGORACERS 0x0042d300
 LegoBool32 MenuManager::LoadLocalizedMenuResources(LegoU32 p_languageIndex, LegoBool32 p_forceReload)
 {
-	if (p_languageIndex != m_unk0x04.m_context->m_languageIndex || p_forceReload) {
-		m_unk0x04.m_saveSystem.GetGameState().SetLanguageResourcePath();
-		m_unk0x04.m_context->m_languageIndex = p_languageIndex;
+	if (p_languageIndex != m_gameContext.m_context->m_languageIndex || p_forceReload) {
+		m_gameContext.m_saveSystem.GetGameState().SetLanguageResourcePath();
+		m_gameContext.m_context->m_languageIndex = p_languageIndex;
 
 		GolStringTable* menuTextStrings = &m_menuTextStrings;
 		menuTextStrings->UseOwnedBuffers();
@@ -414,7 +581,7 @@ LegoBool32 MenuManager::LoadLocalizedMenuResources(LegoU32 p_languageIndex, Lego
 
 		menuTextStrings->Load("menutext.srf");
 		raceStrings->Load("circuit.srf");
-		m_fontTable->LoadFontDefinitions(m_renderer, "GFonts", m_unk0x04.m_context->m_unk0x18);
+		m_fontTable->LoadFontDefinitions(m_renderer, "GFonts", m_gameContext.m_context->m_useBinaryFiles);
 
 		if (g_hashTable) {
 			g_hashTable->SetCurrentEntryFromString("MENUDATA");
@@ -422,9 +589,9 @@ LegoBool32 MenuManager::LoadLocalizedMenuResources(LegoU32 p_languageIndex, Lego
 
 		MenuStyleTable::ResourceLoadParams params;
 		params.m_renderer = m_renderer;
-		params.m_unk0x04 = 0;
+		params.m_fallback = 0;
 		params.m_fileName = "gstyles";
-		params.m_binary = m_unk0x04.m_context->m_unk0x18;
+		params.m_binary = m_gameContext.m_context->m_useBinaryFiles;
 		p_forceReload = m_menuStyles.Load(&params);
 	}
 
@@ -432,44 +599,44 @@ LegoBool32 MenuManager::LoadLocalizedMenuResources(LegoU32 p_languageIndex, Lego
 }
 
 // FUNCTION: LEGORACERS 0x0042d3e0
-void MenuManager::FUN_0042d3e0(LegoU16 p_menuId)
+void MenuManager::OpenScreen(LegoU16 p_menuId)
 {
-	LoadLocalizedMenuResources(m_unk0x04.m_saveSystem.GetLanguageIndex(), FALSE);
+	LoadLocalizedMenuResources(m_gameContext.m_saveSystem.GetLanguageIndex(), FALSE);
 
-	m_menuNameStrings.CopyStringByIndex(&m_unk0x4d30, p_menuId);
+	m_menuNameStrings.CopyStringByIndex(&m_screenName, p_menuId);
 
-	m_unk0x4d98.m_golExport = m_golExport;
-	m_unk0x4d98.m_renderer = m_renderer;
-	m_unk0x4d98.m_inputManager = m_unk0x04.m_context->m_golApp->GetInputManager();
-	m_unk0x4d98.m_inputEvents = m_unk0x04.m_inputBindings.GetUnk0x208();
-	m_unk0x4d98.m_soundGroupBinding = &m_soundGroupBinding;
-	m_unk0x4d98.m_menuStyles = &m_menuStyles;
-	m_unk0x4d98.m_menuId = p_menuId;
-	m_unk0x4d98.m_unk0x2c = m_unk0x04.m_context->m_unk0x18;
-	m_unk0x4d98.m_unk0x20 = &m_unk0x4bd0;
-	m_unk0x4d98.m_cursor = m_inputDispatcher.GetCursor();
-	m_unk0x4d98.m_menuNameStrings = &m_menuNameStrings;
-	m_unk0x4d98.m_menuTextStrings = &m_menuTextStrings;
+	m_screenCreateParams.m_golExport = m_golExport;
+	m_screenCreateParams.m_renderer = m_renderer;
+	m_screenCreateParams.m_inputManager = m_gameContext.m_context->m_golApp->GetInputManager();
+	m_screenCreateParams.m_inputEvents = m_gameContext.m_inputBindings.GetInputEvents();
+	m_screenCreateParams.m_soundGroupBinding = &m_soundGroupBinding;
+	m_screenCreateParams.m_menuStyles = &m_menuStyles;
+	m_screenCreateParams.m_menuId = p_menuId;
+	m_screenCreateParams.m_useBinaryFiles = m_gameContext.m_context->m_useBinaryFiles;
+	m_screenCreateParams.m_dialog = &m_dialog;
+	m_screenCreateParams.m_cursor = m_inputDispatcher.GetCursor();
+	m_screenCreateParams.m_menuNameStrings = &m_menuNameStrings;
+	m_screenCreateParams.m_menuTextStrings = &m_menuTextStrings;
 
-	if (m_unk0x4dc8) {
+	if (m_activeScreen) {
 		m_renderer->VTable0xf4();
-		m_unk0x4dc8->Destroy();
+		m_activeScreen->Destroy();
 
-		if (m_unk0x4dc8) {
-			delete m_unk0x4dc8;
+		if (m_activeScreen) {
+			delete m_activeScreen;
 		}
 	}
 
-	m_unk0x4dc8 = m_unk0x4bcc.CreateScreen(p_menuId);
-	m_inputDispatcher.SetActiveScreen(m_unk0x4dc8);
-	m_unk0x4dc8->VTable0x8c(&m_unk0x04, &m_unk0x4d98);
+	m_activeScreen = m_screenFactory.CreateScreen(p_menuId);
+	m_inputDispatcher.SetActiveScreen(m_activeScreen);
+	m_activeScreen->Initialize(&m_gameContext, &m_screenCreateParams);
 }
 
 // FUNCTION: LEGORACERS 0x0042d510
 void MenuManager::Run()
 {
 	ColorRGBA rendererState;
-	Win32GolApp* golApp = m_unk0x04.m_context->m_golApp;
+	Win32GolApp* golApp = m_gameContext.m_context->m_golApp;
 	StackOfLegoU16* stack;
 	MenuAnimationList* menuAnimations;
 	LegoU32 frameDeltaMs;
@@ -479,60 +646,60 @@ void MenuManager::Run()
 	rendererState.m_grn = 0;
 	rendererState.m_blu = 0;
 	rendererState.m_alp = 0;
-	m_renderer->VTable0x1c(rendererState);
+	m_renderer->SetClearColor(rendererState);
 	m_running = TRUE;
 
 	while (m_running) {
 		if (!golApp->Tick(this) || !m_running) {
-			m_unk0x04.m_context->m_running = FALSE;
+			m_gameContext.m_context->m_running = FALSE;
 			break;
 		}
 
 		frameDeltaMs = golApp->GetFrameDeltaMs();
-		m_unk0x04.m_context->GetSoundManager()->Update(frameDeltaMs);
+		m_gameContext.m_context->GetSoundManager()->Update(frameDeltaMs);
 
 		if (!golApp->IsDisabled()) {
-			stack = &m_unk0x04.m_menuStack;
+			stack = &m_gameContext.m_menuStack;
 			previousMenu = stack->Peek();
-			m_unk0x04.m_context->m_running = m_inputDispatcher.Update(frameDeltaMs);
+			m_gameContext.m_context->m_running = m_inputDispatcher.Update(frameDeltaMs);
 
-			if (m_unk0x4bd0.GetUnk0x9c() > 0) {
-				m_unk0x4bd0.FUN_00468da0(frameDeltaMs);
+			if (m_dialog.GetOpenCount() > 0) {
+				m_dialog.Update(frameDeltaMs);
 			}
 			else {
-				if (m_unk0x4dc8->VTable0x78(frameDeltaMs)) {
-					m_unk0x04.m_context->m_running = FALSE;
+				if (m_activeScreen->Update(frameDeltaMs)) {
+					m_gameContext.m_context->m_running = FALSE;
 				}
-				if (!m_unk0x04.m_context->m_running || !m_unk0x04.m_menuStack.GetSize()) {
+				if (!m_gameContext.m_context->m_running || !m_gameContext.m_menuStack.GetSize()) {
 					break;
 				}
 
 				if (previousMenu != stack->Peek()) {
-					FUN_0042d3e0(stack->Peek());
+					OpenScreen(stack->Peek());
 				}
 			}
 
-			menuAnimations = &m_unk0x04.m_menuAnimations;
+			menuAnimations = &m_gameContext.m_menuAnimations;
 			menuAnimations->Update(frameDeltaMs);
-			m_renderer->VTable0x54(TRUE);
-			m_renderer->VTable0xec(6);
-			m_renderer->VTable0xe8(TRUE);
+			m_renderer->BeginFrame(TRUE);
+			m_renderer->SelectViewport(6);
+			m_renderer->DisableZBuffer(TRUE);
 
-			if (m_unk0x4bd0.GetUnk0x9c() > 0) {
-				m_unk0x4bd0.FUN_00468e20();
+			if (m_dialog.GetOpenCount() > 0) {
+				m_dialog.DrawCursors();
 			}
 			else {
 				m_inputDispatcher.DrawCursor();
 			}
 
 			menuAnimations->Draw(m_renderer);
-			m_renderer->VTable0xe4();
-			m_renderer->VTable0xf0();
+			m_renderer->EnableZBuffer();
+			m_renderer->EndFrame();
 
 			if (golApp->GetInputManager()->GetKeyboard()->GetButtonState(
 					InputDevice::MakeEvent(InputDevice::c_sourceKeyboard, 0xb7)
 				)) {
-				FUN_0042e720();
+				TakeScreenshot();
 			}
 
 			golApp->PresentFrame();
@@ -540,53 +707,53 @@ void MenuManager::Run()
 	}
 
 	m_renderer->VTable0xf4();
-	if (m_unk0x4dc8) {
-		m_unk0x4dc8->Destroy();
-		delete m_unk0x4dc8;
-		m_unk0x4dc8 = NULL;
+	if (m_activeScreen) {
+		m_activeScreen->Destroy();
+		delete m_activeScreen;
+		m_activeScreen = NULL;
 	}
 
-	if (m_unk0x04.m_context->m_running) {
-		FUN_0042d730();
+	if (m_gameContext.m_context->m_running) {
+		PrepareRaceContext();
 	}
 }
 
 // STUB: LEGORACERS 0x0042d730
-void MenuManager::FUN_0042d730()
+void MenuManager::PrepareRaceContext()
 {
 	GolString string;
 	GolRenderDevice::MaterialColor materialColor;
 	GolRenderDevice::Light light;
-	AmethystBreeze0x104 rendererState;
-	LegoRacers::Context* context = m_unk0x04.m_context;
-	ActiveRecordBuffer& selectedRecords = m_unk0x04.m_saveSystem.GetActiveRecord();
+	GolModelRenderState rendererState;
+	LegoRacers::Context* context = m_gameContext.m_context;
+	ActiveRecordBuffer& selectedRecords = m_gameContext.m_saveSystem.GetActiveRecord();
 
 	if (context->m_raceMode == LegoRacers::Context::c_raceModeCircuit ||
 		context->m_raceMode == LegoRacers::Context::c_raceModeTimeRace) {
-		context->m_unk0x20 = 0;
+		context->m_cheatFlags = 0;
 	}
 
-	for (LegoU32 saveIndex = 0; saveIndex < m_unk0x04.m_saveSystem.GetSessionSave().GetRecordCount(); saveIndex++) {
-		SaveRecordList::Record* record = m_unk0x04.m_saveSystem.GetSessionSave().GetRecord(saveIndex);
+	for (LegoU32 saveIndex = 0; saveIndex < m_gameContext.m_saveSystem.GetSessionSave().GetRecordCount(); saveIndex++) {
+		SaveRecordList::Record* record = m_gameContext.m_saveSystem.GetSessionSave().GetRecord(saveIndex);
 		::memcpy(context->m_saveRecords[saveIndex], record->m_data, sizeof(context->m_saveRecords[saveIndex]));
 	}
-	context->m_saveRecordCount = m_unk0x04.m_saveSystem.GetSessionSave().GetRecordCount();
+	context->m_saveRecordCount = m_gameContext.m_saveSystem.GetSessionSave().GetRecordCount();
 
-	m_unk0x04.m_saveSystem.GetGameState().WriteToSaveGame(&m_unk0x04.m_saveSystem.GetSessionSave());
+	m_gameContext.m_saveSystem.GetGameState().WriteToSaveGame(&m_gameContext.m_saveSystem.GetSessionSave());
 	::memcpy(
 		&context->m_saveState,
-		m_unk0x04.m_saveSystem.GetSessionSave().GetFileImage(),
+		m_gameContext.m_saveSystem.GetSessionSave().GetFileImage(),
 		sizeof(context->m_saveState)
 	);
-	context->m_unk0x1e |= LegoRacers::Context::c_flagBit2;
+	context->m_flags |= LegoRacers::Context::c_flagSaveStateValid;
 
 	if (!selectedRecords.GetSelectedRecordCount()) {
 		context->m_racerCount = 6;
 		context->m_raceMode = LegoRacers::Context::c_raceModeSingle;
 
-		g_unk0x004c6ee4 = (g_unk0x004c6ee4 + 1) & 0x3ff;
+		g_randomTableIndex = (g_randomTableIndex + 1) & 0x3ff;
 		RaceNameEntry* raceName =
-			m_unk0x04.m_circuitList.GetEntries()[0].GetRaceNameEntry(g_unk0x004befec[g_unk0x004c6ee4] % 4);
+			m_gameContext.m_circuitList.GetEntries()[0].GetRaceNameEntry(g_randomTable[g_randomTableIndex] % 4);
 
 		if (raceName) {
 			::memcpy(
@@ -608,7 +775,7 @@ void MenuManager::FUN_0042d730()
 		context->m_circuitName[2] = '\0';
 	}
 
-	if ((context->m_unk0x20 & 0x20) && ::strcmp(context->m_circuitName, "c6") == 0) {
+	if ((context->m_cheatFlags & c_lnfrrrm) && ::strcmp(context->m_circuitName, "c6") == 0) {
 		context->m_raceSlots[0].m_mirror = 1;
 	}
 
@@ -616,7 +783,7 @@ void MenuManager::FUN_0042d730()
 	if (context->m_racerCount > selectedRecords.GetSelectedRecordCount()) {
 		CircuitDefinitionList::CircuitDefinition* circuitDefinition =
 			static_cast<CircuitDefinitionList::CircuitDefinition*>(
-				m_unk0x04.m_circuitList.GetName(context->m_circuitName)
+				m_gameContext.m_circuitList.GetName(context->m_circuitName)
 			);
 		if (context->m_racerCount > circuitDefinition->GetDriverCount()) {
 			context->m_racerCount = circuitDefinition->GetDriverCount();
@@ -630,7 +797,7 @@ void MenuManager::FUN_0042d730()
 				sizeof(defaultSlot->m_driverName)
 			);
 			defaultSlot->m_chassisName[0] = '\0';
-			defaultSlot->m_unk0x10 = 2;
+			defaultSlot->m_slotState = 2;
 			defaultSlot->m_cosmetics.m_hatIndex = 0;
 			defaultSlot->m_cosmetics.m_faceIndex = 0;
 			defaultSlot->m_cosmetics.m_torsoIndex = 0;
@@ -652,36 +819,37 @@ void MenuManager::FUN_0042d730()
 		context->m_racerCount = selectedRecords.GetSelectedRecordCount();
 	}
 
-	if (m_unk0x04.m_unk0x21f4.IsInitialized()) {
-		m_unk0x04.m_unk0x21a4.Clear();
-		m_unk0x04.m_unk0x21f4.Destroy();
-		m_unk0x04.m_unk0x4224.Destroy();
-		m_unk0x04.m_pieceLibrary.Destroy();
+	if (m_gameContext.m_carBuildModel.IsInitialized()) {
+		m_gameContext.m_partSet.Clear();
+		m_gameContext.m_carBuildModel.Destroy();
+		m_gameContext.m_colorTable.Destroy();
+		m_gameContext.m_pieceLibrary.Destroy();
 	}
 
 	if (g_hashTable) {
 		g_hashTable->SetCurrentEntryFromString("MENUDATA\\PIECEDB");
 	}
 
-	m_unk0x04.m_pieceLibrary.FUN_0049ee30("LPieceLo.leg", context->m_unk0x18);
-	m_unk0x04.m_unk0x4224.Initialize(m_golExport, m_renderer);
-	m_unk0x04.m_unk0x4224.LoadMaterials("LPieceLo.WDF", context->m_unk0x18, FALSE);
-	m_unk0x04.m_unk0x4224.LoadColors("L_Colors.LEG", context->m_unk0x18);
-	m_unk0x04.m_unk0x21f4.Initialize(m_golExport, m_renderer, &m_unk0x04.m_pieceLibrary, &m_unk0x04.m_unk0x4224);
+	m_gameContext.m_pieceLibrary.Load("LPieceLo.leg", context->m_useBinaryFiles);
+	m_gameContext.m_colorTable.Initialize(m_golExport, m_renderer);
+	m_gameContext.m_colorTable.LoadMaterials("LPieceLo.WDF", context->m_useBinaryFiles, FALSE);
+	m_gameContext.m_colorTable.LoadColors("L_Colors.LEG", context->m_useBinaryFiles);
+	m_gameContext.m_carBuildModel
+		.Initialize(m_golExport, m_renderer, &m_gameContext.m_pieceLibrary, &m_gameContext.m_colorTable);
 
 	if (g_hashTable) {
 		g_hashTable->SetCurrentEntryFromString("MENUDATA");
 	}
 
-	FUN_0042df70();
-	FUN_0042de90(TRUE);
+	ReleasePartResources();
+	LoadPartResources(TRUE);
 
 	LegoRacers::Context::PlayerSetupSlot* slot = slots;
 	LegoRacers::Context::PlayerRecordState* recordState = context->m_playerRecordStates;
 	for (LegoU32 selectedIndex = 0; selectedIndex < selectedRecords.GetSelectedRecordCount(); selectedIndex++) {
 		SaveRecordList::Record* record = selectedRecords.GetSelectedRecord(selectedIndex);
 
-		rendererState.FUN_0040eb60();
+		rendererState.ResetLighting();
 
 		ColorRGBA color;
 		color.m_alp = 0xff;
@@ -689,7 +857,7 @@ void MenuManager::FUN_0042d730()
 		color.m_grn = 0x80;
 		color.m_blu = 0x80;
 		materialColor.SetColor(color);
-		rendererState.FUN_0040eb70(&materialColor);
+		rendererState.SetAmbientColor(&materialColor);
 
 		color.m_red = 0xff;
 		color.m_grn = 0xff;
@@ -701,20 +869,20 @@ void MenuManager::FUN_0042d730()
 		direction.m_y = 0.0f;
 		direction.m_z = -1.0f;
 		light.SetDirection(direction);
-		rendererState.FUN_0040eba0(&light);
+		rendererState.AddLight(&light);
 
 		record->GetName(&string);
 		string.CopyToString(slot->m_playerName);
 
-		FUN_0042dcb0(record, slot, &rendererState);
-		FUN_0042dfa0(record, slot, &rendererState);
+		BuildPlayerCarModel(record, slot, &rendererState);
+		BuildPlayerDriverModel(record, slot, &rendererState);
 
 		recordState->m_recordSource = record->m_recordSource;
 		recordState->m_saveIndex = record->m_saveIndex;
 		recordState->m_recordId = record->m_recordId;
 
 		record->GetCosmetics(&slot->m_cosmetics);
-		slot->m_unk0x10 = 0;
+		slot->m_slotState = 0;
 
 		slot++;
 		recordState++;
@@ -728,12 +896,12 @@ void MenuManager::FUN_0042d730()
 	}
 
 	if (!selectedRecords.GetSelectedRecordCount()) {
-		context->m_playerCount = m_unk0x04.m_inputBindings.GetInputManager()->GetJoystickCount();
+		context->m_playerCount = m_gameContext.m_inputBindings.GetInputManager()->GetJoystickCount();
 	}
 
 	for (LegoU32 playerIndex = 0; playerIndex < context->m_playerCount; playerIndex++) {
-		LegoU32 entryIndex = m_unk0x04.m_saveSystem.GetGameState().GetSelectedInputBindingEntryIndex(playerIndex);
-		m_unk0x04.m_saveSystem.GetGameState()
+		LegoU32 entryIndex = m_gameContext.m_saveSystem.GetGameState().GetSelectedInputBindingEntryIndex(playerIndex);
+		m_gameContext.m_saveSystem.GetGameState()
 			.GetInputBindingEntry(playerIndex, entryIndex, &context->m_inputBindings[playerIndex]);
 	}
 
@@ -743,10 +911,10 @@ void MenuManager::FUN_0042d730()
 }
 
 // FUNCTION: LEGORACERS 0x0042dcb0
-void MenuManager::FUN_0042dcb0(
+void MenuManager::BuildPlayerCarModel(
 	SaveRecordList::Record* p_record,
 	LegoRacers::Context::PlayerSetupSlot* p_slot,
-	AmethystBreeze0x104* p_rendererState
+	GolModelRenderState* p_rendererState
 )
 {
 	GolModelEntity entity;
@@ -754,22 +922,22 @@ void MenuManager::FUN_0042dcb0(
 	p_slot->m_driverName[0] = '\0';
 	p_record->GetChassisName(p_slot->m_chassisName);
 
-	GolExport* golExport = m_unk0x04.m_context->m_golApp->GetGolExport();
+	GolExport* golExport = m_gameContext.m_context->m_golApp->GetGolExport();
 	GolD3DRenderDevice* renderer = golExport->GetDrawState()->m_currentRenderer;
-	CarBuildModel& carBuildModel = m_unk0x04.m_unk0x21f4;
+	CarBuildModel& carBuildModel = m_gameContext.m_carBuildModel;
 
-	if (!carBuildModel.FUN_0049c7f0(p_record->GetCarData())) {
+	if (!carBuildModel.Deserialize(p_record->GetCarData())) {
 		GOL_FATALERROR_MESSAGE("Unable to load mesh builder with car data");
 	}
 
-	carBuildModel.FUN_0049b740(0);
-	carBuildModel.FUN_0049b920(0, 0xff);
+	carBuildModel.UpdateOffset(0);
+	carBuildModel.RebuildModel(0, 0xff);
 
 	undefined4 textureCount;
 	undefined4 materialCount;
 
-	materialCount = carBuildModel.GetUnk0x1ee8();
-	textureCount = carBuildModel.GetUnk0x1eec();
+	materialCount = carBuildModel.GetFinalMaterialCount();
+	textureCount = carBuildModel.GetFinalTextureCount();
 
 	GolMaterialLibrary* materials = p_slot->m_materials;
 	if (materials) {
@@ -777,65 +945,66 @@ void MenuManager::FUN_0042dcb0(
 		p_slot->m_materials = NULL;
 	}
 	p_slot->m_materials = golExport->CreateMaterialList();
-	p_slot->m_materials->VTable0x1c(renderer, materialCount);
+	p_slot->m_materials->Initialize(renderer, materialCount);
 
 	if (p_slot->m_textures) {
 		golExport->DestroyTextureList(p_slot->m_textures);
 		p_slot->m_textures = NULL;
 	}
 	p_slot->m_textures = golExport->CreateTextureList();
-	p_slot->m_textures->VTable0x1c(renderer, textureCount);
+	p_slot->m_textures->Initialize(renderer, textureCount);
 
 	if (p_slot->m_model) {
-		golExport->VTable0x48(p_slot->m_model);
+		golExport->DestroyModel(p_slot->m_model);
 		p_slot->m_model = NULL;
 	}
-	p_slot->m_model = golExport->VTable0x14();
-	p_slot->m_model->VTable0x18(
+	p_slot->m_model = golExport->CreateModel();
+	p_slot->m_model->Allocate(
 		renderer,
 		3,
-		carBuildModel.GetUnk0x1ef8(),
-		carBuildModel.GetUnk0x1ef4(),
-		carBuildModel.GetUnk0x1ef0(),
+		carBuildModel.GetFinalVertexCount(),
+		carBuildModel.GetFinalTriangleCount(),
+		carBuildModel.GetFinalGroupCount(),
 		materialCount
 	);
 
-	carBuildModel.FUN_0049c840(p_slot->m_model, p_slot->m_materials, p_slot->m_textures);
-	p_slot->m_unk0x14 = carBuildModel.FUN_0049c6a0(&p_slot->m_unk0x18, &p_slot->m_unk0x1c, &p_slot->m_unk0x20);
+	carBuildModel.ExportModel(p_slot->m_model, p_slot->m_materials, p_slot->m_textures);
+	p_slot->m_highPieceCount =
+		carBuildModel.ComputeHighPieceCentroid(&p_slot->m_centroidX, &p_slot->m_centroidY, &p_slot->m_centroidZ);
 
-	entity.VTable0x50(p_slot->m_model, g_menuManagerMaxFloat);
-	renderer->VTable0x9c(&entity, p_rendererState, 0);
-	entity.VTable0x54();
+	entity.SetPrimaryModel(p_slot->m_model, g_menuManagerMaxFloat);
+	renderer->DrawModelEntityWithScopedState(&entity, p_rendererState, 0);
+	entity.ResetModelState();
 
-	GdbVertexArray0xc* vertexArray;
-	p_slot->m_model->VTable0x28(&vertexArray);
-	vertexArray->VTable0x10();
-	p_slot->m_model->VTable0x2c(1, FALSE);
+	GdbVertexArray* vertexArray;
+	p_slot->m_model->GetVertexArray(&vertexArray);
+	vertexArray->DiscardNormals();
+	p_slot->m_model->AddFlagsWithBounds(1, FALSE);
 }
 
 // FUNCTION: LEGORACERS 0x0042de90
-void MenuManager::FUN_0042de90(LegoBool32 p_arg)
+void MenuManager::LoadPartResources(LegoBool32 p_arg)
 {
 	if (g_hashTable) {
 		g_hashTable->SetCurrentEntryFromString("MENUDATA\\PARTDB");
 	}
 
-	m_unk0x04.m_partCatalog.Load("bodypart.pcf", m_unk0x04.m_context->m_unk0x18);
+	m_gameContext.m_partCatalog.Load("bodypart.pcf", m_gameContext.m_context->m_useBinaryFiles);
 
 	DriverPartResources::LoadParams partParams;
-	partParams.m_golExport = m_unk0x04.m_context->m_golApp->GetGolExport();
-	partParams.m_renderer = m_unk0x04.m_context->m_golApp->GetRenderer();
-	partParams.m_partCatalog = &m_unk0x04.m_partCatalog;
-	partParams.m_binary = m_unk0x04.m_context->m_unk0x18;
+	partParams.m_golExport = m_gameContext.m_context->m_golApp->GetGolExport();
+	partParams.m_renderer = m_gameContext.m_context->m_golApp->GetRenderer();
+	partParams.m_partCatalog = &m_gameContext.m_partCatalog;
+	partParams.m_binary = m_gameContext.m_context->m_useBinaryFiles;
 	partParams.m_textureBinaryMode = p_arg == FALSE;
-	m_unk0x04.m_partResources.Load(&partParams, p_arg);
+	m_gameContext.m_partResources.Load(&partParams, p_arg);
 
 	DriverModelBuilder::LoadParams menuParams;
 	menuParams.m_golExport = partParams.m_golExport;
 	menuParams.m_renderer = partParams.m_renderer;
 	menuParams.m_menuId = 6;
-	menuParams.m_partResources = &m_unk0x04.m_partResources;
-	m_unk0x04.m_modelBuilder.Load(&menuParams);
+	menuParams.m_partResources = &m_gameContext.m_partResources;
+	m_gameContext.m_modelBuilder.Load(&menuParams);
 
 	if (g_hashTable) {
 		g_hashTable->SetCurrentEntryFromString("MENUDATA");
@@ -843,124 +1012,119 @@ void MenuManager::FUN_0042de90(LegoBool32 p_arg)
 }
 
 // FUNCTION: LEGORACERS 0x0042df70
-void MenuManager::FUN_0042df70()
+void MenuManager::ReleasePartResources()
 {
-	m_unk0x04.m_modelBuilder.ReleaseMenuResources();
-	m_unk0x04.m_partResources.ReleaseResources();
-	m_unk0x04.m_partCatalog.Destroy();
+	m_gameContext.m_modelBuilder.ReleaseMenuResources();
+	m_gameContext.m_partResources.ReleaseResources();
+	m_gameContext.m_partCatalog.Destroy();
 }
 
 // STUB: LEGORACERS 0x0042dfa0
-void MenuManager::FUN_0042dfa0(
+void MenuManager::BuildPlayerDriverModel(
 	SaveRecordList::Record* p_record,
 	LegoRacers::Context::PlayerSetupSlot* p_slot,
-	AmethystBreeze0x104* p_rendererState
+	GolModelRenderState* p_rendererState
 )
 {
 	GolAnimatedEntity entity;
-	CmbModelPart0x34 modelParts;
+	CmbModelPart modelParts;
 	LegoU32 textureCount;
 	DriverCosmetics cosmetics;
 	GolModelMaterialTable* materialTable;
 	LegoU32 materialCount;
-	DuskWindBananaRelicParams params;
+	GolMaterialParams params;
 
 	p_record->GetCosmetics(&cosmetics);
 
-	DriverModelBuilder* modelBuilder = &m_unk0x04.m_modelBuilder;
+	DriverModelBuilder* modelBuilder = &m_gameContext.m_modelBuilder;
 	p_slot->m_altModel = modelBuilder->BuildDriverModel(&cosmetics, NULL, 3);
 	p_slot->m_previewFaceIndex = cosmetics.m_faceIndex;
 	materialTable = p_slot->m_altModel->GetMaterialTable();
 	textureCount = 0;
 
 	for (materialCount = 0; materialCount < materialTable->GetCount(); materialCount++) {
-		DuskwindBananaRelic0x24* material = materialTable->GetMaterial(materialCount);
+		GolMaterial* material = materialTable->GetMaterial(materialCount);
 		if (material == NULL) {
 			break;
 		}
 
-		if (material->GetUnk0x08() & DuskwindBananaRelic0x24::c_flag0x08Bit3) {
+		if (material->GetFlags() & GolMaterial::c_flagTextured) {
 			textureCount++;
 		}
 	}
 
-	GolExport* golExport = m_unk0x04.m_context->m_golApp->GetGolExport();
+	GolExport* golExport = m_gameContext.m_context->m_golApp->GetGolExport();
 	GolD3DRenderDevice* renderer = golExport->GetDrawState()->m_currentRenderer;
 
 	p_slot->m_altMaterials = golExport->CreateMaterialList();
-	p_slot->m_altMaterials->VTable0x1c(renderer, materialCount);
+	p_slot->m_altMaterials->Initialize(renderer, materialCount);
 	p_slot->m_altTextures = golExport->CreateTextureList();
-	p_slot->m_altTextures->VTable0x1c(renderer, textureCount);
+	p_slot->m_altTextures->Initialize(renderer, textureCount);
 
 	textureCount = 0;
 	for (LegoU32 materialIndex = 0; materialIndex < materialCount; materialIndex++) {
-		DuskwindBananaRelic0x24* sourceMaterial = materialTable->GetMaterial(materialIndex);
+		GolMaterial* sourceMaterial = materialTable->GetMaterial(materialIndex);
 		sourceMaterial->CopyParamsTo(&params);
 
-		if (sourceMaterial->GetUnk0x08() & DuskwindBananaRelic0x24::c_flag0x08Bit3) {
-			PurpleDune0x7c* texture = p_slot->m_altTextures->GetItem(textureCount++);
-			texture->SetName(static_cast<PurpleDune0x7c*>(params.m_unk0x04)->GetName());
+		if (sourceMaterial->GetFlags() & GolMaterial::c_flagTextured) {
+			GolD3DTexture* texture = p_slot->m_altTextures->GetItem(textureCount++);
+			texture->SetName(static_cast<GolD3DTexture*>(params.m_texture)->GetName());
 			texture->SetSourceTextureDefinition(
-				params.m_unk0x04->GetUnk0x34(),
-				params.m_unk0x04->GetUnk0x36(),
-				params.m_unk0x04->GetColorKey()
+				params.m_texture->GetMipmapCount(),
+				params.m_texture->GetTextureFlags(),
+				params.m_texture->GetColorKey()
 			);
-			params.m_unk0x04 = texture;
+			params.m_texture = texture;
 		}
 		else {
-			params.m_unk0x04 = NULL;
+			params.m_texture = NULL;
 		}
 
-		params.m_unk0x00 &= ~DuskwindBananaRelic0x24::c_flagBit0;
-		DuskwindBananaRelic0x24* material = p_slot->m_altMaterials->GetItem(materialIndex);
-		material->FUN_100257e0(renderer, params);
-		materialTable->SetPosition(materialIndex, material);
+		params.m_flags &= ~GolMaterial::c_flagCreated;
+		GolMaterial* material = p_slot->m_altMaterials->GetItem(materialIndex);
+		material->SetParams(renderer, params);
+		materialTable->SetEntry(materialIndex, material);
 	}
 
-	entity.FUN_0040d550(
-		p_slot->m_altModel,
-		modelBuilder->GetBodySceneNode(&cosmetics),
-		&modelParts,
-		g_menuManagerMaxFloat
-	);
-	renderer->VTable0x9c(&entity, p_rendererState, 0);
-	entity.VTable0x54();
+	entity.SetModel(p_slot->m_altModel, modelBuilder->GetBodySceneNode(&cosmetics), &modelParts, g_menuManagerMaxFloat);
+	renderer->DrawModelEntityWithScopedState(&entity, p_rendererState, 0);
+	entity.ResetModelState();
 
-	GdbVertexArray0xc* vertexArray;
-	p_slot->m_altModel->VTable0x28(&vertexArray);
-	vertexArray->VTable0x10();
-	p_slot->m_altModel->VTable0x2c(1, FALSE);
+	GdbVertexArray* vertexArray;
+	p_slot->m_altModel->GetVertexArray(&vertexArray);
+	vertexArray->DiscardNormals();
+	p_slot->m_altModel->AddFlagsWithBounds(1, FALSE);
 }
 
 // FUNCTION: LEGORACERS 0x0042e1f0
-void MenuManager::FUN_0042e1f0()
+void MenuManager::ApplySettings()
 {
 	LegoU32 driverIndex = 0;
 	LegoFloat musicVolume;
-	GameState& state = m_unk0x04.m_saveSystem.GetGameState();
+	GameState& state = m_gameContext.m_saveSystem.GetGameState();
 
-	m_unk0x04.m_context->m_racerCount = state.GetRacerCount();
-	m_unk0x04.m_context->m_unk0x2c = state.GetUnk0x23();
+	m_gameContext.m_context->m_racerCount = state.GetRacerCount();
+	m_gameContext.m_context->m_lapCount = state.GetLapCount();
 
-	if (m_unk0x04.m_context->GetSoundManager() != NULL) {
-		musicVolume = state.GetMusicVolume() * g_unk0x4b05d8;
-		m_unk0x04.m_context->GetSoundManager()->SetMusicVolumeScale(1.0f);
+	if (m_gameContext.m_context->GetSoundManager() != NULL) {
+		musicVolume = state.GetMusicVolume() * g_inv255;
+		m_gameContext.m_context->GetSoundManager()->SetMusicVolumeScale(1.0f);
 
-		if (m_unk0x04.m_modelBuilder.m_musicInstance) {
-			m_unk0x04.m_modelBuilder.m_musicInstance->SetVolume(musicVolume);
+		if (m_gameContext.m_modelBuilder.m_musicInstance) {
+			m_gameContext.m_modelBuilder.m_musicInstance->SetVolume(musicVolume);
 		}
-		m_unk0x04.m_context->GetSoundManager()->SetMusicVolumeScale(musicVolume);
-		m_unk0x04.m_context->GetSoundManager()->SetVolumeScale(state.GetSoundVolume() * g_unk0x4b05d8);
+		m_gameContext.m_context->GetSoundManager()->SetMusicVolumeScale(musicVolume);
+		m_gameContext.m_context->GetSoundManager()->SetVolumeScale(state.GetSoundVolume() * g_inv255);
 
-		if (state.GetUnk0x21()) {
-			m_unk0x04.m_context->GetSoundManager()->ClearUnk0x04Flag0x04();
+		if (state.GetStereo()) {
+			m_gameContext.m_context->GetSoundManager()->ClearMonoFlag();
 		}
 		else {
-			m_unk0x04.m_context->GetSoundManager()->SetUnk0x04Flag0x04();
+			m_gameContext.m_context->GetSoundManager()->SetMonoFlag();
 		}
 	}
 
-	GolDrawState* drawState = m_unk0x04.m_context->m_golApp->GetDrawState();
+	GolDrawState* drawState = m_gameContext.m_context->m_golApp->GetDrawState();
 	DisplayDriverGuid savedDisplayDriverGuid;
 	DisplayDriverGuid currentDisplayDriverGuid;
 	DisplayDriverGuid driverGuid;
@@ -999,7 +1163,7 @@ void MenuManager::FUN_0042e1f0()
 
 			if (deviceIndex < drawState->GetDeviceCount(driverIndex)) {
 				const LegoChar* deviceName = drawState->GetDeviceName(driverIndex, deviceIndex);
-				drawState->VTable0x0c(driverName, deviceName);
+				drawState->SelectDevice(driverName, deviceName);
 				selectedDrawFlags = GolDrawState::c_flagBit14;
 			}
 		}
@@ -1009,7 +1173,7 @@ void MenuManager::FUN_0042e1f0()
 	LegoS32 height = drawState->m_height;
 
 	if (::memcmp(&savedDisplayDriverGuid, &currentDisplayDriverGuid, sizeof(GUID)) != 0) {
-		LegoU32 appFlags = m_unk0x04.m_context->m_golApp->GetFlags();
+		LegoU32 appFlags = m_gameContext.m_context->m_golApp->GetFlags();
 
 		if (!(appFlags & (GolApp::c_flagPrimaryDriver | GolApp::c_flagSelect3DDevice))) {
 			LegoU32 displayFlags = 0;
@@ -1023,25 +1187,25 @@ void MenuManager::FUN_0042e1f0()
 				displayFlags |= GolApp::c_flagBit8;
 			}
 
-			drawState->VTable0x50();
+			drawState->ReleaseDisplay();
 			undefined4 bpp = drawState->m_bpp;
-			drawState->VTable0x54(
+			drawState->CreateDisplay(
 				width,
 				height,
 				bpp,
-				m_unk0x04.m_context->m_golApp->BuildDrawStateFlags(displayFlags) | selectedDrawFlags
+				m_gameContext.m_context->m_golApp->BuildDrawStateFlags(displayFlags) | selectedDrawFlags
 			);
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0042e450
-LegoBool32 MenuManager::FUN_0042e450()
+LegoBool32 MenuManager::HasPendingMemoryCardSaves()
 {
-	MemoryCardSaveGame* entry = m_unk0x04.m_saveSystem.GetMemoryCardSaves();
+	MemoryCardSaveGame* entry = m_gameContext.m_saveSystem.GetMemoryCardSaves();
 
-	for (LegoU32 i = 0; i < m_unk0x04.m_saveSystem.GetMemoryCardSaveCount(); i++, entry++) {
-		if (entry->HasUnk0x4b4Flag0x01()) {
+	for (LegoU32 i = 0; i < m_gameContext.m_saveSystem.GetMemoryCardSaveCount(); i++, entry++) {
+		if (entry->IsUsable()) {
 			return TRUE;
 		}
 	}
@@ -1050,16 +1214,16 @@ LegoBool32 MenuManager::FUN_0042e450()
 }
 
 // STUB: LEGORACERS 0x0042e490
-LegoS32 MenuManager::FUN_0042e490()
+LegoS32 MenuManager::CommitBestTimes()
 {
-	LegoU8 flags = m_unk0x04.m_context->m_unk0x1e;
+	LegoU8 flags = m_gameContext.m_context->m_flags;
 
 	if (!(flags & LegoRacers::Context::c_flagBestTimesPending)) {
 		return FALSE;
 	}
 
-	m_unk0x04.m_context->m_unk0x1e = flags & ~LegoRacers::Context::c_flagBestTimesPending;
-	LegoRacers::Context* context = m_unk0x04.m_context;
+	m_gameContext.m_context->m_flags = flags & ~LegoRacers::Context::c_flagBestTimesPending;
+	LegoRacers::Context* context = m_gameContext.m_context;
 
 	GolString string;
 	LegoChar name[15];
@@ -1071,7 +1235,7 @@ LegoS32 MenuManager::FUN_0042e490()
 		LegoBool32 hasRaceIndex = FALSE;
 
 		if (context->m_bestLapTimes[i]) {
-			raceIndex = m_unk0x04.m_raceNames.GetEntryIndexByName(context->m_raceSlots[i].m_raceName);
+			raceIndex = m_gameContext.m_raceNames.GetEntryIndexByName(context->m_raceSlots[i].m_raceName);
 			hasRaceIndex = TRUE;
 
 			const LegoChar* sourceName = context->m_playerSetupSlots[context->m_bestLapHolders[i]].m_playerName;
@@ -1080,14 +1244,15 @@ LegoS32 MenuManager::FUN_0042e490()
 			GolString::CopyStringToBuf16(sourceName, wideName);
 			string.CopyFromBufSelection(wideName, sizeof(name) - 1);
 
-			if (m_unk0x04.m_saveSystem.GetGameState().SetBestTime(raceIndex, 0, context->m_bestLapTimes[i], &string)) {
+			if (m_gameContext.m_saveSystem.GetGameState()
+					.SetBestTime(raceIndex, 0, context->m_bestLapTimes[i], &string)) {
 				result = TRUE;
 			}
 		}
 
 		if (context->m_bestRaceTimes[i]) {
 			if (!hasRaceIndex) {
-				raceIndex = m_unk0x04.m_raceNames.GetEntryIndexByName(context->m_raceSlots[i].m_raceName);
+				raceIndex = m_gameContext.m_raceNames.GetEntryIndexByName(context->m_raceSlots[i].m_raceName);
 			}
 
 			const LegoChar* sourceName = context->m_playerSetupSlots[context->m_bestRaceHolders[i]].m_playerName;
@@ -1096,7 +1261,8 @@ LegoS32 MenuManager::FUN_0042e490()
 			GolString::CopyStringToBuf16(sourceName, wideName);
 			string.CopyFromBufSelection(wideName, sizeof(name) - 1);
 
-			if (m_unk0x04.m_saveSystem.GetGameState().SetBestTime(raceIndex, 1, context->m_bestRaceTimes[i], &string)) {
+			if (m_gameContext.m_saveSystem.GetGameState()
+					.SetBestTime(raceIndex, 1, context->m_bestRaceTimes[i], &string)) {
 				result = TRUE;
 			}
 		}
@@ -1106,18 +1272,18 @@ LegoS32 MenuManager::FUN_0042e490()
 }
 
 // FUNCTION: LEGORACERS 0x0042e680
-LegoBool32 MenuManager::FUN_0042e680()
+LegoBool32 MenuManager::ProcessRecordBeaten()
 {
-	LegoU8 flags = m_unk0x04.m_context->m_unk0x1e;
+	LegoU8 flags = m_gameContext.m_context->m_flags;
 
 	if (!(flags & LegoRacers::Context::c_flagRecordBeaten)) {
 		return FALSE;
 	}
 
-	m_unk0x04.m_context->m_unk0x1e = flags & ~LegoRacers::Context::c_flagRecordBeaten;
+	m_gameContext.m_context->m_flags = flags & ~LegoRacers::Context::c_flagRecordBeaten;
 
-	GameState* state = &m_unk0x04.m_saveSystem.GetGameState();
-	LegoU32 index = m_unk0x04.m_raceNames.GetEntryIndexByName(m_unk0x04.m_context->m_raceSlots[0].m_raceName);
+	GameState* state = &m_gameContext.m_saveSystem.GetGameState();
+	LegoU32 index = m_gameContext.m_raceNames.GetEntryIndexByName(m_gameContext.m_context->m_raceSlots[0].m_raceName);
 	if (index >= 12) {
 		return FALSE;
 	}
@@ -1125,7 +1291,7 @@ LegoBool32 MenuManager::FUN_0042e680()
 	if (state->UnlockRace(1 << index)) {
 		if (state->AreAllRacesUnlocked()) {
 			state->UnlockParts(0x80);
-			m_unk0x04.m_context->m_nextMenuId = 0x1c;
+			m_gameContext.m_context->m_nextMenuId = 0x1c;
 		}
 
 		return TRUE;
@@ -1135,14 +1301,14 @@ LegoBool32 MenuManager::FUN_0042e680()
 }
 
 // FUNCTION: LEGORACERS 0x0042e700
-void MenuManager::VTable0x00()
+void MenuManager::OnCloseRequested()
 {
 	m_running = FALSE;
-	m_unk0x04.m_context->m_running = FALSE;
+	m_gameContext.m_context->m_running = FALSE;
 }
 
 // FUNCTION: LEGORACERS 0x0042e720
-void MenuManager::FUN_0042e720()
+void MenuManager::TakeScreenshot()
 {
 	GolBmpWriterFile bmpWriter;
 	GolHashTable::Entry* currentEntry;
@@ -1165,7 +1331,7 @@ void MenuManager::FUN_0042e720()
 	}
 
 	if (screenshotIndex <= c_maxScreenshotIndex) {
-		bmpWriter.VTable0x08(fileName);
+		bmpWriter.Open(fileName);
 		bmpWriter.WriteSurface(m_renderer->GetRenderTargetInfo());
 		bmpWriter.Destroy();
 
@@ -1176,27 +1342,27 @@ void MenuManager::FUN_0042e720()
 }
 
 // FUNCTION: LEGORACERS 0x0042e810
-void MenuManager::VTable0x1c(undefined4 p_unk0x04)
+void MenuManager::OnChar(undefined4 p_char)
 {
-	if (m_unk0x4dc8) {
-		m_unk0x4dc8->VTable0x90(p_unk0x04);
+	if (m_activeScreen) {
+		m_activeScreen->OnChar(p_char);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0042e830
-void MenuManager::VTable0x28()
+void MenuManager::OnCursorInside()
 {
 	m_inputDispatcher.SetCursorInside(1);
 }
 
 // FUNCTION: LEGORACERS 0x0042e840
-void MenuManager::VTable0x2c()
+void MenuManager::OnCursorOutside()
 {
 	m_inputDispatcher.SetCursorInside(0);
 }
 
 // FUNCTION: LEGORACERS 0x0042e850
-void MenuManager::VTable0x24(undefined4 p_arg1, undefined4 p_arg2)
+void MenuManager::OnCursorMoved(undefined4 p_x, undefined4 p_y)
 {
-	m_inputDispatcher.SetCursorPosition(p_arg1, p_arg2);
+	m_inputDispatcher.SetCursorPosition(p_x, p_y);
 }

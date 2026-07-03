@@ -1,11 +1,13 @@
 #include "util/legoeventqueue.h"
 
 #include "golerror.h"
+#include "util/collisioneventqueue.h"
+#include "util/proximityeventqueue.h"
 
 DECOMP_SIZE_ASSERT(LegoEventQueue, 0x28)
 DECOMP_SIZE_ASSERT(LegoEventQueue::Descriptor, 0x18)
 DECOMP_SIZE_ASSERT(LegoEventQueue::CallbackData, 0x18)
-DECOMP_SIZE_ASSERT(LegoEventQueue::Field0x2c, 0x2c)
+DECOMP_SIZE_ASSERT(ProximityEventQueue, 0x2c)
 
 // FUNCTION: LEGORACERS 0x0042f9f0
 LegoEventQueue::LegoEventQueue()
@@ -21,7 +23,7 @@ LegoEventQueue::~LegoEventQueue()
 }
 
 // FUNCTION: LEGORACERS 0x0042fa40
-void LegoEventQueue::VTable0x08(LegoU32 p_count)
+void LegoEventQueue::Initialize(LegoU32 p_count)
 {
 	m_events = new Event[p_count];
 	if (m_events == NULL) {
@@ -54,7 +56,7 @@ void LegoEventQueue::Destroy()
 }
 
 // FUNCTION: LEGORACERS 0x0042fb50
-LegoEventQueue::Event* LegoEventQueue::FUN_0042fb50(Callback* p_callback, const Descriptor* p_descriptor)
+LegoEventQueue::Event* LegoEventQueue::AllocateEvent(Callback* p_callback, const Descriptor* p_descriptor)
 {
 	Event* result = m_freeList;
 	if (result == NULL) {
@@ -62,19 +64,19 @@ LegoEventQueue::Event* LegoEventQueue::FUN_0042fb50(Callback* p_callback, const 
 	}
 
 	m_freeList = result->m_next;
-	result->FUN_004408b0(p_callback, p_descriptor);
-	VTable0x00(result);
+	result->Initialize(p_callback, p_descriptor);
+	AddEvent(result);
 
 	return result;
 }
 
 // FUNCTION: LEGORACERS 0x0042fb90
-LegoS32 LegoEventQueue::VTable0x00(Event* p_event)
+LegoS32 LegoEventQueue::AddEvent(Event* p_event)
 {
-	if (p_event->m_descriptor.m_unk0x00 == 1) {
+	if (p_event->m_descriptor.m_type == Descriptor::c_typeTimer) {
 		p_event->m_next = m_activeList;
 		m_activeList = p_event;
-		p_event->m_descriptor.m_unk0x14 = 0;
+		p_event->m_descriptor.m_elapsedMs = 0;
 
 		return 1;
 	}
@@ -83,7 +85,7 @@ LegoS32 LegoEventQueue::VTable0x00(Event* p_event)
 }
 
 // FUNCTION: LEGORACERS 0x0042fbc0
-void LegoEventQueue::FUN_0042fbc0()
+void LegoEventQueue::PruneActiveList()
 {
 	Event* previous = NULL;
 	Event* event = m_activeList;
@@ -95,11 +97,11 @@ void LegoEventQueue::FUN_0042fbc0()
 			if (!event->m_active) {
 				if (m_activeList == event) {
 					m_activeList = next;
-					FUN_0042fc70(event);
+					FreeEvent(event);
 				}
 				else {
 					previous->m_next = next;
-					FUN_0042fc70(event);
+					FreeEvent(event);
 				}
 			}
 			else {
@@ -112,35 +114,35 @@ void LegoEventQueue::FUN_0042fbc0()
 }
 
 // FUNCTION: LEGORACERS 0x0042fc10
-void LegoEventQueue::VTable0x10(LegoU32 p_elapsedMs)
+void LegoEventQueue::Update(LegoU32 p_elapsedMs)
 {
 	Event* event = m_activeList;
-	m_callbackData.m_unk0x00 = 1;
+	m_callbackData.m_type = Descriptor::c_typeTimer;
 
 	if (event) {
 		do {
 			Descriptor* descriptor = &event->m_descriptor;
-			LegoU32 elapsedMs = descriptor->m_unk0x14;
+			LegoU32 elapsedMs = descriptor->m_elapsedMs;
 			elapsedMs += p_elapsedMs;
-			descriptor->m_unk0x14 = elapsedMs;
-			LegoU32 durationMs = descriptor->m_unk0x10;
+			descriptor->m_elapsedMs = elapsedMs;
+			LegoU32 durationMs = descriptor->m_intervalMs;
 
 			if (elapsedMs >= durationMs) {
-				m_callbackData.m_unk0x10 = durationMs;
-				m_callbackData.m_unk0x14 = elapsedMs;
-				event->FUN_004408e0(this, &m_callbackData);
-				event->m_descriptor.m_unk0x14 = 0;
+				m_callbackData.m_intervalMs = durationMs;
+				m_callbackData.m_elapsedMs = elapsedMs;
+				event->Fire(this, &m_callbackData);
+				event->m_descriptor.m_elapsedMs = 0;
 			}
 
 			event = event->m_next;
 		} while (event);
 	}
 
-	FUN_0042fbc0();
+	PruneActiveList();
 }
 
 // FUNCTION: LEGORACERS 0x0042fc70
-LegoEventQueue::Event* LegoEventQueue::FUN_0042fc70(Event* p_event)
+LegoEventQueue::Event* LegoEventQueue::FreeEvent(Event* p_event)
 {
 	p_event->m_next = m_freeList;
 	m_freeList = p_event;
@@ -149,31 +151,31 @@ LegoEventQueue::Event* LegoEventQueue::FUN_0042fc70(Event* p_event)
 }
 
 // FUNCTION: LEGORACERS 0x0042fc80
-LegoEventQueue::Field0x2c::Field0x2c()
+ProximityEventQueue::ProximityEventQueue()
 {
-	m_unk0x28 = NULL;
+	m_sortedList = NULL;
 }
 
 // FUNCTION: LEGORACERS 0x0042fcd0
-void LegoEventQueue::Field0x2c::Destroy()
+void ProximityEventQueue::Destroy()
 {
-	m_unk0x28 = NULL;
+	m_sortedList = NULL;
 	LegoEventQueue::Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x0042fce0
-void LegoEventQueue::Field0x2c::VTable0x10(LegoU32 p_elapsedMs)
+void ProximityEventQueue::Update(LegoU32 p_elapsedMs)
 {
-	LegoEventQueue::VTable0x10(p_elapsedMs);
-	FUN_0042fe10();
-	FUN_0042fd10();
-	FUN_0042ffc0();
+	LegoEventQueue::Update(p_elapsedMs);
+	SortList();
+	TestPairs();
+	PruneSortedList();
 }
 
 // FUNCTION: LEGORACERS 0x0042fd10
-void LegoEventQueue::Field0x2c::FUN_0042fd10()
+void ProximityEventQueue::TestPairs()
 {
-	Event* event = m_unk0x28;
+	Event* event = m_sortedList;
 	Event* other;
 	GolWorldEntity* model;
 	GolWorldEntity* otherModel;
@@ -193,26 +195,26 @@ void LegoEventQueue::Field0x2c::FUN_0042fd10()
 					otherModel = other->m_descriptor.m_worldEntity;
 
 					if (model->GetRadius() < 0.0f) {
-						model->VTable0x00();
+						model->UpdateBounds();
 					}
 
 					maxX = model->GetMaxX();
 					if (otherModel->GetRadius() < 0.0f) {
-						otherModel->VTable0x00();
+						otherModel->UpdateBounds();
 					}
 
 					if (otherModel->GetMinX() <= maxX) {
-						if (other->m_active && model->VTable0x18(otherModel)) {
-							m_callbackData.m_unk0x00 = 2;
+						if (other->m_active && model->Intersects(otherModel)) {
+							m_callbackData.m_type = Descriptor::c_typeProximity;
 							m_callbackData.m_worldEntity0 = model;
 							m_callbackData.m_worldEntity1 = otherModel;
-							event->FUN_004408e0(this, &m_callbackData);
+							event->Fire(this, &m_callbackData);
 
-							if (!(event->m_descriptor.m_unk0x04 & 4)) {
-								m_callbackData.m_unk0x00 = 2;
+							if (!(event->m_descriptor.m_flags & 4)) {
+								m_callbackData.m_type = Descriptor::c_typeProximity;
 								m_callbackData.m_worldEntity0 = otherModel;
 								m_callbackData.m_worldEntity1 = model;
-								event->FUN_004408e0(this, &m_callbackData);
+								event->Fire(this, &m_callbackData);
 							}
 						}
 					}
@@ -229,22 +231,22 @@ void LegoEventQueue::Field0x2c::FUN_0042fd10()
 }
 
 // FUNCTION: LEGORACERS 0x0042fe10
-void LegoEventQueue::Field0x2c::FUN_0042fe10()
+void ProximityEventQueue::SortList()
 {
 	LegoFloat eventMinX;
 
-	if (m_unk0x28 == NULL) {
+	if (m_sortedList == NULL) {
 		return;
 	}
 
-	GolWorldEntity* model = VTable0x14(m_unk0x28);
+	GolWorldEntity* model = GetEventEntity(m_sortedList);
 	if (model->GetRadius() < 0.0f) {
-		model->VTable0x00();
+		model->UpdateBounds();
 	}
 
 	LegoFloat previousMinX = model->GetMinX();
-	Event* previous = m_unk0x28;
-	Event* event = m_unk0x28->m_next;
+	Event* previous = m_sortedList;
+	Event* event = m_sortedList->m_next;
 
 	if (event == NULL) {
 		return;
@@ -252,10 +254,10 @@ void LegoEventQueue::Field0x2c::FUN_0042fe10()
 
 	do {
 		Event* next = event->m_next;
-		GolWorldEntity* eventModel = VTable0x14(event);
+		GolWorldEntity* eventModel = GetEventEntity(event);
 
 		if (eventModel->GetRadius() < 0.0f) {
-			eventModel->VTable0x00();
+			eventModel->UpdateBounds();
 		}
 
 		if (eventModel->GetMinX() < previousMinX) {
@@ -267,15 +269,15 @@ void LegoEventQueue::Field0x2c::FUN_0042fe10()
 			Event* insertAfter = previous->m_descriptor.m_previous;
 			if (insertAfter) {
 				do {
-					GolWorldEntity* insertModel = VTable0x14(insertAfter);
+					GolWorldEntity* insertModel = GetEventEntity(insertAfter);
 
 					if (eventModel->GetRadius() < 0.0f) {
-						eventModel->VTable0x00();
+						eventModel->UpdateBounds();
 					}
 
 					eventMinX = eventModel->GetMinX();
 					if (insertModel->GetRadius() < 0.0f) {
-						insertModel->VTable0x00();
+						insertModel->UpdateBounds();
 					}
 
 					if (insertModel->GetMinX() <= eventMinX) {
@@ -292,16 +294,16 @@ void LegoEventQueue::Field0x2c::FUN_0042fe10()
 
 			if (insertAfter == NULL) {
 				event->m_descriptor.m_previous = NULL;
-				event->m_next = m_unk0x28;
-				m_unk0x28->m_descriptor.m_previous = event;
-				m_unk0x28 = event;
+				event->m_next = m_sortedList;
+				m_sortedList->m_descriptor.m_previous = event;
+				m_sortedList = event;
 			}
 		}
 		else {
 			previous = event;
 
 			if (eventModel->GetRadius() < 0.0f) {
-				eventModel->VTable0x00();
+				eventModel->UpdateBounds();
 			}
 
 			previousMinX = eventModel->GetMinX();
@@ -312,20 +314,20 @@ void LegoEventQueue::Field0x2c::FUN_0042fe10()
 }
 
 // FUNCTION: LEGORACERS 0x0042ff70
-LegoS32 LegoEventQueue::Field0x2c::VTable0x00(Event* p_event)
+LegoS32 ProximityEventQueue::AddEvent(Event* p_event)
 {
-	if (LegoEventQueue::VTable0x00(p_event)) {
+	if (LegoEventQueue::AddEvent(p_event)) {
 		return 1;
 	}
 
-	if (p_event->m_descriptor.m_unk0x00 == 2) {
-		if (m_unk0x28) {
-			m_unk0x28->m_descriptor.m_previous = p_event;
+	if (p_event->m_descriptor.m_type == Descriptor::c_typeProximity) {
+		if (m_sortedList) {
+			m_sortedList->m_descriptor.m_previous = p_event;
 		}
 
 		p_event->m_descriptor.m_previous = NULL;
-		p_event->m_next = m_unk0x28;
-		m_unk0x28 = p_event;
+		p_event->m_next = m_sortedList;
+		m_sortedList = p_event;
 
 		return 1;
 	}
@@ -334,23 +336,23 @@ LegoS32 LegoEventQueue::Field0x2c::VTable0x00(Event* p_event)
 }
 
 // FUNCTION: LEGORACERS 0x0042ffc0
-void LegoEventQueue::Field0x2c::FUN_0042ffc0()
+void ProximityEventQueue::PruneSortedList()
 {
 	Event* previous = NULL;
-	Event* event = m_unk0x28;
+	Event* event = m_sortedList;
 
 	if (event) {
 		do {
 			Event* next = event->m_next;
 
 			if (!event->m_active) {
-				if (m_unk0x28 == event) {
-					m_unk0x28 = next;
+				if (m_sortedList == event) {
+					m_sortedList = next;
 					if (next) {
 						next->m_descriptor.m_previous = NULL;
 					}
 
-					FUN_0042fc70(event);
+					FreeEvent(event);
 				}
 				else {
 					previous->m_next = next;
@@ -358,7 +360,7 @@ void LegoEventQueue::Field0x2c::FUN_0042ffc0()
 						next->m_descriptor.m_previous = previous;
 					}
 
-					FUN_0042fc70(event);
+					FreeEvent(event);
 				}
 			}
 			else {

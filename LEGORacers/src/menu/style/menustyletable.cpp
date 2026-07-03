@@ -4,6 +4,7 @@
 #include "golerror.h"
 #include "golname.h"
 #include "goltxtparser.h"
+#include "menu/style/menubindingtoken.h"
 #include "menu/style/sharedmenustyletable.h"
 #include "render/gold3drenderdevice.h"
 
@@ -25,7 +26,7 @@ DECOMP_SIZE_ASSERT(MenuStyleTable::ResourceLoadParams, 0x10)
 // FUNCTION: LEGORACERS 0x0046fa50
 MenuStyleTable::MenuStyleTable()
 {
-	VTable0x0c();
+	Reset();
 }
 
 // FUNCTION: LEGORACERS 0x0046fac0
@@ -35,32 +36,32 @@ MenuStyleTable::~MenuStyleTable()
 }
 
 // FUNCTION: LEGORACERS 0x0046fb10
-void MenuStyleTable::VTable0x0c()
+void MenuStyleTable::Reset()
 {
-	m_unk0x20 = 0;
-	m_unk0x24 = NULL;
-	m_unk0x28 = NULL;
-	m_unk0x2c = NULL;
-	m_unk0x30 = NULL;
-	m_unk0x34 = NULL;
-	m_unk0x38 = NULL;
-	m_unk0x3c = NULL;
-	m_unk0x40 = NULL;
-	m_unk0x44 = NULL;
-	m_unk0x48 = NULL;
+	m_fallback = 0;
+	m_imageStyles = NULL;
+	m_textStyles = NULL;
+	m_frameStyles = NULL;
+	m_buttonStyles = NULL;
+	m_multiStateStyles = NULL;
+	m_hotspotStyles = NULL;
+	m_carouselStyles = NULL;
+	m_selectorStyles = NULL;
+	m_compositeStyles = NULL;
+	m_iconStyles = NULL;
 
-	MenuResourceTable::VTable0x0c();
+	MenuResourceTable::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x0046fb40
 LegoBool32 MenuStyleTable::Load(ResourceLoadParams* p_params)
 {
 	Clear();
-	m_unk0x14 = p_params->m_renderer;
-	m_unk0x20 = p_params->m_unk0x04;
+	m_renderer = p_params->m_renderer;
+	m_fallback = p_params->m_fallback;
 
-	if (FUN_0046b100()) {
-		FUN_0046fd30(p_params);
+	if (BeginLoad()) {
+		ParseFile(p_params);
 	}
 
 	return m_nameEntries != NULL;
@@ -73,42 +74,42 @@ void MenuStyleTable::Clear()
 		return;
 	}
 
-	if (m_unk0x24) {
-		delete[] m_unk0x24;
+	if (m_imageStyles) {
+		delete[] m_imageStyles;
 	}
-	if (m_unk0x28) {
-		delete[] m_unk0x28;
+	if (m_textStyles) {
+		delete[] m_textStyles;
 	}
-	if (m_unk0x2c) {
-		delete[] m_unk0x2c;
+	if (m_frameStyles) {
+		delete[] m_frameStyles;
 	}
-	if (m_unk0x30) {
-		delete[] m_unk0x30;
+	if (m_buttonStyles) {
+		delete[] m_buttonStyles;
 	}
-	if (m_unk0x34) {
-		delete[] m_unk0x34;
+	if (m_multiStateStyles) {
+		delete[] m_multiStateStyles;
 	}
-	if (m_unk0x38) {
-		delete[] m_unk0x38;
+	if (m_hotspotStyles) {
+		delete[] m_hotspotStyles;
 	}
-	if (m_unk0x3c) {
-		delete[] m_unk0x3c;
+	if (m_carouselStyles) {
+		delete[] m_carouselStyles;
 	}
-	if (m_unk0x40) {
-		delete[] m_unk0x40;
+	if (m_selectorStyles) {
+		delete[] m_selectorStyles;
 	}
-	if (m_unk0x44) {
-		delete[] m_unk0x44;
+	if (m_compositeStyles) {
+		delete[] m_compositeStyles;
 	}
-	if (m_unk0x48) {
-		delete[] m_unk0x48;
+	if (m_iconStyles) {
+		delete[] m_iconStyles;
 	}
 
 	MenuResourceTable::Clear();
 }
 
 // FUNCTION: LEGORACERS 0x0046fc40
-void MenuStyleTable::VTable0x10(undefined4 p_param)
+void MenuStyleTable::CreateParser(undefined4 p_param)
 {
 	if (p_param) {
 		// TODO: Subclass of GolFileParser. GolFormatParser?
@@ -128,62 +129,62 @@ void MenuStyleTable::VTable0x10(undefined4 p_param)
 }
 
 // FUNCTION: LEGORACERS 0x0046fd30
-void MenuStyleTable::FUN_0046fd30(ResourceLoadParams* p_params)
+void MenuStyleTable::ParseFile(ResourceLoadParams* p_params)
 {
-	VTable0x10(p_params->m_binary);
+	CreateParser(p_params->m_binary);
 	m_parser->OpenFileForRead(p_params->m_fileName);
-	FUN_0046b130();
-	FUN_0046b250();
+	ReadHeader();
+	ParseSections();
 	m_parser->Dispose();
 
 	delete m_parser;
 }
 
 // FUNCTION: LEGORACERS 0x0046fd80
-void MenuStyleTable::VTable0x14(undefined4 p_arg1)
+void MenuStyleTable::ParseSection(undefined4 p_arg1)
 {
 	switch (p_arg1) {
 	case 0x32:
-		FUN_004707e0();
+		LoadImageStyles();
 		break;
 	case 0x33:
-		FUN_00470880();
+		LoadTextStyles();
 		break;
 	case 0x34:
-		FUN_00470920();
+		LoadFrameStyles();
 		break;
 	case 0x35:
-		FUN_004709c0();
+		LoadButtonStyles();
 		break;
 	case 0x36:
-		FUN_00470a70();
+		LoadMultiStateStyles();
 		break;
 	case 0x37:
-		FUN_00470b10();
+		LoadHotspotStyles();
 		break;
 	case 0x38:
-		FUN_00470bc0();
+		LoadCarouselStyles();
 		break;
 	case 0x39:
-		FUN_00470c60();
+		LoadSelectorStyles();
 		break;
 	case 0x3a:
 	default:
 		m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		break;
 	case 0x3b:
-		FUN_00470d10();
+		LoadCompositeStyles();
 		break;
 	case 0x3d:
-		FUN_00470dc0();
+		LoadIconStyles();
 		break;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x0046fe20
-void MenuStyleTable::FUN_0046fe20(ImageStyle* p_entry)
+void MenuStyleTable::ParseImageStyle(ImageStyle* p_entry)
 {
-	p_entry->m_unk0x04.m_unk0x00 = -1;
+	p_entry->m_color.m_packed = -1;
 
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -191,12 +192,12 @@ void MenuStyleTable::FUN_0046fe20(ImageStyle* p_entry)
 
 	while (m_parser->GetNextToken() != GolFileParser::e_rightCurly) {
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x28:
-			p_entry->m_unk0x00 = m_unk0x14->FindImageByName(m_parser->ReadString());
+		case c_styleImage:
+			p_entry->m_image = m_renderer->FindImageByName(m_parser->ReadString());
 			break;
-		case GolFileParser::e_unknown0x2a:
-			ReadVisualState(p_entry->m_unk0x04.m_bytes);
-			p_entry->m_unk0x08 = TRUE;
+		case c_styleColors:
+			ReadVisualState(p_entry->m_color.m_bytes);
+			p_entry->m_hasColor = TRUE;
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -206,9 +207,9 @@ void MenuStyleTable::FUN_0046fe20(ImageStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x0046feb0
-void MenuStyleTable::FUN_0046feb0(TextStyle* p_entry)
+void MenuStyleTable::ParseTextStyle(TextStyle* p_entry)
 {
-	p_entry->m_unk0x04.m_unk0x00 = -1;
+	p_entry->m_color.m_packed = -1;
 
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -216,18 +217,18 @@ void MenuStyleTable::FUN_0046feb0(TextStyle* p_entry)
 
 	while (m_parser->GetNextToken() != GolFileParser::e_rightCurly) {
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x29:
-			p_entry->m_unk0x00 = m_unk0x14->FindFontByName(m_parser->ReadString());
+		case c_styleFont:
+			p_entry->m_font = m_renderer->FindFontByName(m_parser->ReadString());
 			break;
-		case GolFileParser::e_unknown0x2f:
-			p_entry->m_unk0x10 = m_parser->ReadInteger();
+		case TextStyle::e_centered:
+			p_entry->m_centered = m_parser->ReadInteger();
 			break;
-		case GolFileParser::e_unknown0x2a:
-			ReadVisualState(p_entry->m_unk0x04.m_bytes);
-			p_entry->m_unk0x0c = TRUE;
+		case c_styleColors:
+			ReadVisualState(p_entry->m_color.m_bytes);
+			p_entry->m_hasColor = TRUE;
 			break;
-		case GolFileParser::e_unknown0x2e:
-			p_entry->m_unk0x08 = m_parser->ReadInteger();
+		case TextStyle::e_wrapWidth:
+			p_entry->m_wrapWidth = m_parser->ReadInteger();
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -237,9 +238,9 @@ void MenuStyleTable::FUN_0046feb0(TextStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x0046ff70
-void MenuStyleTable::FUN_0046ff70(FrameStyle* p_entry)
+void MenuStyleTable::ParseFrameStyle(FrameStyle* p_entry)
 {
-	p_entry->m_unk0x24.m_unk0x00 = -1;
+	p_entry->m_color1.m_packed = -1;
 
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -249,15 +250,15 @@ void MenuStyleTable::FUN_0046ff70(FrameStyle* p_entry)
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x28:
+		case c_styleImage:
 			for (i = 0; i < 8; i++) {
-				p_entry->m_unk0x00[i] = m_unk0x14->FindImageByName(m_parser->ReadString());
+				p_entry->m_images[i] = m_renderer->FindImageByName(m_parser->ReadString());
 			}
 			break;
-		case GolFileParser::e_unknown0x2a:
-			ReadVisualState(p_entry->m_unk0x20.m_bytes);
-			ReadVisualState(p_entry->m_unk0x24.m_bytes);
-			p_entry->m_unk0x28 = TRUE;
+		case c_styleColors:
+			ReadVisualState(p_entry->m_color0.m_bytes);
+			ReadVisualState(p_entry->m_color1.m_bytes);
+			p_entry->m_hasColors = TRUE;
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -267,9 +268,9 @@ void MenuStyleTable::FUN_0046ff70(FrameStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x00470020
-void MenuStyleTable::FUN_00470020(IconStyle* p_entry)
+void MenuStyleTable::ParseIconStyle(IconStyle* p_entry)
 {
-	::memset(p_entry->m_unk0x00, 0xff, sizeof(p_entry->m_unk0x00));
+	::memset(p_entry->m_iconStateColors, 0xff, sizeof(p_entry->m_iconStateColors));
 
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -279,25 +280,25 @@ void MenuStyleTable::FUN_00470020(IconStyle* p_entry)
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x2d:
-			p_entry->m_unk0x84 = m_parser->ReadInteger();
+		case IconStyle::e_transitionDurationMs:
+			p_entry->m_transitionDurationMs = m_parser->ReadInteger();
 			break;
-		case GolFileParser::e_unknown0x2b:
+		case c_styleSounds:
 			for (i = 0; i < 5; i++) {
-				p_entry->m_unk0x18[i] = m_parser->ReadInteger();
+				p_entry->m_iconSoundIds[i] = m_parser->ReadInteger();
 			}
-			p_entry->m_unk0x8c = TRUE;
+			p_entry->m_hasSoundIds = TRUE;
 			break;
-		case GolFileParser::e_unknown0x2c:
+		case IconStyle::e_stateRects:
 			for (i = 0; i < 6; i++) {
-				ReadRect(&p_entry->m_unk0x24[i].m_left);
+				ReadRect(&p_entry->m_stateRects[i].m_left);
 			}
 			break;
-		case GolFileParser::e_unknown0x2a:
+		case c_styleColors:
 			for (i = 0; i < 6; i++) {
-				ReadVisualState(p_entry->m_unk0x00[i].m_bytes);
+				ReadVisualState(p_entry->m_iconStateColors[i].m_bytes);
 			}
-			p_entry->m_unk0x88 = TRUE;
+			p_entry->m_hasStateColors = TRUE;
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -307,7 +308,7 @@ void MenuStyleTable::FUN_00470020(IconStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x00470110
-void MenuStyleTable::FUN_00470110(ButtonStyle* p_entry)
+void MenuStyleTable::ParseButtonStyle(ButtonStyle* p_entry)
 {
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -317,13 +318,13 @@ void MenuStyleTable::FUN_00470110(ButtonStyle* p_entry)
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x28:
+		case c_styleImage:
 			for (i = 0; i < 6; i++) {
-				p_entry->m_unk0x90[i] = m_unk0x14->FindImageByName(m_parser->ReadString());
+				p_entry->m_stateImages[i] = m_renderer->FindImageByName(m_parser->ReadString());
 			}
 			break;
-		case GolFileParser::e_unknown0x3a:
-			FUN_00470020(p_entry);
+		case c_styleIcon:
+			ParseIconStyle(p_entry);
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -333,7 +334,7 @@ void MenuStyleTable::FUN_00470110(ButtonStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x004701a0
-void MenuStyleTable::FUN_004701a0(MultiStateStyle* p_entry)
+void MenuStyleTable::ParseMultiStateStyle(MultiStateStyle* p_entry)
 {
 	LegoS32 imageTripletCount = 0;
 
@@ -346,26 +347,26 @@ void MenuStyleTable::FUN_004701a0(MultiStateStyle* p_entry)
 		return;
 	}
 
-	UtopianPan0xa4** image = p_entry->m_utopianunk0xa8;
+	GolImage** image = &p_entry->m_stateImages[0][0];
 	do {
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x3a:
-			FUN_00470020(p_entry);
+		case c_styleIcon:
+			ParseIconStyle(p_entry);
 			break;
-		case GolFileParser::e_unknown0x2c:
-			ReadRect(&p_entry->m_unk0xf0.m_left);
+		case MultiStateStyle::e_rect:
+			ReadRect(&p_entry->m_rect.m_left);
 			break;
-		case GolFileParser::e_unknown0x29:
+		case c_styleFont:
 			for (i = 0; i < 6; i++) {
-				p_entry->m_unk0x90[i] = m_unk0x14->FindFontByName(m_parser->ReadString());
+				p_entry->m_stateFonts[i] = m_renderer->FindFontByName(m_parser->ReadString());
 			}
 			break;
-		case GolFileParser::e_unknown0x28: {
-			UtopianPan0xa4** imageCursor = image;
+		case c_styleImage: {
+			GolImage** imageCursor = image;
 			for (i = 0; i < 6; i++) {
-				*imageCursor = m_unk0x14->FindImageByName(m_parser->ReadString());
+				*imageCursor = m_renderer->FindImageByName(m_parser->ReadString());
 				imageCursor += 3;
 			}
 			imageTripletCount++;
@@ -384,7 +385,7 @@ void MenuStyleTable::FUN_004701a0(MultiStateStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x004702e0
-void MenuStyleTable::FUN_004702e0(HotspotStyle* p_entry)
+void MenuStyleTable::ParseHotspotStyle(HotspotStyle* p_entry)
 {
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -394,24 +395,24 @@ void MenuStyleTable::FUN_004702e0(HotspotStyle* p_entry)
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x3a:
-			FUN_00470020(p_entry);
+		case c_styleIcon:
+			ParseIconStyle(p_entry);
 			break;
-		case GolFileParser::e_unknown0x2f:
-			p_entry->m_unk0xac = m_parser->ReadInteger();
+		case HotspotStyle::e_hotspotCount:
+			p_entry->m_hotspotCount = m_parser->ReadInteger();
 			break;
-		case GolFileParser::e_unknown0x31:
-			for (i = 0; i < p_entry->m_unk0xac; i++) {
-				p_entry->m_unk0xb0[i] = m_parser->ReadInteger();
+		case HotspotStyle::e_hotspotIds:
+			for (i = 0; i < p_entry->m_hotspotCount; i++) {
+				p_entry->m_hotspotIds[i] = m_parser->ReadInteger();
 			}
 			break;
-		case GolFileParser::e_unknown0x30:
-			for (i = 0; i < p_entry->m_unk0xac; i++) {
-				ReadRect(&p_entry->m_unk0xd0[i].m_left);
+		case HotspotStyle::e_hotspotRects:
+			for (i = 0; i < p_entry->m_hotspotCount; i++) {
+				ReadRect(&p_entry->m_hotspotRects[i].m_left);
 			}
 			break;
-		case GolFileParser::e_unknown0x28:
-			p_entry->m_unk0xa8 = m_unk0x14->FindImageByName(m_parser->ReadString());
+		case c_styleImage:
+			p_entry->m_image = m_renderer->FindImageByName(m_parser->ReadString());
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -421,7 +422,7 @@ void MenuStyleTable::FUN_004702e0(HotspotStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x00470410
-void MenuStyleTable::FUN_00470410(CarouselStyle* p_entry)
+void MenuStyleTable::ParseCarouselStyle(CarouselStyle* p_entry)
 {
 	if (m_parser->GetNextToken() != GolFileParser::e_leftCurly) {
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
@@ -431,17 +432,17 @@ void MenuStyleTable::FUN_00470410(CarouselStyle* p_entry)
 		LegoS32 i;
 
 		switch (m_parser->GetCurrentToken()) {
-		case GolFileParser::e_unknown0x2b:
+		case c_styleSounds:
 			for (i = 0; i < 3; i++) {
-				p_entry->m_unk0x00[i] = m_parser->ReadInteger();
+				p_entry->m_soundIds[i] = m_parser->ReadInteger();
 			}
 			break;
-		case GolFileParser::e_unknown0x2d:
-			p_entry->m_unk0x0c = m_parser->ReadInteger();
+		case CarouselStyle::e_scrollDurationMs:
+			p_entry->m_scrollDurationMs = m_parser->ReadInteger();
 			break;
-		case GolFileParser::e_unknown0x2f:
-			p_entry->m_unk0x10 = m_parser->ReadInteger();
-			p_entry->m_unk0x14 = m_parser->ReadInteger();
+		case CarouselStyle::e_pageMode:
+			p_entry->m_pageMode = m_parser->ReadInteger();
+			p_entry->m_wrap = m_parser->ReadInteger();
 			break;
 		default:
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -451,7 +452,7 @@ void MenuStyleTable::FUN_00470410(CarouselStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x004704b0
-void MenuStyleTable::FUN_004704b0(SelectorStyle* p_entry)
+void MenuStyleTable::ParseSelectorStyle(SelectorStyle* p_entry)
 {
 	LegoBool readBase = FALSE;
 	LegoBool readSingle = FALSE;
@@ -463,34 +464,34 @@ void MenuStyleTable::FUN_004704b0(SelectorStyle* p_entry)
 		m_parser->HandleUnexpectedToken(GolFileParser::e_leftCurly);
 	}
 
-	::memset(p_entry->m_unk0x9c, 0xff, sizeof(p_entry->m_unk0x9c));
-	::memset(p_entry->m_unk0xac, 0xff, sizeof(p_entry->m_unk0xac));
+	::memset(p_entry->m_itemColors, 0xff, sizeof(p_entry->m_itemColors));
+	::memset(p_entry->m_focusedItemColors, 0xff, sizeof(p_entry->m_focusedItemColors));
 
 	if (m_parser->GetNextToken() != GolFileParser::e_rightCurly) {
 		do {
 			switch (m_parser->GetCurrentToken()) {
-			case GolFileParser::e_unknown0x3a:
-				FUN_00470020(p_entry);
+			case c_styleIcon:
+				ParseIconStyle(p_entry);
 				readBase++;
 				break;
-			case GolFileParser::e_unknown0x35:
-				p_entry->m_unk0x90 = static_cast<ButtonStyle*>(FUN_00470e60(m_parser->ReadString()));
-				p_entry->m_unk0x94 = static_cast<ButtonStyle*>(FUN_00470e60(m_parser->ReadString()));
+			case c_styleBlockButton:
+				p_entry->m_prevButtonStyle = static_cast<ButtonStyle*>(FindStyle(m_parser->ReadString()));
+				p_entry->m_nextButtonStyle = static_cast<ButtonStyle*>(FindStyle(m_parser->ReadString()));
 				readPair++;
 				break;
-			case GolFileParser::e_unknown0x34:
-				p_entry->m_unk0x98 = static_cast<FrameStyle*>(FUN_00470e60(m_parser->ReadString()));
+			case c_styleBlockFrame:
+				p_entry->m_frameStyle = static_cast<FrameStyle*>(FindStyle(m_parser->ReadString()));
 				readSingle++;
 				break;
-			case GolFileParser::e_unknown0x2a:
-				visualState = p_entry->m_unk0x9c;
+			case c_styleColors:
+				visualState = p_entry->m_itemColors;
 				i = 4;
 				do {
 					ReadVisualState(visualState->m_bytes);
 					visualState++;
 				} while (--i);
 
-				visualState = p_entry->m_unk0xac;
+				visualState = p_entry->m_focusedItemColors;
 				i = 4;
 				do {
 					ReadVisualState(visualState->m_bytes);
@@ -510,7 +511,7 @@ void MenuStyleTable::FUN_004704b0(SelectorStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x00470650
-void MenuStyleTable::FUN_00470650(CompositeStyle* p_entry)
+void MenuStyleTable::ParseCompositeStyle(CompositeStyle* p_entry)
 {
 	LegoBool readBase = FALSE;
 	LegoBool readSecondaryPair = FALSE;
@@ -525,28 +526,28 @@ void MenuStyleTable::FUN_00470650(CompositeStyle* p_entry)
 			LegoS32 i;
 
 			switch (m_parser->GetCurrentToken()) {
-			case GolFileParser::e_unknown0x3a:
-				FUN_00470020(p_entry);
+			case c_styleIcon:
+				ParseIconStyle(p_entry);
 				readBase++;
 				break;
-			case GolFileParser::e_unknown0x35:
-				p_entry->m_unk0x90 = static_cast<IconStyle*>(FUN_00470e60(m_parser->ReadString()));
-				p_entry->m_unk0x94 = static_cast<IconStyle*>(FUN_00470e60(m_parser->ReadString()));
+			case c_styleBlockButton:
+				p_entry->m_prevButtonStyle = static_cast<IconStyle*>(FindStyle(m_parser->ReadString()));
+				p_entry->m_nextButtonStyle = static_cast<IconStyle*>(FindStyle(m_parser->ReadString()));
 				readPrimaryPair++;
 				break;
-			case GolFileParser::e_unknown0x32:
-				p_entry->m_unk0x9c = static_cast<ImageStyle*>(FUN_00470e60(m_parser->ReadString()));
-				p_entry->m_unk0x98 = static_cast<ImageStyle*>(FUN_00470e60(m_parser->ReadString()));
+			case c_styleBlockImage:
+				p_entry->m_trackStyle = static_cast<ImageStyle*>(FindStyle(m_parser->ReadString()));
+				p_entry->m_thumbStyle = static_cast<ImageStyle*>(FindStyle(m_parser->ReadString()));
 				readSecondaryPair++;
 				break;
-			case GolFileParser::e_unknown0x28:
+			case c_styleImage:
 				for (i = 0; i < 6; i++) {
-					p_entry->m_unk0xa0[i] = m_unk0x14->FindImageByName(m_parser->ReadString());
+					p_entry->m_stateImages[i] = m_renderer->FindImageByName(m_parser->ReadString());
 				}
 				break;
-			case GolFileParser::e_unknown0x2b:
-				p_entry->m_unk0xb8.m_unk0x00 = m_parser->ReadInteger();
-				p_entry->m_unk0xb8.m_unk0x02 = m_parser->ReadInteger();
+			case c_styleSounds:
+				p_entry->m_stepSoundIds.m_first = m_parser->ReadInteger();
+				p_entry->m_stepSoundIds.m_second = m_parser->ReadInteger();
 				break;
 			default:
 				m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
@@ -561,205 +562,205 @@ void MenuStyleTable::FUN_00470650(CompositeStyle* p_entry)
 }
 
 // FUNCTION: LEGORACERS 0x004707e0
-void MenuStyleTable::FUN_004707e0()
+void MenuStyleTable::LoadImageStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x24 = new ImageStyle[entryCount];
-	::memset(m_unk0x24, 0, sizeof(ImageStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_imageStyles = new ImageStyle[entryCount];
+	::memset(m_imageStyles, 0, sizeof(ImageStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x32) {
+		if (m_parser->GetNextToken() != c_styleBlockImage) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x24[i]);
-		FUN_0046fe20(&m_unk0x24[i]);
+		AddName(name, &m_imageStyles[i]);
+		ParseImageStyle(&m_imageStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470880
-void MenuStyleTable::FUN_00470880()
+void MenuStyleTable::LoadTextStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x28 = new TextStyle[entryCount];
-	::memset(m_unk0x28, 0, sizeof(TextStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_textStyles = new TextStyle[entryCount];
+	::memset(m_textStyles, 0, sizeof(TextStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x33) {
+		if (m_parser->GetNextToken() != c_styleBlockText) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x28[i]);
-		FUN_0046feb0(&m_unk0x28[i]);
+		AddName(name, &m_textStyles[i]);
+		ParseTextStyle(&m_textStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470920
-void MenuStyleTable::FUN_00470920()
+void MenuStyleTable::LoadFrameStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x2c = new FrameStyle[entryCount];
-	::memset(m_unk0x2c, 0, sizeof(FrameStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_frameStyles = new FrameStyle[entryCount];
+	::memset(m_frameStyles, 0, sizeof(FrameStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x34) {
+		if (m_parser->GetNextToken() != c_styleBlockFrame) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x2c[i]);
-		FUN_0046ff70(&m_unk0x2c[i]);
+		AddName(name, &m_frameStyles[i]);
+		ParseFrameStyle(&m_frameStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004709c0
-void MenuStyleTable::FUN_004709c0()
+void MenuStyleTable::LoadButtonStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x30 = new ButtonStyle[entryCount];
-	::memset(m_unk0x30, 0, sizeof(ButtonStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_buttonStyles = new ButtonStyle[entryCount];
+	::memset(m_buttonStyles, 0, sizeof(ButtonStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x35) {
+		if (m_parser->GetNextToken() != c_styleBlockButton) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x30[i]);
-		FUN_00470110(&m_unk0x30[i]);
+		AddName(name, &m_buttonStyles[i]);
+		ParseButtonStyle(&m_buttonStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470a70
-void MenuStyleTable::FUN_00470a70()
+void MenuStyleTable::LoadMultiStateStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x34 = new MultiStateStyle[entryCount];
-	::memset(m_unk0x34, 0, sizeof(MultiStateStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_multiStateStyles = new MultiStateStyle[entryCount];
+	::memset(m_multiStateStyles, 0, sizeof(MultiStateStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x36) {
+		if (m_parser->GetNextToken() != c_styleBlockMultiState) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x34[i]);
-		FUN_004701a0(&m_unk0x34[i]);
+		AddName(name, &m_multiStateStyles[i]);
+		ParseMultiStateStyle(&m_multiStateStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470b10
-void MenuStyleTable::FUN_00470b10()
+void MenuStyleTable::LoadHotspotStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x38 = new HotspotStyle[entryCount];
-	::memset(m_unk0x38, 0, sizeof(HotspotStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_hotspotStyles = new HotspotStyle[entryCount];
+	::memset(m_hotspotStyles, 0, sizeof(HotspotStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x37) {
+		if (m_parser->GetNextToken() != c_styleBlockHotspot) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x38[i]);
-		FUN_004702e0(&m_unk0x38[i]);
+		AddName(name, &m_hotspotStyles[i]);
+		ParseHotspotStyle(&m_hotspotStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470bc0
-void MenuStyleTable::FUN_00470bc0()
+void MenuStyleTable::LoadCarouselStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x3c = new CarouselStyle[entryCount];
-	::memset(m_unk0x3c, 0, sizeof(CarouselStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_carouselStyles = new CarouselStyle[entryCount];
+	::memset(m_carouselStyles, 0, sizeof(CarouselStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x38) {
+		if (m_parser->GetNextToken() != c_styleBlockCarousel) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x3c[i]);
-		FUN_00470410(&m_unk0x3c[i]);
+		AddName(name, &m_carouselStyles[i]);
+		ParseCarouselStyle(&m_carouselStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470c60
-void MenuStyleTable::FUN_00470c60()
+void MenuStyleTable::LoadSelectorStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x40 = new SelectorStyle[entryCount];
-	::memset(m_unk0x40, 0, sizeof(SelectorStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_selectorStyles = new SelectorStyle[entryCount];
+	::memset(m_selectorStyles, 0, sizeof(SelectorStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x39) {
+		if (m_parser->GetNextToken() != c_styleBlockSelector) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x40[i]);
-		FUN_004704b0(&m_unk0x40[i]);
+		AddName(name, &m_selectorStyles[i]);
+		ParseSelectorStyle(&m_selectorStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470d10
-void MenuStyleTable::FUN_00470d10()
+void MenuStyleTable::LoadCompositeStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x44 = new CompositeStyle[entryCount];
-	::memset(m_unk0x44, 0, sizeof(CompositeStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_compositeStyles = new CompositeStyle[entryCount];
+	::memset(m_compositeStyles, 0, sizeof(CompositeStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x3b) {
+		if (m_parser->GetNextToken() != c_styleBlockComposite) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x44[i]);
-		FUN_00470650(&m_unk0x44[i]);
+		AddName(name, &m_compositeStyles[i]);
+		ParseCompositeStyle(&m_compositeStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470dc0
-void MenuStyleTable::FUN_00470dc0()
+void MenuStyleTable::LoadIconStyles()
 {
-	LegoS32 entryCount = FUN_0046b170();
-	m_unk0x48 = new IconStyle[entryCount];
-	::memset(m_unk0x48, 0, sizeof(IconStyle) * entryCount);
+	LegoS32 entryCount = ReadSectionCount();
+	m_iconStyles = new IconStyle[entryCount];
+	::memset(m_iconStyles, 0, sizeof(IconStyle) * entryCount);
 
 	for (LegoS32 i = 0; i < entryCount; i++) {
-		if (m_parser->GetNextToken() != GolFileParser::e_unknown0x3a) {
+		if (m_parser->GetNextToken() != c_styleIcon) {
 			m_parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 		}
 
 		GolName name;
 		::strncpy(name, m_parser->ReadString(), sizeof(name));
-		AddName(name, &m_unk0x48[i]);
-		FUN_00470020(&m_unk0x48[i]);
+		AddName(name, &m_iconStyles[i]);
+		ParseIconStyle(&m_iconStyles[i]);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00470e60
-void* MenuStyleTable::FUN_00470e60(const LegoChar* p_name)
+void* MenuStyleTable::FindStyle(const LegoChar* p_name)
 {
 	GolName name;
 
 	::strncpy(name, p_name, sizeof(name));
 
 	void* result = GetName(name);
-	if (!result && m_unk0x20) {
-		return m_unk0x20->FUN_00470e60(p_name);
+	if (!result && m_fallback) {
+		return m_fallback->FindStyle(p_name);
 	}
 
 	return result;

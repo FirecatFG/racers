@@ -4,67 +4,68 @@
 #include "golstream.h"
 #include "goltgafile.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/purpledune0x7c.h"
+#include "surface/gold3dtexture.h"
 
 #include <string.h>
 
 // GLOBAL: LEGORACERS 0x004c2930
-GolTgaFile g_unk0x004c2930;
+GolTgaFile g_textureTgaFile;
 
 // GLOBAL: LEGORACERS 0x004c2f10
-GolBmpFile g_unk0x004c2f10;
+GolBmpFile g_textureBmpFile;
 
 // FUNCTION: LEGORACERS 0x004146a0
 void GolTextureList::LoadTextures()
 {
-	MagentaRibbonSourceItem0x2c sourceItem;
+	GolTextureSourceItem sourceItem;
 	GolSurfaceFormat textureFormat;
 	LegoChar textureName[sizeof(GolName) + 1];
 
-	if (m_unk0x14 != NULL) {
-		for (LegoU32 i = 0; i < m_numItems; i++) {
-			GoldDune0x38* texture = GetItem(i);
-			if (texture->GetPixelFlags() & SilverDune0x30::c_lockRequestRead) {
+	if (m_textureSource != NULL) {
+		for (LegoU32 i = 0; i < m_itemCount; i++) {
+			GolTexture* texture = GetItem(i);
+			if (texture->GetPixelFlags() & GolSurface::c_lockRequestRead) {
 				continue;
 			}
 
-			m_unk0x14->VTable0x00(i, &sourceItem);
+			m_textureSource->GetTextureDefinition(i, &sourceItem);
 
 			LegoU16 flags = sourceItem.m_flags;
 			if (m_renderer->VTable0x110()) {
-				flags |= GoldDune0x38::c_unk0x36Bit6;
+				flags |= GolTexture::c_textureFlagBit6;
 			}
-			if ((flags & GoldDune0x38::c_unk0x36Bit5) && (m_renderer->GetFlags() & GolD3DRenderDevice::c_flagBit9)) {
-				flags |= GoldDune0x38::c_unk0x36Bit7;
+			if ((flags & GolTexture::c_textureFlagColorKeyed) &&
+				(m_renderer->GetFlags() & GolD3DRenderDevice::c_flagBlackColorKey)) {
+				flags |= GolTexture::c_textureFlagBlackColorKey;
 			}
 
 			LegoU16 textureFlags = flags;
-			texture->m_unk0x36 = flags;
+			texture->m_textureFlags = flags;
 			LegoU16 mipmapCount = sourceItem.m_mipmapCount;
-			texture->m_unk0x34 = mipmapCount;
-			textureFlags |= GoldDune0x38::c_unk0x36Bit11;
-			texture->m_unk0x36 = textureFlags;
+			texture->m_mipmapCount = mipmapCount;
+			textureFlags |= GolTexture::c_textureFlagColorKeyDirty;
+			texture->m_textureFlags = textureFlags;
 			texture->m_colorKey = sourceItem.m_colorKey;
 			texture->m_colorKey.m_alp = 0;
 
 			m_renderer->SelectTextureFormat(
 				sourceItem.m_textureFormat,
 				&textureFormat,
-				textureFlags & GoldDune0x38::c_unk0x36Bit5
+				textureFlags & GolTexture::c_textureFlagColorKeyed
 			);
-			VTable0x18(i, textureFormat, sourceItem.m_width, sourceItem.m_height);
-			m_unk0x14->VTable0x04(i, 0, texture);
+			AllocateTexture(i, textureFormat, sourceItem.m_width, sourceItem.m_height);
+			m_textureSource->OnTextureLoaded(i, 0, texture);
 		}
 		return;
 	}
 
-	if (m_unk0x18 != NULL && g_hashTable != NULL) {
-		g_hashTable->SetCurrentEntry(m_unk0x18);
+	if (m_nameTableEntry != NULL && g_hashTable != NULL) {
+		g_hashTable->SetCurrentEntry(m_nameTableEntry);
 	}
 
-	for (LegoU32 i = 0; i < m_numItems; i++) {
-		PurpleDune0x7c* texture = GetItem(i);
-		if (texture->GetPixelFlags() & SilverDune0x30::c_lockRequestRead) {
+	for (LegoU32 i = 0; i < m_itemCount; i++) {
+		GolD3DTexture* texture = GetItem(i);
+		if (texture->GetPixelFlags() & GolSurface::c_lockRequestRead) {
 			continue;
 		}
 
@@ -75,14 +76,14 @@ void GolTextureList::LoadTextures()
 		}
 		textureName[sizeof(GolName)] = '\0';
 
-		LegoU8 textureFlags = static_cast<LegoU8>(texture->m_unk0x36);
-		GolImgFile* imageFile = &g_unk0x004c2f10;
-		if (!(textureFlags & GoldDune0x38::c_unk0x36Bit3)) {
-			imageFile = &g_unk0x004c2930;
+		LegoU8 textureFlags = static_cast<LegoU8>(texture->m_textureFlags);
+		GolImgFile* imageFile = &g_textureBmpFile;
+		if (!(textureFlags & GolTexture::c_textureFlagBmpSource)) {
+			imageFile = &g_textureTgaFile;
 		}
 
-		imageFile->VTable0x08(textureName);
-		texture->VTable0x30(*m_renderer, imageFile);
+		imageFile->Open(textureName);
+		texture->LoadFromImgFile(*m_renderer, imageFile);
 		imageFile->Destroy();
 	}
 }

@@ -6,35 +6,35 @@
 #include "golstream.h"
 #include "goltgafile.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/purpledune0x7c.h"
+#include "surface/gold3dtexture.h"
 
 #include <string.h>
 
-DECOMP_SIZE_ASSERT(MagentaRibbonSourceItem0x2c, 0x2c)
-DECOMP_SIZE_ASSERT(MagentaRibbonSource0x4, 0x04)
+DECOMP_SIZE_ASSERT(GolTextureSourceItem, 0x2c)
+DECOMP_SIZE_ASSERT(GolTextureSource, 0x04)
 DECOMP_SIZE_ASSERT(GolTextureList, 0x20)
 DECOMP_SIZE_ASSERT(GolTextureList::TdbTxtParser, 0x1fc)
 
-extern GolTgaFile g_unk0x10063ca0;
+extern GolTgaFile g_textureTgaFile;
 
-extern GolBmpFile g_unk0x10064280;
+extern GolBmpFile g_textureBmpFile;
 
-extern undefined4 g_unk0x1005cf0c;
+extern undefined4 g_loadTexturesImmediately;
 
 // FUNCTION: GOLDP 0x1002b4d0
 GolTextureList::GolTextureList()
 {
 	m_renderer = NULL;
 	m_next = NULL;
-	m_unk0x14 = 0;
-	m_numItems = 0;
-	m_unk0x18 = 0;
+	m_textureSource = 0;
+	m_itemCount = 0;
+	m_nameTableEntry = 0;
 }
 
 // FUNCTION: GOLDP 0x1002b520
 GolTextureList::~GolTextureList()
 {
-	m_numItems = 0;
+	m_itemCount = 0;
 
 	if (m_renderer != NULL) {
 		m_renderer->RemoveTextureList(this);
@@ -47,7 +47,7 @@ GolTextureList::~GolTextureList()
 }
 
 // FUNCTION: GOLDP 0x1002b5a0
-void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* p_fileName, LegoBool32 p_binary)
+void GolTextureList::Load(GolD3DRenderDevice* p_renderer, const LegoChar* p_fileName, LegoBool32 p_binary)
 {
 	if (m_renderer != NULL) {
 		Clear();
@@ -55,7 +55,7 @@ void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* 
 
 	m_renderer = p_renderer;
 	p_renderer->AddTextureList(this);
-	m_unk0x14 = NULL;
+	m_textureSource = NULL;
 
 	GolFileParser* parser;
 	if (p_binary) {
@@ -74,27 +74,27 @@ void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* 
 	}
 
 	parser->OpenFileForRead(p_fileName);
-	parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
-	m_numItems = parser->ReadBracketedCountAndLeftCurly();
+	parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(TdbTxtParser::e_texture));
+	m_itemCount = parser->ReadBracketedCountAndLeftCurly();
 
-	if (m_numItems == 0) {
+	if (m_itemCount == 0) {
 		parser->Dispose();
 		delete parser;
 		return;
 	}
 
-	GolNameTable::Allocate(m_numItems);
-	m_unk0x18 = g_hashTable ? g_hashTable->GetCurrentEntry() : NULL;
+	GolNameTable::Allocate(m_itemCount);
+	m_nameTableEntry = g_hashTable ? g_hashTable->GetCurrentEntry() : NULL;
 	AllocateItems();
 
-	for (LegoU32 i = 0; i < m_numItems; i++) {
+	for (LegoU32 i = 0; i < m_itemCount; i++) {
 		GolName textureName;
 		ColorRGBA colorKey;
 		LegoU16 mipmapCount;
 		LegoU16 flags;
 
-		parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
-		PurpleDune0x7c* texture = GetItem(i);
+		parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(TdbTxtParser::e_texture));
+		GolD3DTexture* texture = GetItem(i);
 		::strncpy(textureName, parser->ReadStringWithMaxLength(sizeof(textureName)), sizeof(textureName));
 
 		if (m_renderer->FindTextureByName(textureName) != NULL) {
@@ -114,32 +114,32 @@ void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* 
 		for (GolFileParser::ParserTokenType token = parser->GetNextToken(); token != GolFileParser::e_rightCurly;
 			 token = parser->GetNextToken()) {
 			switch (token) {
-			case GolFileParser::e_unknown0x28:
-				flags |= GoldDune0x38::c_unk0x36Bit2;
+			case TdbTxtParser::e_flipVertically:
+				flags |= GolTexture::c_textureFlagFlipVertically;
 				break;
-			case GolFileParser::e_unknown0x29:
+			case TdbTxtParser::e_mipmaps:
 				mipmapCount = static_cast<LegoU16>(parser->ReadInteger());
-				flags |= GoldDune0x38::c_unk0x36Bit0;
+				flags |= GolTexture::c_textureFlagMipmapped;
 				break;
-			case GolFileParser::e_unknown0x2a:
-				flags &= ~GoldDune0x38::c_unk0x36Bit4;
-				flags |= GoldDune0x38::c_unk0x36Bit3;
+			case TdbTxtParser::e_bmp:
+				flags &= ~GolTexture::c_textureFlagTgaSource;
+				flags |= GolTexture::c_textureFlagBmpSource;
 				break;
-			case GolFileParser::e_unknown0x2b:
-				flags &= ~GoldDune0x38::c_unk0x36Bit3;
-				flags |= GoldDune0x38::c_unk0x36Bit4;
+			case TdbTxtParser::e_tga:
+				flags &= ~GolTexture::c_textureFlagBmpSource;
+				flags |= GolTexture::c_textureFlagTgaSource;
 				break;
-			case GolFileParser::e_unknown0x2c:
-				flags |= GoldDune0x38::c_unk0x36Bit5;
+			case TdbTxtParser::e_colorKey:
+				flags |= GolTexture::c_textureFlagColorKeyed;
 				colorKey.m_red = static_cast<LegoU8>(parser->ReadInteger());
 				colorKey.m_grn = static_cast<LegoU8>(parser->ReadInteger());
 				colorKey.m_blu = static_cast<LegoU8>(parser->ReadInteger());
 				break;
-			case GolFileParser::e_unknown0x2d:
-				flags |= GoldDune0x38::c_unk0x36Bit8;
+			case TdbTxtParser::e_unknown0x2d:
+				flags |= GolTexture::c_textureFlagBit8;
 				break;
-			case GolFileParser::e_unknown0x2e:
-				flags |= GoldDune0x38::c_unk0x36Bit9;
+			case TdbTxtParser::e_unknown0x2e:
+				flags |= GolTexture::c_textureFlagBit9;
 				break;
 			default:
 				parser->HandleUnexpectedToken(GolFileParser::e_syntaxerror);
@@ -154,7 +154,7 @@ void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* 
 	parser->ReadRightCurly();
 	parser->Dispose();
 
-	if (g_unk0x1005cf0c) {
+	if (g_loadTexturesImmediately) {
 		LoadTextures();
 	}
 
@@ -164,45 +164,49 @@ void GolTextureList::VTable0x24(GolD3DRenderDevice* p_renderer, const LegoChar* 
 // FUNCTION: GOLDP 0x1002b890
 void GolTextureList::LoadTextures()
 {
-	MagentaRibbonSourceItem0x2c sourceItem;
+	GolTextureSourceItem sourceItem;
 	GolSurfaceFormat textureFormat;
 	LegoChar textureName[sizeof(GolName) + 1];
 
-	if (m_unk0x14 != NULL) {
-		for (LegoU32 i = 0; i < m_numItems; i++) {
-			GoldDune0x38* texture = GetItem(i);
-			if (texture->GetPixelFlags() & SilverDune0x30::c_lockRequestRead) {
+	if (m_textureSource != NULL) {
+		for (LegoU32 i = 0; i < m_itemCount; i++) {
+			GolTexture* texture = GetItem(i);
+			if (texture->GetPixelFlags() & GolSurface::c_lockRequestRead) {
 				continue;
 			}
 
-			m_unk0x14->VTable0x00(i, &sourceItem);
+			m_textureSource->GetTextureDefinition(i, &sourceItem);
 
 			LegoU16 flags = sourceItem.m_flags;
 			if (m_renderer->VTable0x110()) {
-				flags |= GoldDune0x38::c_unk0x36Bit6;
+				flags |= GolTexture::c_textureFlagBit6;
 			}
-			if ((flags & GoldDune0x38::c_unk0x36Bit5) && (m_renderer->GetFlags() & GolD3DRenderDevice::c_flagBit9)) {
-				flags |= GoldDune0x38::c_unk0x36Bit7;
+			if ((flags & GolTexture::c_textureFlagColorKeyed) &&
+				(m_renderer->GetFlags() & GolD3DRenderDevice::c_flagBlackColorKey)) {
+				flags |= GolTexture::c_textureFlagBlackColorKey;
 			}
 
 			texture->SetTextureFlags(flags);
 			texture->SetSourceTextureDefinition(sourceItem.m_mipmapCount, flags, sourceItem.m_colorKey);
 
-			m_renderer
-				->SelectTextureFormat(sourceItem.m_textureFormat, &textureFormat, flags & GoldDune0x38::c_unk0x36Bit5);
-			VTable0x18(i, textureFormat, sourceItem.m_width, sourceItem.m_height);
-			m_unk0x14->VTable0x04(i, 0, texture);
+			m_renderer->SelectTextureFormat(
+				sourceItem.m_textureFormat,
+				&textureFormat,
+				flags & GolTexture::c_textureFlagColorKeyed
+			);
+			AllocateTexture(i, textureFormat, sourceItem.m_width, sourceItem.m_height);
+			m_textureSource->OnTextureLoaded(i, 0, texture);
 		}
 		return;
 	}
 
-	if (m_unk0x18 != NULL && g_hashTable != NULL) {
-		g_hashTable->SetCurrentEntry(m_unk0x18);
+	if (m_nameTableEntry != NULL && g_hashTable != NULL) {
+		g_hashTable->SetCurrentEntry(m_nameTableEntry);
 	}
 
-	for (LegoU32 i = 0; i < m_numItems; i++) {
-		PurpleDune0x7c* texture = GetItem(i);
-		if (texture->GetPixelFlags() & SilverDune0x30::c_lockRequestRead) {
+	for (LegoU32 i = 0; i < m_itemCount; i++) {
+		GolD3DTexture* texture = GetItem(i);
+		if (texture->GetPixelFlags() & GolSurface::c_lockRequestRead) {
 			continue;
 		}
 
@@ -214,20 +218,24 @@ void GolTextureList::LoadTextures()
 		::memcpy(textureName, sourceName, sizeof(GolName));
 		textureName[sizeof(GolName)] = '\0';
 
-		LegoU8 textureFlags = static_cast<LegoU8>(texture->GetUnk0x36());
-		GolImgFile* imageFile = &g_unk0x10064280;
-		if (!(textureFlags & GoldDune0x38::c_unk0x36Bit3)) {
-			imageFile = &g_unk0x10063ca0;
+		LegoU8 textureFlags = static_cast<LegoU8>(texture->GetTextureFlags());
+		GolImgFile* imageFile = &g_textureBmpFile;
+		if (!(textureFlags & GolTexture::c_textureFlagBmpSource)) {
+			imageFile = &g_textureTgaFile;
 		}
 
-		imageFile->VTable0x08(textureName);
-		texture->VTable0x30(*m_renderer, imageFile);
+		imageFile->Open(textureName);
+		texture->LoadFromImgFile(*m_renderer, imageFile);
 		imageFile->Destroy();
 	}
 }
 
 // FUNCTION: GOLDP 0x1002ba30
-void GolTextureList::VTable0x20(GolD3DRenderDevice* p_renderer, MagentaRibbonSource0x4* p_source, LegoU32 p_capacity)
+void GolTextureList::InitializeFromSource(
+	GolD3DRenderDevice* p_renderer,
+	GolTextureSource* p_source,
+	LegoU32 p_capacity
+)
 {
 	if (m_renderer != NULL) {
 		Clear();
@@ -235,17 +243,17 @@ void GolTextureList::VTable0x20(GolD3DRenderDevice* p_renderer, MagentaRibbonSou
 
 	m_renderer = p_renderer;
 	p_renderer->AddTextureList(this);
-	m_unk0x14 = p_source;
-	m_numItems = p_capacity;
+	m_textureSource = p_source;
+	m_itemCount = p_capacity;
 	AllocateItems();
 
-	if (g_unk0x1005cf0c != 0) {
+	if (g_loadTexturesImmediately != 0) {
 		LoadTextures();
 	}
 }
 
 // FUNCTION: GOLDP 0x1002ba80
-void GolTextureList::VTable0x1c(GolD3DRenderDevice* p_renderer, LegoU32 p_capacity)
+void GolTextureList::Initialize(GolD3DRenderDevice* p_renderer, LegoU32 p_capacity)
 {
 	if (m_renderer != NULL) {
 		Clear();
@@ -253,7 +261,7 @@ void GolTextureList::VTable0x1c(GolD3DRenderDevice* p_renderer, LegoU32 p_capaci
 
 	m_renderer = p_renderer;
 	p_renderer->AddTextureList(this);
-	m_numItems = p_capacity;
+	m_itemCount = p_capacity;
 	GolNameTable::Allocate(p_capacity);
 	AllocateItems();
 }
@@ -261,7 +269,7 @@ void GolTextureList::VTable0x1c(GolD3DRenderDevice* p_renderer, LegoU32 p_capaci
 // FUNCTION: GOLDP 0x1002bac0
 void GolTextureList::Clear()
 {
-	m_numItems = 0;
+	m_itemCount = 0;
 
 	if (m_renderer != NULL) {
 		m_renderer->RemoveTextureList(this);
@@ -274,13 +282,13 @@ void GolTextureList::Clear()
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolTextureList::VTable0x0c()
+void GolTextureList::ReleaseTextures()
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolTextureList::VTable0x10()
+void GolTextureList::RestoreTextures()
 {
 	// empty
 }

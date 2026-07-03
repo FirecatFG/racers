@@ -28,28 +28,28 @@ void MenuInputHandler::Initialize(InputManager* p_inputManager)
 	}
 
 	m_inputManager = p_inputManager;
-	m_unk0x208.Allocate(32);
+	m_inputEvents.Allocate(32);
 
-	KeyboardInputDevice* keyboard = m_inputManager->GetKeyboard();
+	KeyboardDevice* keyboard = m_inputManager->GetKeyboard();
 	if (keyboard != NULL) {
-		keyboard->SetCallback(&m_unk0x208);
+		keyboard->SetCallback(&m_inputEvents);
 		keyboard->SetRepeatDelays(250, 500);
 		keyboard->Acquire();
 	}
 
-	MouseInputDevice* mouse = m_inputManager->GetMouse();
+	MouseDevice* mouse = m_inputManager->GetMouse();
 	m_mouse = mouse;
 	if (mouse != NULL) {
-		mouse->SetCallback(&m_unk0x208);
+		mouse->SetCallback(&m_inputEvents);
 		mouse->SetRepeatDelays(250, 500);
 		mouse->SetExclusiveMode();
 		mouse->Acquire();
 	}
 
 	for (LegoS32 i = 0; i < m_inputManager->GetJoystickCount(); i++) {
-		JoystickInputDevice* joystick = m_inputManager->GetJoystick(i);
+		JoystickDevice* joystick = m_inputManager->GetJoystick(i);
 		if (joystick != NULL) {
-			joystick->SetCallback(&m_unk0x208);
+			joystick->SetCallback(&m_inputEvents);
 			joystick->SetAxisButtonEventsEnabled(TRUE);
 			joystick->Acquire();
 			joystick->SetRepeatDelays(250, 500);
@@ -66,14 +66,14 @@ void MenuInputHandler::Initialize(InputManager* p_inputManager)
 		}
 	}
 
-	FUN_0041fac0();
+	MapAllJoystickButtons();
 }
 
 // FUNCTION: LEGORACERS 0x0041f9c0
 void MenuInputHandler::Shutdown()
 {
 	if (m_inputManager != NULL) {
-		KeyboardInputDevice* keyboard = m_inputManager->GetKeyboard();
+		KeyboardDevice* keyboard = m_inputManager->GetKeyboard();
 
 		if (keyboard != NULL) {
 			keyboard->SetCallback(NULL);
@@ -82,7 +82,7 @@ void MenuInputHandler::Shutdown()
 			keyboard->SetEventMappings(NULL, NULL);
 		}
 
-		MouseInputDevice* mouse = m_inputManager->GetMouse();
+		MouseDevice* mouse = m_inputManager->GetMouse();
 		if (mouse != NULL) {
 			mouse->SetCallback(NULL);
 			mouse->Unacquire();
@@ -92,7 +92,7 @@ void MenuInputHandler::Shutdown()
 		}
 
 		for (LegoS32 i = 0; i < m_inputManager->GetJoystickCount(); i++) {
-			JoystickInputDevice* joystick = m_inputManager->GetJoystick(i);
+			JoystickDevice* joystick = m_inputManager->GetJoystick(i);
 
 			if (joystick != NULL) {
 				joystick->SetCallback(NULL);
@@ -104,7 +104,7 @@ void MenuInputHandler::Shutdown()
 			}
 		}
 
-		m_unk0x208.Reset();
+		m_inputEvents.Reset();
 		m_inputManager = NULL;
 		m_mouse = NULL;
 	}
@@ -117,10 +117,10 @@ LegoBool32 MenuInputHandler::HasKeyboard() const
 }
 
 // FUNCTION: LEGORACERS 0x0041fac0
-void MenuInputHandler::FUN_0041fac0()
+void MenuInputHandler::MapAllJoystickButtons()
 {
 	for (LegoS32 i = 0; i < m_inputManager->GetJoystickCount(); i++) {
-		JoystickInputDevice* joystick = m_inputManager->GetJoystick(i);
+		JoystickDevice* joystick = m_inputManager->GetJoystick(i);
 
 		if (joystick != NULL) {
 			for (LegoS32 j = 0; j < joystick->GetButtonCountFast(); j++) {

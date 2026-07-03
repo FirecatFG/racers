@@ -20,13 +20,18 @@ MemoryCardSaveGame::~MemoryCardSaveGame()
 }
 
 // FUNCTION: LEGORACERS 0x004438a0
-void MemoryCardSaveGame::Initialize(SaveSlot* p_slot, undefined4 p_count, undefined4 p_unk0x0c, undefined4 p_unk0x10)
+void MemoryCardSaveGame::Initialize(
+	SaveSlot* p_slot,
+	undefined4 p_count,
+	undefined4 p_recordSource,
+	undefined4 p_saveIndex
+)
 {
 	if (HasRecords()) {
 		Destroy();
 	}
 
-	SaveGame::Initialize(p_count, p_unk0x0c, p_unk0x10);
+	SaveGame::Initialize(p_count, p_recordSource, p_saveIndex);
 	m_slot = p_slot;
 }
 
@@ -44,15 +49,20 @@ void MemoryCardSaveGame::Destroy()
 // FUNCTION: LEGORACERS 0x00443910
 LegoS32 MemoryCardSaveGame::OpenExistingFile()
 {
-	return m_file.VTable0x3c(m_slot, g_memoryCardSaveFileName, GolStream::c_unk0x40, c_fileBufferSize, 0);
+	return m_file
+		.BufferedOpenSlotFile(m_slot, g_memoryCardSaveFileName, GolStream::c_modeNoFileSource, c_fileBufferSize, 0);
 }
 
 // FUNCTION: LEGORACERS 0x00443940
 LegoS32 MemoryCardSaveGame::CreateSaveFile()
 {
-	LegoS32 result =
-		m_file
-			.VTable0x3c(m_slot, g_memoryCardSaveFileName, GolStream::c_modeCreate, c_fileBufferSize, c_fileBufferSize);
+	LegoS32 result = m_file.BufferedOpenSlotFile(
+		m_slot,
+		g_memoryCardSaveFileName,
+		GolStream::c_modeCreate,
+		c_fileBufferSize,
+		c_fileBufferSize
+	);
 	if (!result) {
 		result = SaveToFile();
 	}

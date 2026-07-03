@@ -52,29 +52,29 @@ public:
 		m_state.m_soundVolume = p_soundVolume;
 		m_dirty = 1;
 	}
-	void SetUnk0x21(LegoU8 p_unk0x21)
+	void SetStereo(LegoU8 p_stereo)
 	{
-		m_state.m_unk0x21 = p_unk0x21;
+		m_state.m_stereo = p_stereo;
 		m_dirty = 1;
 	}
-	void SetUnk0x23(LegoU32 p_unk0x23)
+	void SetLapCount(LegoU32 p_lapCount)
 	{
 		m_dirty = 1;
-		m_state.m_unk0x23 = static_cast<LegoU8>(p_unk0x23);
+		m_state.m_lapCount = static_cast<LegoU8>(p_lapCount);
 	}
-	void SetInputBindingPlayer0Unk0x00(undefined4 p_unk0x00)
+	void SetPlayer0SelectedRecordId(undefined4 p_recordId)
 	{
-		m_state.m_inputBindings.m_players[0].m_selectedRecordId = static_cast<LegoU8>(p_unk0x00);
+		m_state.m_inputBindings.m_players[0].m_selectedRecordId = static_cast<LegoU8>(p_recordId);
 		m_dirty = 1;
 	}
-	void SetInputBindingPlayer0Unk0x01(undefined4 p_unk0x01)
+	void SetPlayer0SelectedRecordSource(undefined4 p_recordSource)
 	{
-		m_state.m_inputBindings.m_players[0].m_selectedRecordSource = static_cast<LegoU8>(p_unk0x01);
+		m_state.m_inputBindings.m_players[0].m_selectedRecordSource = static_cast<LegoU8>(p_recordSource);
 		m_dirty = 1;
 	}
-	void SetInputBindingPlayer0Unk0x02(undefined4 p_unk0x02)
+	void SetPlayer0SelectedSaveIndex(undefined4 p_saveIndex)
 	{
-		m_state.m_inputBindings.m_players[0].m_selectedSaveIndex = static_cast<LegoU8>(p_unk0x02);
+		m_state.m_inputBindings.m_players[0].m_selectedSaveIndex = static_cast<LegoU8>(p_saveIndex);
 		m_dirty = 1;
 	}
 	void SetInputBindingPlayer0RecordValues(const SaveRecordList::Record* p_record)
@@ -97,9 +97,9 @@ public:
 	LegoU8 GetRacerCount() const { return m_state.m_racerCount; }
 	LegoU8 GetMusicVolume() const { return m_state.m_musicVolume; }
 	LegoU8 GetSoundVolume() const { return m_state.m_soundVolume; }
-	LegoU8 GetUnk0x21() const { return m_state.m_unk0x21; }
+	LegoU8 GetStereo() const { return m_state.m_stereo; }
 	LegoU32 GetLanguageIndex() const { return m_state.m_languageIndex; }
-	LegoU8 GetUnk0x23() const { return m_state.m_unk0x23; }
+	LegoU8 GetLapCount() const { return m_state.m_lapCount; }
 	LegoU8 GetPartUnlockFlags() const;
 	LegoU8 GetUnlockedCircuits() const;
 
@@ -121,7 +121,7 @@ private:
 	LegoU32 GetRegistryLanguageIndex();
 
 	LegoBool32 m_dirty;           // 0x00
-	undefined4 m_activeSaveIndex; // 0x04
+	LegoU32 m_activeSaveIndex;    // 0x04
 	InputManager* m_inputManager; // 0x08
 	PersistentGameState m_state;  // 0x0c
 };

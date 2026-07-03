@@ -19,177 +19,174 @@ MenuSelectorBase::~MenuSelectorBase()
 // FUNCTION: LEGORACERS 0x00467060
 void MenuSelectorBase::Reset()
 {
-	m_unk0x1ac.VTable0x08();
-	m_unk0x3c8.VTable0x08();
+	m_prevButton.Destroy();
+	m_nextButton.Destroy();
 	m_unk0x1a8 = 0;
-	m_unk0x5e4 = 0;
+	m_stepDirection = 0;
 	MenuIcon::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x004670a0
-LegoBool32 MenuSelectorBase::FUN_004670a0(
-	CreateParams* p_createParams,
-	const MenuStyleTable::SelectorStyleBase* p_styleEntry
-)
+LegoBool32 MenuSelectorBase::Create(CreateParams* p_createParams, const MenuStyleTable::SelectorStyleBase* p_styleEntry)
 {
-	static_cast<MenuWidget::CreateParams*>(p_createParams->m_unk0x84)->m_parent = this;
-	static_cast<MenuWidget::CreateParams*>(p_createParams->m_unk0x88)->m_parent = this;
+	static_cast<MenuWidget::CreateParams*>(p_createParams->m_prevButtonParams)->m_parent = this;
+	static_cast<MenuWidget::CreateParams*>(p_createParams->m_nextButtonParams)->m_parent = this;
 
-	if (!m_unk0x1ac.FUN_004663d0(p_createParams->m_unk0x84, p_styleEntry->m_unk0x90)) {
+	if (!m_prevButton.Create(p_createParams->m_prevButtonParams, p_styleEntry->m_prevButtonStyle)) {
 		return FALSE;
 	}
 
-	if (!m_unk0x3c8.FUN_004663d0(p_createParams->m_unk0x88, p_styleEntry->m_unk0x94)) {
+	if (!m_nextButton.Create(p_createParams->m_nextButtonParams, p_styleEntry->m_nextButtonStyle)) {
 		return FALSE;
 	}
 
-	if (m_stateFlags & c_flagBit0) {
-		m_unk0x1ac.VTable0x44(5);
-		m_unk0x3c8.VTable0x44(5);
+	if (m_stateFlags & c_flagEnabled) {
+		m_prevButton.Enable(5);
+		m_nextButton.Enable(5);
 	}
 	else {
-		m_unk0x1ac.VTable0x48(5);
-		m_unk0x3c8.VTable0x48(5);
+		m_prevButton.Disable(5);
+		m_nextButton.Disable(5);
 	}
 
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x00467150
-LegoBool32 MenuSelectorBase::FUN_00467150(
+LegoBool32 MenuSelectorBase::CreateDefault(
 	CreateParams* p_createParams,
 	const MenuStyleTable::SelectorStyleBase* p_styleEntry
 )
 {
-	if (FUN_00471e30(p_createParams, p_styleEntry)) {
-		return FUN_004670a0(p_createParams, p_styleEntry);
+	if (MenuIcon::Create(p_createParams, p_styleEntry)) {
+		return Create(p_createParams, p_styleEntry);
 	}
 
 	return FALSE;
 }
 
 // FUNCTION: LEGORACERS 0x00467180
-void MenuSelectorBase::FUN_00467180(undefined4 p_param)
+void MenuSelectorBase::OnPreviousPressed(undefined4 p_param)
 {
-	if (m_unk0x54 & 1) {
+	if (m_animFlags & 1) {
 		return;
 	}
 
-	m_unk0x5e4 = -1;
+	m_stepDirection = -1;
 
-	if (m_unk0x1ac.GetStateFlags() & c_flagBit2) {
-		VTable0x78();
+	if (m_prevButton.GetStateFlags() & c_flagFocused) {
+		StepPrevious();
 
 		if (p_param) {
-			m_unk0x1ac.VTable0x58(2);
-			VTable0x58(0);
+			m_prevButton.Unfocus(2);
+			Unfocus(0);
 		}
 	}
 	else {
-		m_unk0x3c8.VTable0x58(2);
+		m_nextButton.Unfocus(2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004671e0
-void MenuSelectorBase::FUN_004671e0(undefined4 p_param)
+void MenuSelectorBase::OnNextPressed(undefined4 p_param)
 {
-	if (m_unk0x54 & 1) {
+	if (m_animFlags & 1) {
 		return;
 	}
 
-	m_unk0x5e4 = 1;
+	m_stepDirection = 1;
 
-	if (m_unk0x3c8.GetStateFlags() & c_flagBit2) {
-		VTable0x7c();
+	if (m_nextButton.GetStateFlags() & c_flagFocused) {
+		StepNext();
 
 		if (p_param) {
-			m_unk0x3c8.VTable0x58(2);
-			VTable0x58(0);
+			m_nextButton.Unfocus(2);
+			Unfocus(0);
 		}
 	}
 	else {
-		m_unk0x1ac.VTable0x58(2);
+		m_prevButton.Unfocus(2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00467240
-void MenuSelectorBase::VTable0x44(undefined4 p_flags)
+void MenuSelectorBase::Enable(undefined4 p_flags)
 {
-	if (m_stateFlags & c_flagBit0) {
+	if (m_stateFlags & c_flagEnabled) {
 		return;
 	}
 
-	if (m_unk0x1ac.GetFlags() & 1) {
-		m_unk0x1ac.VTable0x44(2);
-		m_unk0x3c8.VTable0x44(2);
+	if (m_prevButton.GetFlags() & 1) {
+		m_prevButton.Enable(2);
+		m_nextButton.Enable(2);
 	}
 
-	MenuIcon::VTable0x44(p_flags);
+	MenuIcon::Enable(p_flags);
 }
 
 // FUNCTION: LEGORACERS 0x00467290
-void MenuSelectorBase::VTable0x48(undefined4 p_flags)
+void MenuSelectorBase::Disable(undefined4 p_flags)
 {
-	if (!(m_stateFlags & c_flagBit0)) {
+	if (!(m_stateFlags & c_flagEnabled)) {
 		return;
 	}
 
-	if (m_unk0x1ac.GetFlags() & 1) {
-		m_unk0x1ac.VTable0x48(5);
-		m_unk0x3c8.VTable0x48(5);
+	if (m_prevButton.GetFlags() & 1) {
+		m_prevButton.Disable(5);
+		m_nextButton.Disable(5);
 	}
 
-	MenuIcon::VTable0x48(p_flags);
+	MenuIcon::Disable(p_flags);
 }
 
 // FUNCTION: LEGORACERS 0x004672e0
-void MenuSelectorBase::VTable0x4c(undefined4 p_flags)
+void MenuSelectorBase::Select(undefined4 p_flags)
 {
-	MenuIcon::VTable0x4c(p_flags);
+	MenuIcon::Select(p_flags);
 
-	if (m_unk0x1ac.GetFlags() & 1) {
-		m_unk0x1ac.VTable0x4c(2);
-		m_unk0x3c8.VTable0x4c(2);
+	if (m_prevButton.GetFlags() & 1) {
+		m_prevButton.Select(2);
+		m_nextButton.Select(2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00467320
-void MenuSelectorBase::VTable0x50(undefined4 p_flags)
+void MenuSelectorBase::Deselect(undefined4 p_flags)
 {
-	MenuIcon::VTable0x50(p_flags);
+	MenuIcon::Deselect(p_flags);
 
-	if (m_unk0x1ac.GetFlags() & 1) {
-		m_unk0x1ac.VTable0x50(2);
-		m_unk0x3c8.VTable0x50(2);
+	if (m_prevButton.GetFlags() & 1) {
+		m_prevButton.Deselect(2);
+		m_nextButton.Deselect(2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00467360
-void MenuSelectorBase::VTable0x58(undefined4 p_flags)
+void MenuSelectorBase::Unfocus(undefined4 p_flags)
 {
-	MenuIcon::VTable0x58(p_flags);
+	MenuIcon::Unfocus(p_flags);
 
-	if (m_unk0x1ac.GetFlags() & 1) {
-		m_unk0x1ac.VTable0x58(2);
-		m_unk0x3c8.VTable0x58(2);
+	if (m_prevButton.GetFlags() & 1) {
+		m_prevButton.Unfocus(2);
+		m_nextButton.Unfocus(2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004673a0
-undefined4 MenuSelectorBase::VTable0x70(undefined4 p_event, undefined4 p_x, undefined4 p_y)
+undefined4 MenuSelectorBase::MapCursorToNavigation(undefined4 p_event, undefined4 p_x, undefined4 p_y)
 {
 	if ((p_event & InputDevice::c_sourceMask) == InputDevice::c_sourceMouse) {
 		undefined4 x = p_x;
 		undefined4 y = p_y;
-		m_unk0x1ac.ScreenToLocal(x, y);
-		if (m_unk0x1ac.HitTest(x, y)) {
+		m_prevButton.ScreenToLocal(x, y);
+		if (m_prevButton.HitTest(x, y)) {
 			return InputDevice::c_sourceJoystickButton | 0xb;
 		}
 
 		x = p_x;
 		y = p_y;
-		m_unk0x3c8.ScreenToLocal(x, y);
-		if (m_unk0x3c8.HitTest(x, y)) {
+		m_nextButton.ScreenToLocal(x, y);
+		if (m_nextButton.HitTest(x, y)) {
 			return InputDevice::c_sourceJoystickButton | 0xa;
 		}
 	}
@@ -198,7 +195,7 @@ undefined4 MenuSelectorBase::VTable0x70(undefined4 p_event, undefined4 p_x, unde
 }
 
 // FUNCTION: LEGORACERS 0x00467450
-LegoBool32 MenuSelectorBase::VTable0x20(MenuInputDispatcher::Cursor* p_cursor, undefined4 p_x, undefined4 p_y)
+LegoBool32 MenuSelectorBase::DispatchCursorEvent(MenuInputDispatcher::Cursor* p_cursor, undefined4 p_x, undefined4 p_y)
 {
 	undefined4 x = p_x;
 	undefined4 y = p_y;
@@ -209,7 +206,7 @@ LegoBool32 MenuSelectorBase::VTable0x20(MenuInputDispatcher::Cursor* p_cursor, u
 
 	ScreenToLocal(x, y);
 
-	if (HitTest(x, y) && VTable0x2c(p_cursor, x, y)) {
+	if (HitTest(x, y) && OnCursorEvent(p_cursor, x, y)) {
 		return TRUE;
 	}
 
@@ -217,7 +214,7 @@ LegoBool32 MenuSelectorBase::VTable0x20(MenuInputDispatcher::Cursor* p_cursor, u
 }
 
 // FUNCTION: LEGORACERS 0x004674c0
-LegoBool32 MenuSelectorBase::VTable0x24(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
+LegoBool32 MenuSelectorBase::DispatchKeyDown(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
 {
 	undefined4 x = p_x;
 	undefined4 y = p_y;
@@ -228,11 +225,11 @@ LegoBool32 MenuSelectorBase::VTable0x24(InputEventQueue::Event* p_param1, undefi
 
 	ScreenToLocal(x, y);
 
-	return MenuEventResult(VTable0x30(p_param1, x, y));
+	return MenuEventResult(OnKeyDown(p_param1, x, y));
 }
 
 // FUNCTION: LEGORACERS 0x00467510
-LegoBool32 MenuSelectorBase::VTable0x28(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
+LegoBool32 MenuSelectorBase::DispatchKeyUp(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
 {
 	undefined4 x = p_x;
 	undefined4 y = p_y;
@@ -243,49 +240,49 @@ LegoBool32 MenuSelectorBase::VTable0x28(InputEventQueue::Event* p_param1, undefi
 
 	ScreenToLocal(x, y);
 
-	return MenuEventResult(VTable0x34(p_param1, x, y));
+	return MenuEventResult(OnKeyUp(p_param1, x, y));
 }
 
 // FUNCTION: LEGORACERS 0x00467560
-LegoBool32 MenuSelectorBase::FUN_00467560(InputEventQueue::Event* p_event, undefined4 p_result)
+LegoBool32 MenuSelectorBase::HandleNavigationKeyDown(InputEventQueue::Event* p_event, undefined4 p_result)
 {
 	switch (p_result) {
 	case InputDevice::c_sourceJoystickButton | 0xa:
-		if (m_unk0x3c8.GetUnk0x54() & 1) {
+		if (m_nextButton.GetAnimFlags() & 1) {
 			return TRUE;
 		}
 
-		if (p_event->m_isRepeat && (m_unk0x3c8.GetStateFlags() & c_flagBit2)) {
-			FUN_004671e0(0);
+		if (p_event->m_isRepeat && (m_nextButton.GetStateFlags() & c_flagFocused)) {
+			OnNextPressed(0);
 			return TRUE;
 		}
 
-		if (m_stateFlags & c_flagBit2) {
+		if (m_stateFlags & c_flagFocused) {
 			return TRUE;
 		}
 
-		m_unk0x3c8.VTable0x54(2);
-		FUN_004671e0(0);
-		VTable0x54(0);
+		m_nextButton.Focus(2);
+		OnNextPressed(0);
+		Focus(0);
 		return TRUE;
 
 	case InputDevice::c_sourceJoystickButton | 0xb:
-		if (m_unk0x1ac.GetUnk0x54() & 1) {
+		if (m_prevButton.GetAnimFlags() & 1) {
 			return TRUE;
 		}
 
-		if (p_event->m_isRepeat && (m_unk0x1ac.GetStateFlags() & c_flagBit2)) {
-			FUN_00467180(0);
+		if (p_event->m_isRepeat && (m_prevButton.GetStateFlags() & c_flagFocused)) {
+			OnPreviousPressed(0);
 			return TRUE;
 		}
 
-		if (m_stateFlags & c_flagBit2) {
+		if (m_stateFlags & c_flagFocused) {
 			return TRUE;
 		}
 
-		m_unk0x1ac.VTable0x54(2);
-		FUN_00467180(0);
-		VTable0x54(0);
+		m_prevButton.Focus(2);
+		OnPreviousPressed(0);
+		Focus(0);
 		return TRUE;
 	}
 
@@ -293,25 +290,25 @@ LegoBool32 MenuSelectorBase::FUN_00467560(InputEventQueue::Event* p_event, undef
 }
 
 // FUNCTION: LEGORACERS 0x00467670
-LegoBool32 MenuSelectorBase::FUN_00467670(InputEventQueue::Event*, undefined4 p_result)
+LegoBool32 MenuSelectorBase::HandleNavigationKeyUp(InputEventQueue::Event*, undefined4 p_result)
 {
 	if (p_result == (InputDevice::c_sourceJoystickButton | 0x1)) {
 		return FALSE;
 	}
 
 	MenuButton* glyph;
-	if (m_unk0x1ac.GetStateFlags() & c_flagBit2) {
-		glyph = &m_unk0x1ac;
+	if (m_prevButton.GetStateFlags() & c_flagFocused) {
+		glyph = &m_prevButton;
 	}
-	else if (m_unk0x3c8.GetStateFlags() & c_flagBit2) {
-		glyph = &m_unk0x3c8;
+	else if (m_nextButton.GetStateFlags() & c_flagFocused) {
+		glyph = &m_nextButton;
 	}
 	else {
 		return FALSE;
 	}
 
-	glyph->VTable0x58(1);
-	VTable0x58(1);
+	glyph->Unfocus(1);
+	Unfocus(1);
 	return TRUE;
 }
 
@@ -324,37 +321,37 @@ MenuSelector::MenuSelector()
 // FUNCTION: LEGORACERS 0x00467750
 MenuSelector::~MenuSelector()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x004677b0
 void MenuSelector::Reset()
 {
-	m_unk0x5ec.VTable0x08();
-	m_unk0x9e8 = NULL;
-	m_unk0x9f0 = 0;
-	m_unk0x9ec = 0;
+	m_unk0x5ec.Destroy();
+	m_carousel = NULL;
+	m_scrollPending = 0;
+	m_acceptUnfocusedInput = 0;
 	MenuSelectorBase::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x004677e0
-LegoBool32 MenuSelectorBase::FUN_004677e0(CreateParamsWithCarousel* p_createParams)
+LegoBool32 MenuSelectorBase::CreateWithFrame(CreateParamsWithCarousel* p_createParams)
 {
-	p_createParams->m_unk0x8c->m_parent = this;
+	p_createParams->m_frameParams->m_parent = this;
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x00467800
-LegoBool32 MenuSelector::FUN_00467800(CreateParams* p_createParams, MenuStyleTable::SelectorStyle* p_styleEntry)
+LegoBool32 MenuSelector::Create(CreateParams* p_createParams, MenuStyleTable::SelectorStyle* p_styleEntry)
 {
-	VTable0x08();
+	Destroy();
 
-	if (FUN_00467150(p_createParams, p_styleEntry) && FUN_004677e0(p_createParams)) {
+	if (CreateDefault(p_createParams, p_styleEntry) && CreateWithFrame(p_createParams)) {
 		m_styleEntry = p_styleEntry;
-		m_unk0x9e8 = p_createParams->m_unk0x90;
-		m_unk0x9e8->VTable0x14(&m_unk0x174[m_visualStateIndex]);
-		m_unk0x9ec = p_createParams->m_unk0x94;
-		m_unk0x9e8->SetParent(this);
+		m_carousel = p_createParams->m_carouselWidget;
+		m_carousel->SetColor(&m_stateColors[m_visualStateIndex]);
+		m_acceptUnfocusedInput = p_createParams->m_acceptUnfocusedInput;
+		m_carousel->SetParent(this);
 		return TRUE;
 	}
 
@@ -362,33 +359,33 @@ LegoBool32 MenuSelector::FUN_00467800(CreateParams* p_createParams, MenuStyleTab
 }
 
 // FUNCTION: LEGORACERS 0x00467880
-LegoBool32 MenuSelector::VTable0x08()
+LegoBool32 MenuSelector::Destroy()
 {
 	LegoBool32 result = TRUE;
 
 	if (result & m_flags) {
-		if (m_unk0x9e8) {
-			m_unk0x9e8->VTable0x08();
+		if (m_carousel) {
+			m_carousel->Destroy();
 		}
 
-		result = MenuIcon::VTable0x08();
+		result = MenuIcon::Destroy();
 	}
 
 	return result;
 }
 
 // FUNCTION: LEGORACERS 0x004678b0
-void MenuSelector::VTable0x14(VisualStateColor* p_visualState)
+void MenuSelector::SetColor(VisualStateColor* p_visualState)
 {
-	if (m_unk0x9e8) {
-		m_unk0x9e8->VTable0x14(p_visualState);
+	if (m_carousel) {
+		m_carousel->SetColor(p_visualState);
 	}
 
-	MenuWidget::VTable0x14(p_visualState);
+	MenuWidget::SetColor(p_visualState);
 }
 
 // FUNCTION: LEGORACERS 0x004678e0
-LegoBool32 MenuSelector::VTable0x24(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
+LegoBool32 MenuSelector::DispatchKeyDown(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
 {
 	undefined4 x = p_x;
 	undefined4 y = p_y;
@@ -399,77 +396,80 @@ LegoBool32 MenuSelector::VTable0x24(InputEventQueue::Event* p_param1, undefined4
 
 	ScreenToLocal(x, y);
 
-	if (VTable0x30(p_param1, x, y)) {
+	if (OnKeyDown(p_param1, x, y)) {
 		return TRUE;
 	}
 
-	return m_unk0x9e8->VTable0x24(p_param1, x, y);
+	return m_carousel->DispatchKeyDown(p_param1, x, y);
 }
 
 // FUNCTION: LEGORACERS 0x00467960
-void MenuSelector::VTable0x78()
+void MenuSelector::StepPrevious()
 {
-	if (m_unk0x9f0) {
+	if (m_scrollPending) {
 		return;
 	}
 
-	LegoU32 previousIndex = m_unk0x9e8->GetUnk0x6c();
-	m_unk0x9e8->VTable0x58();
+	LegoU32 previousIndex = m_carousel->GetSelectedIndex();
+	m_carousel->ScrollPrevious();
 
-	if (m_unk0x9e8->GetUnk0x6c() != previousIndex && m_eventHandler) {
-		m_eventHandler->VTable0x44(this);
+	if (m_carousel->GetSelectedIndex() != previousIndex && m_eventHandler) {
+		m_eventHandler->OnWidgetValueChanged(this);
 	}
 
-	m_unk0x9f0 = m_unk0x9e8->GetUnk0x54() & 1;
+	m_scrollPending = m_carousel->GetAnimFlags() & 1;
 }
 
 // FUNCTION: LEGORACERS 0x004679b0
-void MenuSelector::VTable0x7c()
+void MenuSelector::StepNext()
 {
-	if (m_unk0x9f0) {
+	if (m_scrollPending) {
 		return;
 	}
 
-	LegoU32 previousIndex = m_unk0x9e8->GetUnk0x6c();
-	m_unk0x9e8->VTable0x54();
+	LegoU32 previousIndex = m_carousel->GetSelectedIndex();
+	m_carousel->ScrollNext();
 
-	if (m_unk0x9e8->GetUnk0x6c() != previousIndex && m_eventHandler) {
-		m_eventHandler->VTable0x44(this);
+	if (m_carousel->GetSelectedIndex() != previousIndex && m_eventHandler) {
+		m_eventHandler->OnWidgetValueChanged(this);
 	}
 
-	m_unk0x9f0 = m_unk0x9e8->GetUnk0x54() & 1;
+	m_scrollPending = m_carousel->GetAnimFlags() & 1;
 }
 
 // FUNCTION: LEGORACERS 0x00467a00
-undefined4 MenuSelector::VTable0x3c(undefined4)
+undefined4 MenuSelector::OnEvent(undefined4)
 {
-	LegoU32 index = m_stateFlags & c_flagBit1;
+	LegoU32 index = m_stateFlags & c_flagSelected;
 
-	if (m_unk0x9f0 && !(m_unk0x9e8->GetUnk0x54() & 1) && m_eventHandler) {
-		m_eventHandler->VTable0x48(this);
-		m_unk0x9f0 = 0;
+	if (m_scrollPending && !(m_carousel->GetAnimFlags() & 1) && m_eventHandler) {
+		m_eventHandler->OnSelectorSettled(this);
+		m_scrollPending = 0;
 	}
 
-	m_unk0x9e8->VTable0x48(&GetStyleEntry()->m_unk0x9c[index], &GetStyleEntry()->m_unk0x9c[index + 1]);
-	m_unk0x9e8->VTable0x4c(&GetStyleEntry()->m_unk0x9c[index], &GetStyleEntry()->m_unk0x9c[index + 1]);
+	m_carousel->SetItemColors(&GetStyleEntry()->m_itemColors[index], &GetStyleEntry()->m_itemColors[index + 1]);
+	m_carousel->SetFocusedItemColors(&GetStyleEntry()->m_itemColors[index], &GetStyleEntry()->m_itemColors[index + 1]);
 
-	if (m_unk0x1ac.GetStateFlags() & c_flagBit2) {
-		VTable0x78();
+	if (m_prevButton.GetStateFlags() & c_flagFocused) {
+		StepPrevious();
 	}
-	else if (m_unk0x3c8.GetStateFlags() & c_flagBit2) {
-		VTable0x7c();
+	else if (m_nextButton.GetStateFlags() & c_flagFocused) {
+		StepNext();
 	}
 	else {
-		MenuCarousel* carousel = m_unk0x9e8;
+		MenuCarousel* carousel = m_carousel;
 		MenuStyleTable::SelectorStyle* styleEntry = GetStyleEntry();
-		carousel->VTable0x4c(&styleEntry->m_unk0xac[index], &styleEntry->m_unk0xac[index + 1]);
+		carousel->SetFocusedItemColors(
+			&styleEntry->m_focusedItemColors[index],
+			&styleEntry->m_focusedItemColors[index + 1]
+		);
 	}
 
 	return 0;
 }
 
 // FUNCTION: LEGORACERS 0x00467ae0
-undefined4 MenuSelector::VTable0x74(undefined4 p_event)
+undefined4 MenuSelector::TranslateNavigationEvent(undefined4 p_event)
 {
 	switch (p_event) {
 	case InputDevice::c_sourceJoystickButton | 0x7:
@@ -488,19 +488,20 @@ undefined4 MenuSelector::VTable0x74(undefined4 p_event)
 }
 
 // FUNCTION: LEGORACERS 0x00467b50
-MenuWidget* MenuSelector::VTable0x30(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuSelector::OnKeyDown(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
 {
 	LegoU8 stateFlags = m_stateFlags;
 	LegoU32 keyCode = p_param1->m_keyCode;
 
-	if ((stateFlags & c_flagBit0) && (!m_activeKeyCode || m_activeKeyCode == keyCode) &&
-		((stateFlags & c_flagBit2) || !p_param1->m_isRepeat)) {
+	if ((stateFlags & c_flagEnabled) && (!m_activeKeyCode || m_activeKeyCode == keyCode) &&
+		((stateFlags & c_flagFocused) || !p_param1->m_isRepeat)) {
 
-		undefined4 mappedEvent = VTable0x70(keyCode, p_x, p_y);
-		undefined4 result = VTable0x74(mappedEvent);
+		undefined4 mappedEvent = MapCursorToNavigation(keyCode, p_x, p_y);
+		undefined4 result = TranslateNavigationEvent(mappedEvent);
 
 		stateFlags = m_stateFlags;
-		if ((stateFlags & c_flagBit0) && ((stateFlags & c_flagBit1) || m_unk0x9ec) && FUN_00467560(p_param1, result)) {
+		if ((stateFlags & c_flagEnabled) && ((stateFlags & c_flagSelected) || m_acceptUnfocusedInput) &&
+			HandleNavigationKeyDown(p_param1, result)) {
 			m_activeKeyCode = p_param1->m_keyCode;
 			return this;
 		}
@@ -510,7 +511,7 @@ MenuWidget* MenuSelector::VTable0x30(InputEventQueue::Event* p_param1, undefined
 }
 
 // FUNCTION: LEGORACERS 0x00467be0
-MenuWidget* MenuSelector::VTable0x34(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuSelector::OnKeyUp(InputEventQueue::Event* p_param1, undefined4 p_x, undefined4 p_y)
 {
 	LegoU32 keyCode = p_param1->m_keyCode;
 
@@ -518,16 +519,17 @@ MenuWidget* MenuSelector::VTable0x34(InputEventQueue::Event* p_param1, undefined
 		return NULL;
 	}
 
-	undefined4 mappedEvent = VTable0x70(keyCode, p_x, p_y);
-	undefined4 result = VTable0x74(mappedEvent);
+	undefined4 mappedEvent = MapCursorToNavigation(keyCode, p_x, p_y);
+	undefined4 result = TranslateNavigationEvent(mappedEvent);
 
 	LegoU8 stateFlags = m_stateFlags;
 	m_activeKeyCode = 0;
 
-	if ((stateFlags & c_flagBit0) && (stateFlags & c_flagBit2) && ((stateFlags & c_flagBit1) || m_unk0x9ec)) {
-		FUN_00467670(p_param1, result);
+	if ((stateFlags & c_flagEnabled) && (stateFlags & c_flagFocused) &&
+		((stateFlags & c_flagSelected) || m_acceptUnfocusedInput)) {
+		HandleNavigationKeyUp(p_param1, result);
 	}
 
-	VTable0x58(0);
+	Unfocus(0);
 	return this;
 }

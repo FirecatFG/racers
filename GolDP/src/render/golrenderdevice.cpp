@@ -159,7 +159,7 @@ GolRenderDevice::GolRenderDevice()
 	m_requestedGrnBitCount = 0;
 	m_requestedBluBitCount = 0;
 	m_requestedAlpBitCount = 0;
-	m_requestedUnk0x10BitCount = 0;
+	m_requestedIntensityBitCount = 0;
 	m_requestedPaletteBitCount = 0;
 	m_countTextureFormats = 0;
 	m_textureFormats = NULL;
@@ -168,14 +168,14 @@ GolRenderDevice::GolRenderDevice()
 	m_imageLists = NULL;
 	m_fontLists = NULL;
 	m_nextDrawStateRenderer = NULL;
-	m_unk0x0c = NULL;
+	m_currentCamera = NULL;
 	m_flags = 0;
-	m_unk0x0a = 0;
-	::memset(&m_unk0x4c, 0, sizeof(m_unk0x4c));
-	m_unk0x11c = 0;
-	m_unk0x120 = 0;
-	::memset(&m_unk0x124, 0, sizeof(m_unk0x124));
-	m_unk0x124[0] = 0;
+	m_alphaOverride = 0;
+	::memset(&m_viewFrustum, 0, sizeof(m_viewFrustum));
+	m_lightCount = 0;
+	m_ambientColor = 0;
+	::memset(&m_lights, 0, sizeof(m_lights));
+	m_lights[0] = 0;
 }
 
 // FUNCTION: GOLDP 0x100288e0
@@ -199,7 +199,7 @@ void GolRenderDevice::Destroy()
 	m_requestedGrnBitCount = 0;
 	m_requestedBluBitCount = 0;
 	m_requestedAlpBitCount = 0;
-	m_requestedUnk0x10BitCount = 0;
+	m_requestedIntensityBitCount = 0;
 	m_requestedPaletteBitCount = 0;
 
 	while (amberHaze != NULL) {
@@ -241,19 +241,19 @@ void GolRenderDevice::ReleaseResources()
 	GolMaterialLibrary* materialList = m_materialLists;
 	m_countTextureFormats = 0;
 	while (materialList != NULL) {
-		materialList->VTable0x0c();
+		materialList->ReleaseMaterials();
 		materialList = materialList->GetNext();
 	}
 
 	GolTextureList* textureList = m_textureLists;
 	while (textureList != NULL) {
-		textureList->VTable0x0c();
+		textureList->ReleaseTextures();
 		textureList = textureList->GetNext();
 	}
 
 	GolImageList* imageList = m_imageLists;
 	while (imageList != NULL) {
-		imageList->VTable0x10();
+		imageList->ReleaseImages();
 		imageList = imageList->GetNext();
 	}
 
@@ -268,7 +268,7 @@ void GolRenderDevice::ReleaseResources()
 	m_requestedGrnBitCount = 0;
 	m_requestedBluBitCount = 0;
 	m_requestedAlpBitCount = 0;
-	m_requestedUnk0x10BitCount = 0;
+	m_requestedIntensityBitCount = 0;
 	m_requestedPaletteBitCount = 0;
 }
 
@@ -277,19 +277,19 @@ LegoS32 GolRenderDevice::RestoreResources()
 {
 	GolImageList* imageList = m_imageLists;
 	while (imageList != NULL) {
-		imageList->VTable0x14();
+		imageList->RestoreImages();
 		imageList = imageList->GetNext();
 	}
 
 	GolTextureList* textureList = m_textureLists;
 	while (textureList != NULL) {
-		textureList->VTable0x10();
+		textureList->RestoreTextures();
 		textureList = textureList->GetNext();
 	}
 
 	GolMaterialLibrary* materialList = m_materialLists;
 	while (materialList != NULL) {
-		materialList->VTable0x10();
+		materialList->RestoreMaterials();
 		materialList = materialList->GetNext();
 	}
 
@@ -405,13 +405,13 @@ void GolRenderDevice::RemoveTextureList(GolTextureList* p_param)
 }
 
 // FUNCTION: GOLDP 0x10028b90
-GoldDune0x38* GolRenderDevice::FindTextureByName(const LegoChar* p_name)
+GolTexture* GolRenderDevice::FindTextureByName(const LegoChar* p_name)
 {
 	GolTextureList* node = m_textureLists;
 
 	while (node != NULL) {
 		if (node->GetNameEntries() != NULL) {
-			GoldDune0x38* value = static_cast<GoldDune0x38*>(node->GetName(p_name));
+			GolTexture* value = static_cast<GolTexture*>(node->GetName(p_name));
 			if (value != NULL) {
 				return value;
 			}
@@ -424,13 +424,13 @@ GoldDune0x38* GolRenderDevice::FindTextureByName(const LegoChar* p_name)
 }
 
 // FUNCTION: GOLDP 0x10028c20
-DuskwindBananaRelic0x24* GolRenderDevice::FindMaterialByName(const LegoChar* p_name)
+GolMaterial* GolRenderDevice::FindMaterialByName(const LegoChar* p_name)
 {
 	GolMaterialLibrary* node = m_materialLists;
 
 	while (node != NULL) {
 		if (node->GetNameEntries() != NULL) {
-			DuskwindBananaRelic0x24* value = static_cast<DuskwindBananaRelic0x24*>(node->GetName(p_name));
+			GolMaterial* value = static_cast<GolMaterial*>(node->GetName(p_name));
 			if (value != NULL) {
 				return value;
 			}
@@ -459,13 +459,13 @@ void GolRenderDevice::SelectTextureFormat(
 	grnBitCount = p_requestedTextureFormat.GetGreenBitCount();
 	bluBitCount = p_requestedTextureFormat.GetBlueBitCount();
 	alpBitCount = p_requestedTextureFormat.GetAlphaBitCount();
-	LegoU32 textureFormatField0x10BitCount = p_requestedTextureFormat.FUN_1001cc10();
+	LegoU32 intensityBitCount = p_requestedTextureFormat.GetIntensityBitCount();
 	LegoU32 paletteBitCount = p_requestedTextureFormat.GetPaletteBitCount();
 	LegoU32 bpp = p_requestedTextureFormat.m_bitsPerPixel;
 
 	if (m_requestedRedBitCount == redBitCount && m_requestedGrnBitCount == grnBitCount &&
 		m_requestedBluBitCount == bluBitCount && m_requestedAlpBitCount == alpBitCount &&
-		m_requestedUnk0x10BitCount == textureFormatField0x10BitCount && m_requestedPaletteBitCount == paletteBitCount) {
+		m_requestedIntensityBitCount == intensityBitCount && m_requestedPaletteBitCount == paletteBitCount) {
 		*p_actualTextureFormat = m_textureFormats[m_textureFormatIndex];
 		return;
 	}
@@ -474,7 +474,7 @@ void GolRenderDevice::SelectTextureFormat(
 	m_requestedGrnBitCount = grnBitCount;
 	m_requestedBluBitCount = bluBitCount;
 	m_requestedAlpBitCount = alpBitCount;
-	m_requestedUnk0x10BitCount = textureFormatField0x10BitCount;
+	m_requestedIntensityBitCount = intensityBitCount;
 	m_requestedPaletteBitCount = paletteBitCount;
 
 	if (alpBitCount != 0) {
@@ -489,10 +489,10 @@ void GolRenderDevice::SelectTextureFormat(
 				}
 			}
 		}
-		else if (textureFormatField0x10BitCount != 0) {
+		else if (intensityBitCount != 0) {
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel == bpp &&
-					m_textureFormats[i].FUN_1001cc10() == textureFormatField0x10BitCount &&
+					m_textureFormats[i].GetIntensityBitCount() == intensityBitCount &&
 					m_textureFormats[i].GetAlphaBitCount() == alpBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
@@ -534,10 +534,10 @@ void GolRenderDevice::SelectTextureFormat(
 				}
 			}
 		}
-		else if (textureFormatField0x10BitCount != 0) {
+		else if (intensityBitCount != 0) {
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel > bpp &&
-					m_textureFormats[i].FUN_1001cc10() >= textureFormatField0x10BitCount &&
+					m_textureFormats[i].GetIntensityBitCount() >= intensityBitCount &&
 					m_textureFormats[i].GetAlphaBitCount() >= alpBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
@@ -547,9 +547,9 @@ void GolRenderDevice::SelectTextureFormat(
 
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel > bpp &&
-					m_textureFormats[i].GetRedBitCount() >= textureFormatField0x10BitCount &&
-					m_textureFormats[i].GetGreenBitCount() >= textureFormatField0x10BitCount &&
-					m_textureFormats[i].GetBlueBitCount() >= textureFormatField0x10BitCount &&
+					m_textureFormats[i].GetRedBitCount() >= intensityBitCount &&
+					m_textureFormats[i].GetGreenBitCount() >= intensityBitCount &&
+					m_textureFormats[i].GetBlueBitCount() >= intensityBitCount &&
 					m_textureFormats[i].GetAlphaBitCount() >= alpBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
@@ -619,10 +619,10 @@ void GolRenderDevice::SelectTextureFormat(
 				}
 			}
 		}
-		else if (textureFormatField0x10BitCount != 0) {
+		else if (intensityBitCount != 0) {
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel == bpp &&
-					m_textureFormats[i].FUN_1001cc10() == textureFormatField0x10BitCount) {
+					m_textureFormats[i].GetIntensityBitCount() == intensityBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
 					return;
@@ -631,7 +631,7 @@ void GolRenderDevice::SelectTextureFormat(
 
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel > bpp &&
-					m_textureFormats[i].FUN_1001cc10() >= textureFormatField0x10BitCount) {
+					m_textureFormats[i].GetIntensityBitCount() >= intensityBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
 					return;
@@ -640,9 +640,9 @@ void GolRenderDevice::SelectTextureFormat(
 
 			for (i = 0; i < m_countTextureFormats; i++) {
 				if (m_textureFormats[i].m_bitsPerPixel > bpp &&
-					m_textureFormats[i].GetRedBitCount() >= textureFormatField0x10BitCount &&
-					m_textureFormats[i].GetGreenBitCount() >= textureFormatField0x10BitCount &&
-					m_textureFormats[i].GetBlueBitCount() >= textureFormatField0x10BitCount) {
+					m_textureFormats[i].GetRedBitCount() >= intensityBitCount &&
+					m_textureFormats[i].GetGreenBitCount() >= intensityBitCount &&
+					m_textureFormats[i].GetBlueBitCount() >= intensityBitCount) {
 					*p_actualTextureFormat = m_textureFormats[i];
 					m_textureFormatIndex = i;
 					return;
@@ -714,36 +714,36 @@ void GolRenderDevice::SelectTextureFormat(
 	m_requestedGrnBitCount = 0;
 	m_requestedBluBitCount = 0;
 	m_requestedAlpBitCount = 0;
-	m_requestedUnk0x10BitCount = 0;
+	m_requestedIntensityBitCount = 0;
 	m_requestedPaletteBitCount = 0;
 }
 
 // STUB: GOLDP 0x10029500
-void GolRenderDevice::VTable0xa4(GolWorldEntity* p_model)
+void GolRenderDevice::DrawModelEntityEnvironmentMapped(GolWorldEntity* p_model)
 {
 	GolWorldEntity::ResultStruct result;
-	p_model->VTable0x14(m_unk0x4c, &result);
+	p_model->ComputeVisibility(m_viewFrustum, &result);
 	if (!result.m_visibility) {
 		return;
 	}
 
 	GolVec3 localRight;
 	GolVec3 localForward;
-	GolSceneNode* node = static_cast<GolModelEntity*>(p_model)->VTable0x58(result.m_lodIndex);
+	GolSceneNode* node = static_cast<GolModelEntity*>(p_model)->GetSceneNode(result.m_lodIndex);
 	if (node != NULL) {
 		GolVec3 worldRight;
 		GolVec3 worldForward;
-		static_cast<GolModelEntity*>(p_model)->VTable0x5c(result.m_lodIndex);
-		node->VTable0x18(0)->VTable0x20(&worldRight, &worldForward);
-		p_model->VTable0x34(worldRight, &localRight);
-		p_model->VTable0x34(worldForward, &localForward);
+		static_cast<GolModelEntity*>(p_model)->ApplyPartAnimation(result.m_lodIndex);
+		node->GetTransform(0)->VTable0x20(&worldRight, &worldForward);
+		p_model->RotateToWorld(worldRight, &localRight);
+		p_model->RotateToWorld(worldForward, &localForward);
 	}
 	else {
-		p_model->VTable0x48(&localRight, &localForward);
+		p_model->GetAxes(&localRight, &localForward);
 	}
 
 	if (localRight.m_x == 0.0f && localRight.m_y == 0.0f) {
-		VTable0xa8(p_model, 0.0f, 0.5f);
+		DrawModelEntityWithUvOffset(p_model, 0.0f, 0.5f);
 	}
 	else {
 		GolVec2 uv;
@@ -757,12 +757,12 @@ void GolRenderDevice::VTable0xa4(GolWorldEntity* p_model)
 		}
 
 		LegoFloat v = g_arccosTable[static_cast<LegoS32>((localForward.m_z + 1.0f) * 511.5f)] * 0.31830987f;
-		VTable0xa8(p_model, u, v);
+		DrawModelEntityWithUvOffset(p_model, u, v);
 	}
 }
 
 // FUNCTION: GOLDP 0x10029680
-void GolRenderDevice::VTable0xa0(
+void GolRenderDevice::DrawModelEntityWithUvAxes(
 	GolWorldEntity* p_model,
 	const GolVec3* p_uAxis,
 	const GolVec3* p_vAxis,
@@ -770,14 +770,14 @@ void GolRenderDevice::VTable0xa0(
 )
 {
 	GolWorldEntity::ResultStruct result;
-	p_model->VTable0x14(m_unk0x4c, &result);
+	p_model->ComputeVisibility(m_viewFrustum, &result);
 	if (!result.m_visibility) {
 		return;
 	}
 
 	GolVec3 localRight;
 	GolVec3 localForward;
-	p_model->VTable0x48(&localRight, &localForward);
+	p_model->GetAxes(&localRight, &localForward);
 
 	LegoFloat normalDotRight = p_normal->m_z * localRight.m_z;
 	normalDotRight += p_normal->m_y * localRight.m_y;
@@ -818,65 +818,65 @@ void GolRenderDevice::VTable0xa0(
 		v = g_arccosTable[static_cast<LegoS32>((normalDotForward + 1.0f) * 511.5f)] * 0.31830987f;
 	}
 
-	VTable0xa8(p_model, u, v);
+	DrawModelEntityWithUvOffset(p_model, u, v);
 }
 
 // FUNCTION: GOLDP 0x10029840
-void GolRenderDevice::VTable0xa8(GolWorldEntity* p_param1, LegoFloat p_param2, LegoFloat p_param3)
+void GolRenderDevice::DrawModelEntityWithUvOffset(GolWorldEntity* p_param1, LegoFloat p_param2, LegoFloat p_param3)
 {
-	VTable0x94(p_param1);
+	DrawModelEntity(p_param1);
 }
 
 // FUNCTION: GOLDP 0x10029850
 void GolRenderDevice::SetAlphaOverride(undefined4 p_alpha, undefined4 p_flags)
 {
-	m_flags |= c_flagBit14;
-	m_unk0x0a = p_alpha;
-	m_unk0x08 = p_flags;
+	m_flags |= c_flagAlphaOverride;
+	m_alphaOverride = p_alpha;
+	m_alphaOverrideFlags = p_flags;
 }
 
 // FUNCTION: GOLDP 0x10029870
 void GolRenderDevice::ClearAlphaOverride()
 {
-	m_flags &= ~c_flagBit14;
+	m_flags &= ~c_flagAlphaOverride;
 }
 
 // FUNCTION: GOLDP 0x10029880
-void GolRenderDevice::VTable0xc0(const ColorRGBA& p_param)
+void GolRenderDevice::SetColorOverride(const ColorRGBA& p_param)
 {
-	m_unk0x118 = p_param;
-	m_flags |= c_flagBit19;
+	m_colorOverride = p_param;
+	m_flags |= c_flagColorOverride;
 }
 
 // FUNCTION: GOLDP 0x100298a0
-void GolRenderDevice::VTable0xc4()
+void GolRenderDevice::ClearColorOverride()
 {
-	m_flags &= ~c_flagBit19;
+	m_flags &= ~c_flagColorOverride;
 }
 
 // FUNCTION: GOLDP 0x100298b0
-void GolRenderDevice::VTable0x28()
+void GolRenderDevice::ClearLights()
 {
-	m_flags &= ~c_flagBit15;
-	m_unk0x11c = 0;
-	m_unk0x120 = 0;
-	m_unk0x124[0] = 0;
+	m_flags &= ~c_flagLightingEnabled;
+	m_lightCount = 0;
+	m_ambientColor = 0;
+	m_lights[0] = 0;
 }
 
 // FUNCTION: GOLDP 0x100298d0
-void GolRenderDevice::VTable0x2c(const MaterialColor* p_param)
+void GolRenderDevice::SetAmbient(const MaterialColor* p_param)
 {
-	m_flags |= c_flagBit15;
-	m_unk0x120 = p_param;
+	m_flags |= c_flagLightingEnabled;
+	m_ambientColor = p_param;
 }
 
 // FUNCTION: GOLDP 0x100298f0
-void GolRenderDevice::VTable0x30(const Light* p_param)
+void GolRenderDevice::AddLight(const Light* p_param)
 {
-	if (m_unk0x11c < 7) {
-		m_flags |= c_flagBit15;
-		m_unk0x124[m_unk0x11c] = p_param;
-		m_unk0x11c++;
+	if (m_lightCount < 7) {
+		m_flags |= c_flagLightingEnabled;
+		m_lights[m_lightCount] = p_param;
+		m_lightCount++;
 	}
 }
 
@@ -893,15 +893,15 @@ void GolRenderDevice::VTable0x48()
 }
 
 // FUNCTION: GOLDP 0x10029960
-void GolRenderDevice::VTable0x58(SlatePeak0x58* p_param1, undefined4 p_param2)
+void GolRenderDevice::SetRenderTarget(GolRenderTarget* p_param1, undefined4 p_param2)
 {
-	VTable0x54(p_param2);
+	BeginFrame(p_param2);
 }
 
 // FUNCTION: GOLDP 0x10029970
-void GolRenderDevice::VTable0x24()
+void GolRenderDevice::DetachCamera()
 {
-	m_unk0x0c = 0;
+	m_currentCamera = 0;
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
@@ -911,49 +911,49 @@ void GolRenderDevice::VTable0x38()
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolRenderDevice::VTable0x40()
+void GolRenderDevice::DisableMipmaps()
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x10029950 FOLDED
-SlatePeak0x58* GolRenderDevice::VTable0x4c(undefined2, undefined2)
+GolRenderTarget* GolRenderDevice::CreateRenderTarget(undefined2, undefined2)
 {
 	return NULL;
 }
 
 // FUNCTION: GOLDP 0x1002c020 FOLDED
-void GolRenderDevice::VTable0x50(SlatePeak0x58*)
+void GolRenderDevice::DestroyRenderTarget(GolRenderTarget*)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolRenderDevice::VTable0x60()
+void GolRenderDevice::ApplyLights()
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x100294f0 FOLDED
-void GolRenderDevice::VTable0x88(GolModelEntity*, GolD3DRenderState*, undefined4)
+void GolRenderDevice::DrawCollidableEntityWithState(GolModelEntity*, GolD3DRenderState*, undefined4)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x100294f0 FOLDED
-void GolRenderDevice::VTable0x8c(GolModelEntity*, GolD3DRenderState*, undefined4)
+void GolRenderDevice::DrawModelEntityWithState(GolModelEntity*, GolD3DRenderState*, undefined4)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x100294f0 FOLDED
-void GolRenderDevice::VTable0x98(GolModelEntity*, GolD3DRenderState*, undefined4)
+void GolRenderDevice::DrawCollidableEntityWithScopedState(GolModelEntity*, GolD3DRenderState*, undefined4)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x100294f0 FOLDED
-void GolRenderDevice::VTable0x9c(GolModelEntity*, GolD3DRenderState*, undefined4)
+void GolRenderDevice::DrawModelEntityWithScopedState(GolModelEntity*, GolD3DRenderState*, undefined4)
 {
 	// empty
 }
@@ -985,43 +985,43 @@ LegoS32 GolViewFrustum::ClassifySphere(const GolVec3& p_center, LegoFloat p_radi
 }
 
 // FUNCTION: GOLDP 0x1002c010 FOLDED
-void GolRenderDevice::VTable0x34(LegoS32 p_unk0x04, const LegoFloat* p_unk0x08)
+void GolRenderDevice::SetViewportRect(LegoS32 p_unk0x04, const LegoFloat* p_unk0x08)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x1002c010 FOLDED
-void GolRenderDevice::VTable0xac(GolModelEntity*, undefined4)
+void GolRenderDevice::DrawModelEntityLodMirrored(GolModelEntity*, undefined4)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x1002c010 FOLDED
-void GolRenderDevice::VTable0xb0(GolModelEntity*, undefined4)
+void GolRenderDevice::DrawModelEntityLod(GolModelEntity*, undefined4)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x1002c020 FOLDED
-void GolRenderDevice::VTable0x3c(LegoU32)
+void GolRenderDevice::EnableMipmaps(LegoU32)
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolRenderDevice::VTable0xc8()
+void GolRenderDevice::EnableWireframe()
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x10029920 FOLDED
-void GolRenderDevice::VTable0xcc()
+void GolRenderDevice::DisableWireframe()
 {
 	// empty
 }
 
 // FUNCTION: GOLDP 0x1002c020 FOLDED
-void GolRenderDevice::VTable0xec(undefined4)
+void GolRenderDevice::SelectViewport(undefined4)
 {
 	// empty
 }

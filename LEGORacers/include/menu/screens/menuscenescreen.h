@@ -26,49 +26,49 @@ public:
 		SceneWidget();
 		~SceneWidget() override; // vtable+0x04
 
-		LegoBool32 VTable0x08() override;                                                 // vtable+0x08
-		MenuWidget* VTable0x2c(void*, undefined4, undefined4) override;                   // vtable+0x2c
-		MenuWidget* VTable0x30(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
-		MenuWidget* VTable0x34(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x34
-		MenuWidget* VTable0x38(Rect*, Rect*) override;                                    // vtable+0x38
-		undefined4 VTable0x3c(undefined4) override;                                       // vtable+0x3c
+		LegoBool32 Destroy() override;                                                   // vtable+0x08
+		MenuWidget* OnCursorEvent(void*, undefined4, undefined4) override;               // vtable+0x2c
+		MenuWidget* OnKeyDown(InputEventQueue::Event*, undefined4, undefined4) override; // vtable+0x30
+		MenuWidget* OnKeyUp(InputEventQueue::Event*, undefined4, undefined4) override;   // vtable+0x34
+		MenuWidget* DrawSelf(Rect*, Rect*) override;                                     // vtable+0x38
+		undefined4 OnEvent(undefined4) override;                                         // vtable+0x3c
 
 		// SYNTHETIC: LEGORACERS 0x00466a80
 		// MenuSceneScreen::SceneWidget::`scalar deleting destructor'
 
-		undefined4 FUN_00466b50(MenuScreen::SceneRefBinding* p_createParams, undefined4 p_unk0x08);
-		void FUN_00466b10();
-		void FUN_00466b90();
-		void FUN_00466bf0(MenuScreen::SceneRefBinding* p_createParams, undefined4 p_unk0x08);
-		void FUN_00466d00(CutsceneDefinition::Frame* p_frame);
+		undefined4 Create(SceneRefBinding* p_createParams, undefined4 p_binary);
+		void ResetState();
+		void ComputeViewportRect();
+		void LoadCutscene(SceneRefBinding* p_createParams, undefined4 p_binary);
+		void SetFrame(CutsceneDefinition::Frame* p_frame);
 
-		CutsceneDefinition m_unk0x58;          // 0x058
-		CutscenePlayer m_unk0x84;              // 0x084
-		LegoU32 m_unk0x2ac;                    // 0x2ac
-		CutsceneDefinition::Frame* m_unk0x2b0; // 0x2b0
-		Rect m_unk0x2b4;                       // 0x2b4
-		undefined4 m_unk0x2c4;                 // 0x2c4
-		LegoBool32 m_unk0x2c8;                 // 0x2c8
-		LegoBool32 m_unk0x2cc;                 // 0x2cc
+		CutsceneDefinition m_definition;    // 0x058
+		CutscenePlayer m_player;            // 0x084
+		LegoU32 m_frameIndex;               // 0x2ac
+		CutsceneDefinition::Frame* m_frame; // 0x2b0
+		Rect m_viewportRect;                // 0x2b4
+		undefined4 m_autoAdvance;           // 0x2c4
+		LegoBool32 m_finished;              // 0x2c8
+		LegoBool32 m_skippable;             // 0x2cc
 	};
 
 	MenuSceneScreen();
-	~MenuSceneScreen() override;                // vtable+0x68
-	LegoBool32 Destroy() override;              // vtable+0x74
-	LegoBool32 VTable0x78(undefined4) override; // vtable+0x78
-	void VTable0x84() override;                 // vtable+0x84
-	LegoBool32 VTable0x8c(MenuGameContext*,
+	~MenuSceneScreen() override;            // vtable+0x68
+	LegoBool32 Destroy() override;          // vtable+0x74
+	LegoBool32 Update(undefined4) override; // vtable+0x78
+	void Navigate() override;               // vtable+0x84
+	LegoBool32 Initialize(MenuGameContext*,
 						  MenuScreenCreateParams*) override; // vtable+0x8c
 
 	// SYNTHETIC: LEGORACERS 0x00479710
 	// MenuSceneScreen::`scalar deleting destructor'
 
 protected:
-	SceneWidget m_unk0x368;         // 0x368
-	GolStringTable m_unk0x638;      // 0x638
-	GolD3DRenderDevice* m_renderer; // 0x64c
-	GolCamera* m_unk0x650;          // 0x650
-	undefined4 m_unk0x654;          // 0x654
+	SceneWidget m_sceneWidget;        // 0x368
+	GolStringTable m_languageStrings; // 0x638
+	GolD3DRenderDevice* m_renderer;   // 0x64c
+	GolCamera* m_savedCamera;         // 0x650
+	LegoBool32 m_firstUpdate;         // 0x654
 };
 
 #endif // MENUSCENESCREEN_H

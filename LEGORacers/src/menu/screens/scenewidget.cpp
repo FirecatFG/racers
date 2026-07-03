@@ -3,14 +3,14 @@
 #include "input/inputdevice.h"
 #include "menu/screens/menuscenescreen.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/golrendertarget.h"
 
 DECOMP_SIZE_ASSERT(MenuSceneScreen::SceneWidget, 0x2d0)
 
 // Keep this fold pair out of the unrelated MenuWidget null-return fold group.
 #pragma code_seg(".text$legoracers_00466090")
 // FUNCTION: LEGORACERS 0x00466090 FOLDED
-MenuWidget* MenuSceneScreen::SceneWidget::VTable0x2c(void*, undefined4, undefined4)
+MenuWidget* MenuSceneScreen::SceneWidget::OnCursorEvent(void*, undefined4, undefined4)
 {
 	return NULL;
 }
@@ -19,47 +19,47 @@ MenuWidget* MenuSceneScreen::SceneWidget::VTable0x2c(void*, undefined4, undefine
 // FUNCTION: LEGORACERS 0x00466a10
 MenuSceneScreen::SceneWidget::SceneWidget()
 {
-	FUN_00466b10();
+	ResetState();
 }
 
 // FUNCTION: LEGORACERS 0x00466aa0
 MenuSceneScreen::SceneWidget::~SceneWidget()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x00466b10
-void MenuSceneScreen::SceneWidget::FUN_00466b10()
+void MenuSceneScreen::SceneWidget::ResetState()
 {
-	m_unk0x2cc = TRUE;
-	m_unk0x2ac = 0;
-	m_unk0x2b0 = NULL;
-	m_unk0x2c4 = 0;
-	m_unk0x2c8 = FALSE;
-	m_unk0x2b4.m_top = 0;
-	m_unk0x2b4.m_bottom = 0;
-	m_unk0x2b4.m_left = 0;
-	m_unk0x2b4.m_right = 0;
+	m_skippable = TRUE;
+	m_frameIndex = 0;
+	m_frame = NULL;
+	m_autoAdvance = 0;
+	m_finished = FALSE;
+	m_viewportRect.m_top = 0;
+	m_viewportRect.m_bottom = 0;
+	m_viewportRect.m_left = 0;
+	m_viewportRect.m_right = 0;
 }
 
 // FUNCTION: LEGORACERS 0x00466b50
-undefined4 MenuSceneScreen::SceneWidget::FUN_00466b50(MenuScreen::SceneRefBinding* p_createParams, undefined4 p_unk0x08)
+undefined4 MenuSceneScreen::SceneWidget::Create(SceneRefBinding* p_createParams, undefined4 p_binary)
 {
 	if (m_flags & 1) {
-		VTable0x08();
+		Destroy();
 	}
 
-	if (FUN_00472a60(p_createParams)) {
-		FUN_00466bf0(p_createParams, p_unk0x08);
+	if (CreateWidget(p_createParams)) {
+		LoadCutscene(p_createParams, p_binary);
 	}
 
 	return m_flags & 1;
 }
 
 // FUNCTION: LEGORACERS 0x00466b90
-void MenuSceneScreen::SceneWidget::FUN_00466b90()
+void MenuSceneScreen::SceneWidget::ComputeViewportRect()
 {
-	const SlatePeak0x58* renderTarget = m_renderer->GetRenderTargetInfo();
+	const GolRenderTarget* renderTarget = m_renderer->GetRenderTargetInfo();
 	Rect rect = *GetGlobalRect();
 
 	if (rect.m_left < 0) {
@@ -78,122 +78,123 @@ void MenuSceneScreen::SceneWidget::FUN_00466b90()
 		rect.m_bottom = renderTarget->GetHeight();
 	}
 
-	m_unk0x2b4 = rect;
+	m_viewportRect = rect;
 }
 
 // FUNCTION: LEGORACERS 0x00466bf0
-void MenuSceneScreen::SceneWidget::FUN_00466bf0(MenuScreen::SceneRefBinding* p_createParams, undefined4 p_unk0x08)
+void MenuSceneScreen::SceneWidget::LoadCutscene(SceneRefBinding* p_createParams, undefined4 p_binary)
 {
-	FUN_00466b90();
-	m_unk0x58.FUN_00406980(m_golExport, m_renderer, p_createParams->m_unk0x38, p_unk0x08);
+	ComputeViewportRect();
+	m_definition.Load(m_golExport, m_renderer, p_createParams->m_cutsceneName, p_binary);
 
-	if (!m_unk0x58.GetFrameCount()) {
+	if (!m_definition.GetFrameCount()) {
 		GOL_FATALERROR_MESSAGE("Invalid cinema file, at least 1 cinema is required");
 	}
 
-	m_unk0x84.FUN_004a0730(
+	m_player.Load(
 		m_golExport,
 		m_renderer,
 		p_createParams->m_soundGroupBinding->GetSoundManager(),
-		&m_unk0x58,
-		p_createParams->m_unk0x38,
-		p_unk0x08
+		&m_definition,
+		p_createParams->m_cutsceneName,
+		p_binary
 	);
-	m_unk0x58.SetUnk0x0c(&m_unk0x84);
+	m_definition.SetEventSink(&m_player);
 
-	LegoFloat scale = (LegoFloat) ((double) (m_unk0x2b4.m_right - m_unk0x2b4.m_left) /
-								   (double) (m_unk0x2b4.m_bottom - m_unk0x2b4.m_top) * p_createParams->m_unk0x50);
-	m_unk0x58.FUN_00406f90(scale);
+	LegoFloat scale =
+		(LegoFloat) ((double) (m_viewportRect.m_right - m_viewportRect.m_left) /
+					 (double) (m_viewportRect.m_bottom - m_viewportRect.m_top) * p_createParams->m_aspectScale);
+	m_definition.SetCameraAspectRatios(scale);
 
-	m_unk0x2c4 = p_createParams->m_unk0x48;
-	m_unk0x2ac = p_createParams->m_unk0x4c;
-	if (m_unk0x2ac >= m_unk0x58.GetFrameCount()) {
-		m_unk0x2c8 = TRUE;
+	m_autoAdvance = p_createParams->m_autoAdvance;
+	m_frameIndex = p_createParams->m_startFrameIndex;
+	if (m_frameIndex >= m_definition.GetFrameCount()) {
+		m_finished = TRUE;
 		return;
 	}
 
-	m_unk0x2b0 = &m_unk0x58.GetFrames()[m_unk0x2ac];
-	m_unk0x2b0->FUN_00406310();
-	m_unk0x2b0->FUN_00406490(&m_unk0x2b4);
+	m_frame = &m_definition.GetFrames()[m_frameIndex];
+	m_frame->Play();
+	m_frame->SetViewportRect(&m_viewportRect);
 }
 
 // FUNCTION: LEGORACERS 0x00466d00
-void MenuSceneScreen::SceneWidget::FUN_00466d00(CutsceneDefinition::Frame* p_frame)
+void MenuSceneScreen::SceneWidget::SetFrame(CutsceneDefinition::Frame* p_frame)
 {
-	m_unk0x2b0->FUN_00406330();
-	m_unk0x2b0->FUN_00406380();
-	m_unk0x2b0 = p_frame;
-	m_unk0x2b0->FUN_00406330();
-	m_unk0x2b0->FUN_00406310();
-	m_unk0x2b0->FUN_00406490(&m_unk0x2b4);
-	m_unk0x84.FUN_004a3150();
+	m_frame->Rewind();
+	m_frame->Stop();
+	m_frame = p_frame;
+	m_frame->Rewind();
+	m_frame->Play();
+	m_frame->SetViewportRect(&m_viewportRect);
+	m_player.StopAll();
 }
 
 // FUNCTION: LEGORACERS 0x00466d60
-LegoBool32 MenuSceneScreen::SceneWidget::VTable0x08()
+LegoBool32 MenuSceneScreen::SceneWidget::Destroy()
 {
-	m_unk0x58.Clear();
-	m_unk0x84.Clear();
-	FUN_00466b10();
+	m_definition.Clear();
+	m_player.Clear();
+	ResetState();
 
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x00466d90
-undefined4 MenuSceneScreen::SceneWidget::VTable0x3c(undefined4 p_elapsedMs)
+undefined4 MenuSceneScreen::SceneWidget::OnEvent(undefined4 p_elapsedMs)
 {
-	if (m_unk0x2c8) {
+	if (m_finished) {
 		return FALSE;
 	}
 
-	if (m_unk0x2b0->GetUnk0x44() & 4) {
-		if (m_unk0x2c4 && ++m_unk0x2ac < m_unk0x58.GetFrameCount()) {
-			m_unk0x2b0 = &m_unk0x58.GetFrames()[m_unk0x2ac];
-			m_unk0x2b0->FUN_00406330();
-			m_unk0x2b0->FUN_00406310();
-			m_unk0x84.FUN_004a3150();
+	if (m_frame->GetFlags() & CutsceneDefinition::Frame::c_flagComplete) {
+		if (m_autoAdvance && ++m_frameIndex < m_definition.GetFrameCount()) {
+			m_frame = &m_definition.GetFrames()[m_frameIndex];
+			m_frame->Rewind();
+			m_frame->Play();
+			m_player.StopAll();
 		}
 		else {
-			m_unk0x2c8 = TRUE;
+			m_finished = TRUE;
 		}
 	}
 
-	m_unk0x2b0->FUN_00406390(p_elapsedMs);
-	m_unk0x84.FUN_004a2dc0(p_elapsedMs);
+	m_frame->Update(p_elapsedMs);
+	m_player.Update(p_elapsedMs);
 
 	return FALSE;
 }
 
 // FUNCTION: LEGORACERS 0x00466e40
-MenuWidget* MenuSceneScreen::SceneWidget::VTable0x38(Rect*, Rect*)
+MenuWidget* MenuSceneScreen::SceneWidget::DrawSelf(Rect*, Rect*)
 {
-	if (m_unk0x2c8) {
+	if (m_finished) {
 		return NULL;
 	}
 
-	m_renderer->VTable0xe4();
-	m_unk0x2b0->FUN_004064c0(m_renderer, 0);
-	m_unk0x84.FUN_004a2f30(m_renderer);
-	m_unk0x84.FUN_004a3070(m_renderer);
-	m_unk0x84.FUN_004a30b0(m_renderer);
-	m_renderer->VTable0xec(0);
-	m_renderer->VTable0xe8(0);
+	m_renderer->EnableZBuffer();
+	m_frame->Draw(m_renderer, 0);
+	m_player.Draw(m_renderer);
+	m_player.DrawTransparent(m_renderer);
+	m_player.DrawOverlay(m_renderer);
+	m_renderer->SelectViewport(0);
+	m_renderer->DisableZBuffer(0);
 
 	return NULL;
 }
 
 // FUNCTION: LEGORACERS 0x00466ec0
-MenuWidget* MenuSceneScreen::SceneWidget::VTable0x30(InputEventQueue::Event* p_item, undefined4, undefined4)
+MenuWidget* MenuSceneScreen::SceneWidget::OnKeyDown(InputEventQueue::Event* p_item, undefined4, undefined4)
 {
 	MenuWidget* result = this;
 
-	if (!m_unk0x2b0 || m_unk0x2b0->GetUnk0x48() >= m_unk0x2b0->GetUnk0x58()) {
-		if (m_unk0x2cc) {
+	if (!m_frame || m_frame->GetCurrentFrame() >= m_frame->GetPlaybackRate()) {
+		if (m_skippable) {
 			if (!p_item->m_isRepeat) {
 				LegoU32 keySource = p_item->m_keyCode & InputDevice::c_sourceMask;
 				if (keySource == InputDevice::c_sourceKeyboard || keySource == InputDevice::c_sourceMouse ||
 					keySource == InputDevice::c_sourceJoystickButton) {
-					m_unk0x2c8 = TRUE;
+					m_finished = TRUE;
 					return result;
 				}
 			}
@@ -204,12 +205,12 @@ MenuWidget* MenuSceneScreen::SceneWidget::VTable0x30(InputEventQueue::Event* p_i
 }
 
 // FUNCTION: LEGORACERS 0x00466f20
-MenuWidget* MenuSceneScreen::SceneWidget::VTable0x34(InputEventQueue::Event*, undefined4, undefined4)
+MenuWidget* MenuSceneScreen::SceneWidget::OnKeyUp(InputEventQueue::Event*, undefined4, undefined4)
 {
 	MenuWidget* result = this;
 
-	if ((!m_unk0x2b0 || m_unk0x2b0->GetUnk0x48() >= m_unk0x2b0->GetUnk0x58()) && m_unk0x2cc) {
-		m_unk0x2c8 = TRUE;
+	if ((!m_frame || m_frame->GetCurrentFrame() >= m_frame->GetPlaybackRate()) && m_skippable) {
+		m_finished = TRUE;
 		return result;
 	}
 

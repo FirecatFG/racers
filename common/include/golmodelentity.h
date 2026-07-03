@@ -7,7 +7,7 @@
 
 class GolModelBase;
 class GolModelMaterialTable;
-struct MaterialTable0x0c;
+struct MaterialTable;
 class GolSceneNode;
 class GolWorldDatabase;
 
@@ -18,33 +18,33 @@ class GolModelEntity : public GolOrientedEntity {
 public:
 	GolModelEntity();
 
-	void VTable0x00() override;                                                     // vtable+0x00
-	void VTable0x10(LegoS32 p_elapsed) override;                                    // vtable+0x10
-	void VTable0x14(const GolViewFrustum& p_view, ResultStruct* p_result) override; // vtable+0x14
-	void VTable0x1c(GolRenderDevice& p_renderer) override;                          // vtable+0x1c
-	LegoBool32 VTable0x20() override;                                               // vtable+0x20
-	void VTable0x24(ColorTransform0x20* p_transform) override;                      // vtable+0x24
-	void VTable0x28() override;                                                     // vtable+0x28
-	virtual void VTable0x4c(LegoU32 p_index);                                       // vtable+0x4c
-	virtual void VTable0x50(GolModelBase* p_model, LegoFloat p_modelDistance);      // vtable+0x50
-	virtual void VTable0x54();                                                      // vtable+0x54
-	virtual GolSceneNode* VTable0x58(undefined4);                                   // vtable+0x58
-	virtual void VTable0x5c(undefined4);                                            // vtable+0x5c
+	void UpdateBounds() override;                                                          // vtable+0x00
+	void Update(LegoS32 p_elapsed) override;                                               // vtable+0x10
+	void ComputeVisibility(const GolViewFrustum& p_view, ResultStruct* p_result) override; // vtable+0x14
+	void Draw(GolRenderDevice& p_renderer) override;                                       // vtable+0x1c
+	LegoBool32 GetKind() override;                                                         // vtable+0x20
+	void ApplyColorTransform(ColorTransform* p_transform) override;                        // vtable+0x24
+	void ClearColorTransform() override;                                                   // vtable+0x28
+	virtual void ComputeBoundsFromModel(LegoU32 p_index);                                  // vtable+0x4c
+	virtual void SetPrimaryModel(GolModelBase* p_model, LegoFloat p_modelDistance);        // vtable+0x50
+	virtual void ResetModelState();                                                        // vtable+0x54
+	virtual GolSceneNode* GetSceneNode(undefined4);                                        // vtable+0x58
+	virtual void ApplyPartAnimation(undefined4);                                           // vtable+0x5c
 
-	void FUN_10027c50(GolModelBase* p_model, LegoFloat p_modelDistance);
-	void FUN_10027cc0(const GolVec3& p_vector, ResultStruct* p_result);
-	void FUN_10027e70(GolMatrix4* p_dest, LegoU32 p_index);
-	void FUN_10027fe0(LegoU32 p_index, GolVec3* p_destVec, LegoFloat* p_destScalar);
-	LegoFloat FUN_00411640() const;
-	LegoFloat FUN_00411660() const;
-	void FUN_00411680(LegoFloat p_arg);
-	void FUN_004116b0(LegoFloat p_arg);
-	LegoFloat FUN_004116e0() const;
-	LegoFloat FUN_004116f0() const;
-	void FUN_00411700(LegoFloat p_arg);
-	void FUN_00411730(LegoFloat p_arg);
+	void AddModel(GolModelBase* p_model, LegoFloat p_modelDistance);
+	void SelectLod(const GolVec3& p_vector, ResultStruct* p_result);
+	void BuildModelMatrix(GolMatrix4* p_dest, LegoU32 p_index);
+	void GetModelBounds(LegoU32 p_index, GolVec3* p_destVec, LegoFloat* p_destScalar);
+	LegoFloat GetTextureScrollU() const;
+	LegoFloat GetTextureScrollV() const;
+	void SetTextureScrollU(LegoFloat p_arg);
+	void SetTextureScrollV(LegoFloat p_arg);
+	LegoFloat GetTextureScrollSpeedU() const;
+	LegoFloat GetTextureScrollSpeedV() const;
+	void SetTextureScrollSpeedU(LegoFloat p_arg);
+	void SetTextureScrollSpeedV(LegoFloat p_arg);
 	GolModelBase* GetModel(LegoU32 p_index) const { return m_models[p_index]; }
-	MaterialTable0x0c* GetMaterialTable(LegoU32 p_index) const { return m_materialTables[p_index]; }
+	MaterialTable* GetMaterialTable(LegoU32 p_index) const { return m_materialTables[p_index]; }
 	LegoFloat GetModelDistance(LegoU32 p_index) const { return m_modelDistances[p_index]; }
 	void SetModelDistance(LegoU32 p_index, LegoFloat p_modelDistance) { m_modelDistances[p_index] = p_modelDistance; }
 	void ClearModelDistances()
@@ -67,7 +67,7 @@ public:
 			modelDistances[i] = m_modelDistances[i];
 		}
 	}
-	LegoFloat GetUnk0x58() const { return m_unk0x58; }
+	LegoFloat GetScale() const { return m_scale; }
 	LegoBool32 HasModel() const { return m_flags & c_flagBit0; }
 	void CopyOrientationAndPositionFrom(const GolModelEntity& p_other)
 	{
@@ -97,18 +97,18 @@ public:
 		p_dest->m_radius = -1.0f;
 	}
 	void InvalidateRadius() { m_radius = -1.0f; }
-	void SetUnk0x58ThenInvalidateRadius(LegoFloat p_unk0x58)
+	void SetScaleThenInvalidateRadius(LegoFloat p_scale)
 	{
-		m_unk0x58 = p_unk0x58;
+		m_scale = p_scale;
 		m_radius = -1.0f;
 	}
-	void SetUnk0x58AndInvalidateRadius(LegoFloat p_unk0x58)
+	void SetScaleAndInvalidateRadius(LegoFloat p_scale)
 	{
 		m_radius = -1.0f;
-		m_unk0x58 = p_unk0x58;
+		m_scale = p_scale;
 	}
-	MaterialTable0x0c* GetPrimaryMaterialTable() const { return m_materialTables[0]; }
-	void SetPrimaryMaterialTable(MaterialTable0x0c* p_materialTable) { m_materialTables[0] = p_materialTable; }
+	MaterialTable* GetPrimaryMaterialTable() const { return m_materialTables[0]; }
+	void SetPrimaryMaterialTable(MaterialTable* p_materialTable) { m_materialTables[0] = p_materialTable; }
 	void EnableFlagBit1() { m_flags |= c_flagBit1; }
 
 protected:
@@ -121,15 +121,15 @@ protected:
 		c_flagBit3 = 1 << 3,
 	};
 
-	LegoFloat m_unk0x58;                    // 0x58
-	LegoU32 m_flags;                        // 0x5c
-	LegoU16 m_unk0x60;                      // 0x60
-	LegoU16 m_unk0x62;                      // 0x62
-	LegoS32 m_unk0x64;                      // 0x64
-	LegoS32 m_unk0x68;                      // 0x68
-	MaterialTable0x0c* m_materialTables[3]; // 0x6c
-	GolModelBase* m_models[3];              // 0x78
-	LegoFloat m_modelDistances[3];          // 0x84
+	LegoFloat m_scale;                  // 0x58
+	LegoU32 m_flags;                    // 0x5c
+	LegoU16 m_textureScrollU;           // 0x60
+	LegoU16 m_textureScrollV;           // 0x62
+	LegoS32 m_textureScrollSpeedU;      // 0x64
+	LegoS32 m_textureScrollSpeedV;      // 0x68
+	MaterialTable* m_materialTables[3]; // 0x6c
+	GolModelBase* m_models[3];          // 0x78
+	LegoFloat m_modelDistances[3];      // 0x84
 };
 
 #endif // GOLMODELENTITY_H

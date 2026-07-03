@@ -18,21 +18,21 @@ public:
 		typedef LegoU32 ResultValue;
 
 		union Result {
-			void* m_pointer;
-			LegoBool32 m_result;
-			ResultValue m_value;
+			void* m_pointer;     // 0x00
+			LegoBool32 m_result; // 0x00
+			ResultValue m_value; // 0x00
 		};
 
 		virtual ResultValue OnKeyDown(
 			InputDevice* p_device,
 			undefined4 p_keyCode,
-			undefined4 p_arg3
+			undefined4 p_time
 		) = 0;                                                                                           // vtable+0x00
-		virtual ResultValue OnKeyUp(InputDevice* p_device, undefined4 p_keyCode, undefined4 p_arg3) = 0; // vtable+0x04
+		virtual ResultValue OnKeyUp(InputDevice* p_device, undefined4 p_keyCode, undefined4 p_time) = 0; // vtable+0x04
 		virtual ResultValue OnKeyRepeat(
 			InputDevice* p_device,
 			undefined4 p_keyCode,
-			undefined4 p_arg3
+			undefined4 p_time
 		) = 0; // vtable+0x08
 	};
 
@@ -182,7 +182,7 @@ protected:
 	undefined4 m_stringBufferLength;              // 0x5c
 	LegoChar m_deviceName[32];                    // 0x60
 	undefined m_unk0x80[0x90 - 0x80];             // 0x80
-	undefined4 m_deviceId;                        // 0x90
+	LegoU32 m_deviceId;                           // 0x90
 	wchar_t* m_stringBuffer;                      // 0x94
 	Callback* m_callback;                         // 0x98
 };

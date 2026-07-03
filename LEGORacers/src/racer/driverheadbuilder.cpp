@@ -69,11 +69,11 @@ LegoBool32 DriverHeadBuilder::ReleaseResources()
 		return TRUE;
 	}
 
-	m_golExport->VTable0x3c(m_worldDatabase);
+	m_golExport->DestroyWorldDatabase(m_worldDatabase);
 
 	for (LegoS32 i = 0; i < 7; i++) {
 		if (m_hatModels[i] != NULL) {
-			m_golExport->VTable0x48(m_hatModels[i]);
+			m_golExport->DestroyModel(m_hatModels[i]);
 		}
 	}
 
@@ -91,12 +91,12 @@ void DriverHeadBuilder::LoadHeadResource(LegoBool32 p_binary)
 		g_hashTable->SetCurrentEntryFromString(headModelDirectory);
 	}
 
-	m_worldDatabase = m_golExport->VTable0x08();
+	m_worldDatabase = m_golExport->CreateWorldDatabase();
 	if (m_worldDatabase == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	m_worldDatabase->VTable0x14(m_renderer, headModelFileName, p_binary, 1.0f);
+	m_worldDatabase->Load(m_renderer, headModelFileName, p_binary, 1.0f);
 
 	if (g_hashTable) {
 		g_hashTable->SetCurrentEntryFromString("MENUDATA");
@@ -107,12 +107,12 @@ void DriverHeadBuilder::LoadHeadResource(LegoBool32 p_binary)
 void DriverHeadBuilder::CreateHatModels()
 {
 	for (LegoS32 i = 0; i < 7; i++) {
-		m_hatModels[i] = m_golExport->VTable0x14();
+		m_hatModels[i] = m_golExport->CreateModel();
 		if (m_hatModels[i] == NULL) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
 
-		m_hatModels[i]->VTable0x18(m_renderer, 2, 0x258, 0x12c, 0x64, 3);
+		m_hatModels[i]->Allocate(m_renderer, 2, 0x258, 0x12c, 0x64, 3);
 	}
 
 	::memset(m_hatModelUsed, 0, sizeof(m_hatModelUsed));
@@ -155,11 +155,11 @@ GolModelBase* DriverHeadBuilder::GetFaceModel(LegoS32 p_index)
 
 	GolWorldDatabase* db = m_worldDatabase;
 	GolModelEntity* entity;
-	if (db->m_unk0xb4.GetNameEntries() == NULL) {
+	if (db->m_modelEntityNames.GetNameEntries() == NULL) {
 		entity = NULL;
 	}
 	else {
-		entity = static_cast<GolModelEntity*>(db->m_unk0xb4.GetName(modelName));
+		entity = static_cast<GolModelEntity*>(db->m_modelEntityNames.GetName(modelName));
 	}
 
 	return entity->GetModel(0);
@@ -174,11 +174,11 @@ GolModelBase* DriverHeadBuilder::GetTorsoModel(LegoS32 p_index)
 
 	GolWorldDatabase* db = m_worldDatabase;
 	GolModelEntity* entity;
-	if (db->m_unk0xb4.GetNameEntries() == NULL) {
+	if (db->m_modelEntityNames.GetNameEntries() == NULL) {
 		entity = NULL;
 	}
 	else {
-		entity = static_cast<GolModelEntity*>(db->m_unk0xb4.GetName(modelName));
+		entity = static_cast<GolModelEntity*>(db->m_modelEntityNames.GetName(modelName));
 	}
 
 	return entity->GetModel(0);
@@ -193,11 +193,11 @@ GolModelBase* DriverHeadBuilder::GetLegModel(LegoS32 p_index)
 
 	GolWorldDatabase* db = m_worldDatabase;
 	GolModelEntity* entity;
-	if (db->m_unk0xb4.GetNameEntries() == NULL) {
+	if (db->m_modelEntityNames.GetNameEntries() == NULL) {
 		entity = NULL;
 	}
 	else {
-		entity = static_cast<GolModelEntity*>(db->m_unk0xb4.GetName(modelName));
+		entity = static_cast<GolModelEntity*>(db->m_modelEntityNames.GetName(modelName));
 	}
 
 	return entity->GetModel(0);

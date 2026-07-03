@@ -7,12 +7,11 @@
 #include "goltxtparser.h"
 
 class GolD3DRenderDevice;
-class GoldDune0x38;
-class PurpleDune0x7c;
-class RaceState;
+class GolTexture;
+class GolD3DTexture;
 
 // SIZE 0x2c
-struct MagentaRibbonSourceItem0x2c {
+struct GolTextureSourceItem {
 	LegoU32 m_width;                  // 0x00
 	LegoU32 m_height;                 // 0x04
 	GolSurfaceFormat m_textureFormat; // 0x08
@@ -25,28 +24,32 @@ struct MagentaRibbonSourceItem0x2c {
 // Runtime texture source used by VTable0x20 when textures are supplied by code
 // instead of parsed from a .tdb definition file.
 // SIZE 0x04
-class MagentaRibbonSource0x4 {
+class GolTextureSource {
 public:
-	virtual void VTable0x00(LegoU32 p_index, MagentaRibbonSourceItem0x2c* p_item) = 0;      // vtable+0x00
-	virtual void VTable0x04(LegoU32 p_index, LegoU32 p_flags, GoldDune0x38* p_texture) = 0; // vtable+0x04
+	virtual void GetTextureDefinition(LegoU32 p_index, GolTextureSourceItem* p_item) = 0;      // vtable+0x00
+	virtual void OnTextureLoaded(LegoU32 p_index, LegoU32 p_flags, GolTexture* p_texture) = 0; // vtable+0x04
 };
 
 // VTABLE: GOLDP 0x100575ac
 // SIZE 0x20
 class GolTextureList : public GolNameTable {
 public:
-	// .tdb binary block tags (cf. data/liblr1/LibLR1/TDB.cs).
-	enum TdbBlockType {
-		c_tdbTextures = 0x27,
-		c_tdbProperty28 = 0x28,
-		c_tdbBmpTga = 0x2a,
-		c_tdbColor2c = 0x2c,
-		c_tdbProperty2d = 0x2d,
-	};
-
 	// VTABLE: GOLDP 0x100575d8
 	// SIZE 0x1fc
 	class TdbTxtParser : public GolTxtParser {
+	public:
+		// .tdb tokens with proven payloads; flag-only keywords stay generic
+		enum {
+			e_texture = 0x27,
+			e_flipVertically = 0x28,
+			e_mipmaps = 0x29,
+			e_bmp = 0x2a,
+			e_tga = 0x2b,
+			e_colorKey = 0x2c,
+			e_unknown0x2d = 0x2d,
+			e_unknown0x2e = 0x2e,
+		};
+
 		// SYNTHETIC: GOLDP 0x10030050 FOLDED
 		// GolTextureList::TdbTxtParser::`scalar deleting destructor'
 
@@ -58,45 +61,40 @@ public:
 	~GolTextureList() override; // vtable+0x00
 	void Clear() override;      // vtable+0x08
 
-	virtual void VTable0x0c();        // vtable+0x0c
-	virtual void VTable0x10();        // vtable+0x10
+	virtual void ReleaseTextures();   // vtable+0x0c
+	virtual void RestoreTextures();   // vtable+0x10
 	virtual void AllocateItems() = 0; // vtable+0x14
-	virtual void VTable0x18(
+	virtual void AllocateTexture(
 		LegoU32 p_index,
 		const GolSurfaceFormat& p_textureFormat,
 		LegoU32 p_width,
 		LegoU32 p_height
 	) = 0;                                                                       // vtable+0x18
-	virtual void VTable0x1c(GolD3DRenderDevice* p_renderer, LegoU32 p_capacity); // vtable+0x1c
-	virtual void VTable0x20(
+	virtual void Initialize(GolD3DRenderDevice* p_renderer, LegoU32 p_capacity); // vtable+0x1c
+	virtual void InitializeFromSource(
 		GolD3DRenderDevice* p_renderer,
-		MagentaRibbonSource0x4* p_source,
+		GolTextureSource* p_source,
 		LegoU32 p_capacity
 	); // vtable+0x20
-	virtual void VTable0x24(
-		GolD3DRenderDevice* p_renderer,
-		const LegoChar* p_fileName,
-		LegoBool32 p_binary
-	);                                                    // vtable+0x24
-	virtual PurpleDune0x7c* GetItem(LegoU32 p_index) = 0; // vtable+0x28
+	virtual void Load(GolD3DRenderDevice* p_renderer, const LegoChar* p_fileName,
+					  LegoBool32 p_binary);              // vtable+0x24
+	virtual GolD3DTexture* GetItem(LegoU32 p_index) = 0; // vtable+0x28
 
 	// SYNTHETIC: GOLDP 0x1002b500
 	// GolTextureList::`scalar deleting destructor'
 
 	GolTextureList* GetNext() const { return m_next; }
 	void SetNext(GolTextureList* p_next) { m_next = p_next; }
-	LegoU32 GetItemCount() const { return m_numItems; }
-
-protected:
-	friend class RaceState;
+	LegoU32 GetItemCount() const { return m_itemCount; }
 
 	void LoadTextures();
 
-	GolD3DRenderDevice* m_renderer;    // 0x0c
-	GolTextureList* m_next;            // 0x10
-	MagentaRibbonSource0x4* m_unk0x14; // 0x14
-	GolHashTable::Entry* m_unk0x18;    // 0x18
-	LegoU32 m_numItems;                // 0x1c
+protected:
+	GolD3DRenderDevice* m_renderer;        // 0x0c
+	GolTextureList* m_next;                // 0x10
+	GolTextureSource* m_textureSource;     // 0x14
+	GolHashTable::Entry* m_nameTableEntry; // 0x18
+	LegoU32 m_itemCount;                   // 0x1c
 };
 
 #endif // GOLTEXTURELIST_H

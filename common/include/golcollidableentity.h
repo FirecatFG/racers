@@ -15,13 +15,16 @@ class GolCollidableEntity : public GolModelEntity {
 public:
 	GolCollidableEntity();
 
-	void VTable0x1c(GolRenderDevice&) override; // vtable+0x1c
-	void VTable0x54() override;                 // vtable+0x54
-	virtual void VTable0x60(GolModelBase* p_model, GolBoundingShape* p_shape,
-							LegoFloat p_modelDistance); // vtable+0x60
+	void Draw(GolRenderDevice&) override; // vtable+0x1c
+	void ResetModelState() override;      // vtable+0x54
+	virtual void SetPrimaryModelAndShape(
+		GolModelBase* p_model,
+		GolBoundingShape* p_shape,
+		LegoFloat p_modelDistance
+	); // vtable+0x60
 
-	void FUN_1001acf0(GolModelBase* p_model, GolBoundingShape* p_shape, LegoFloat p_modelDistance);
-	void FUN_00403c60();
+	void AddModel(GolModelBase* p_model, GolBoundingShape* p_shape, LegoFloat p_modelDistance);
+	void MirrorY();
 	GolBoundingShape* GetBoundingShape(LegoU32 p_index) const { return m_boundingShapes[p_index]; }
 
 protected:

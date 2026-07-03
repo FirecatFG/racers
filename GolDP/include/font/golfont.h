@@ -1,12 +1,12 @@
 #ifndef GOLFONT_H
 #define GOLFONT_H
 
-#include "bronzedune0x4c.h"
 #include "golfontbase.h"
+#include "golpalettedtexture.h"
 
 class GolD3DRenderDevice;
-class DuskwindBananaRelic0x30;
-class PurpleDune0x7c;
+class GolSoftwareMaterial;
+class GolD3DTexture;
 
 // VTABLE: GOLDP 0x100562dc
 // SIZE 0xa0
@@ -14,15 +14,15 @@ class GolFont : public GolFontBase {
 public:
 	GolFont();
 
-	void Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer) override;                  // vtable+0x00
-	void VTable0x04(GolD3DRenderDevice* p_renderer, GolSurfaceFormat* p_textureFormat) override; // vtable+0x04
-	PurpleDune0x7c* GetTexture(LegoU32 p_index) override;                                        // vtable+0x08
-	void VTable0x0c(GolRenderDevice* p_unk0x04, LegoU32 p_count) override;                       // vtable+0x0c
-	void SelectSurface(LegoU32 p_index) override;                                                // vtable+0x10
-	void VTable0x14(Rect* p_sourceRect, Rect* p_destRect) override;                              // vtable+0x14
-	void VTable0x18() override;                                                                  // vtable+0x18
-	~GolFont() override;                                                                         // vtable+0x1c
-	void Clear() override;                                                                       // vtable+0x20
+	void Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer) override;                      // vtable+0x00
+	void CreateSurfaces(GolD3DRenderDevice* p_renderer, GolSurfaceFormat* p_textureFormat) override; // vtable+0x04
+	GolD3DTexture* GetTexture(LegoU32 p_index) override;                                             // vtable+0x08
+	void BeginDrawing(GolRenderDevice* p_renderer, LegoU32 p_count) override;                        // vtable+0x0c
+	void SelectSurface(LegoU32 p_index) override;                                                    // vtable+0x10
+	void DrawGlyph(Rect* p_sourceRect, Rect* p_destRect) override;                                   // vtable+0x14
+	void EndDrawing() override;                                                                      // vtable+0x18
+	~GolFont() override;                                                                             // vtable+0x1c
+	void Clear() override;                                                                           // vtable+0x20
 
 	// SYNTHETIC: GOLDP 0x10004190
 	// GolFont::`vector deleting destructor'
@@ -41,12 +41,12 @@ private:
 		GolSurfaceFormat* p_textureFormat
 	);
 
-	BronzeDune0x4c m_sourceImage;         // 0x40
-	GolD3DRenderDevice* m_renderer;       // 0x8c
-	PurpleDune0x7c* m_textures;           // 0x90
-	LegoFloat m_inverseTextureWidth;      // 0x94
-	LegoFloat m_inverseTextureHeight;     // 0x98
-	DuskwindBananaRelic0x30* m_materials; // 0x9c
+	GolPalettedTexture m_sourceImage; // 0x40
+	GolD3DRenderDevice* m_renderer;   // 0x8c
+	GolD3DTexture* m_textures;        // 0x90
+	LegoFloat m_inverseTextureWidth;  // 0x94
+	LegoFloat m_inverseTextureHeight; // 0x98
+	GolSoftwareMaterial* m_materials; // 0x9c
 };
 
 #endif // GOLFONT_H

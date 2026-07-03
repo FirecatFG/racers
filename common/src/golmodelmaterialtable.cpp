@@ -23,7 +23,7 @@ GolModelMaterialTable::GolModelMaterialTable()
 
 // FUNCTION: GOLDP 0x10025df0 FOLDED
 // FUNCTION: LEGORACERS 0x004105d0 FOLDED
-void GolModelMaterialTable::FUN_10025df0(GolRenderDevice* p_renderer, undefined4 p_arg2)
+void GolModelMaterialTable::Initialize(GolRenderDevice* p_renderer, undefined4 p_arg2)
 {
 	if (m_renderer != NULL) {
 		Destroy();
@@ -41,7 +41,7 @@ void GolModelMaterialTable::FUN_10025df0(GolRenderDevice* p_renderer, undefined4
 }
 
 // FUNCTION: GOLDP 0x10025e60
-void GolModelMaterialTable::FUN_10025e60(GolRenderDevice* p_renderer, const LegoChar* p_fileName, LegoBool32 p_binary)
+void GolModelMaterialTable::Load(GolRenderDevice* p_renderer, const LegoChar* p_fileName, LegoBool32 p_binary)
 {
 	if (m_renderer != NULL) {
 		Destroy();
@@ -63,15 +63,15 @@ void GolModelMaterialTable::FUN_10025e60(GolRenderDevice* p_renderer, const Lego
 	}
 
 	parser->OpenFileForRead(p_fileName);
-	parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
-	FUN_10025f90(p_renderer, *parser);
+	parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(GolModelMaterialTable::e_materials));
+	Parse(p_renderer, *parser);
 
 	parser->Dispose();
 	delete parser;
 }
 
 // FUNCTION: GOLDP 0x10025f90
-void GolModelMaterialTable::FUN_10025f90(GolRenderDevice* p_renderer, GolFileParser& p_parser)
+void GolModelMaterialTable::Parse(GolRenderDevice* p_renderer, GolFileParser& p_parser)
 {
 	LegoU32 i;
 
@@ -93,7 +93,7 @@ void GolModelMaterialTable::FUN_10025f90(GolRenderDevice* p_renderer, GolFilePar
 	for (i = 0; i < m_count; i++) {
 		GolName materialName;
 		::strncpy(materialName, p_parser.ReadString(), sizeof(materialName));
-		DuskwindBananaRelic0x24* material = m_renderer->FindMaterialByName(materialName);
+		GolMaterial* material = m_renderer->FindMaterialByName(materialName);
 		m_entries[i] = material;
 		if (m_entries[i] == NULL) {
 			char message[64];

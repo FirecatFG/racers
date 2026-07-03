@@ -87,9 +87,9 @@ void GameState::Initialize()
 	m_state.m_unk0x1e = 0x80;
 	m_state.m_musicVolume = 0xff;
 	m_state.m_soundVolume = 0xff;
-	m_state.m_unk0x21 = 1;
+	m_state.m_stereo = 1;
 	m_state.m_languageIndex = GetRegistryLanguageIndex();
-	m_state.m_unk0x23 = 3;
+	m_state.m_lapCount = 3;
 	m_state.m_inputBindings.m_players[0].m_selectedRecordId = 0;
 	m_state.m_inputBindings.m_players[0].m_selectedRecordSource = 2;
 	m_state.m_inputBindings.m_players[0].m_selectedSaveIndex = 0;
@@ -125,7 +125,7 @@ void GameState::InitializeInputBindings(InputManager* p_inputManager)
 
 	for (i = 0; i < 2; i++) {
 		InputBindingState::Entry* entry = &m_state.m_inputBindings.m_entries[i];
-		JoystickInputDevice* joystick = p_inputManager->FindJoystickByDeviceId(i);
+		JoystickDevice* joystick = p_inputManager->FindJoystickByDeviceId(i);
 
 		if (joystick == NULL) {
 			entry->m_deviceType = 4;
@@ -151,7 +151,7 @@ void GameState::InitializeInputBindings(InputManager* p_inputManager)
 		}
 	}
 
-	KeyboardInputDevice* keyboard = p_inputManager->GetKeyboard();
+	KeyboardDevice* keyboard = p_inputManager->GetKeyboard();
 
 	for (i = 0; i < sizeOfArray(g_keyboardInputBindingEvents); i++) {
 		if (keyboard == NULL) {
@@ -200,7 +200,7 @@ LegoU32 GameState::FindAvailableInputBindingEntry(LegoU32 p_playerIndex)
 	if (p_playerIndex && otherEntryIndex < c_joystickBindingCount) {
 		InputBindingState::Entry* entry = &m_state.m_inputBindings.m_entries[otherEntryIndex];
 		LegoU32 deviceId = entry->m_deviceId;
-		JoystickInputDevice* joystick = m_inputManager->FindJoystickByDeviceId(deviceId);
+		JoystickDevice* joystick = m_inputManager->FindJoystickByDeviceId(deviceId);
 
 		if (joystick != NULL && static_cast<LegoU32>(joystick->GetButtonCountFast()) >= c_inputBindingEventCount) {
 			return c_keyboardBindingStart;
@@ -240,9 +240,9 @@ void GameState::LoadFromSaveGame(SaveGame* p_saveGame, LegoU32 p_activeSaveIndex
 	m_state.m_unk0x1e = state.m_unk0x1e;
 	m_state.m_musicVolume = state.m_musicVolume;
 	m_state.m_soundVolume = state.m_soundVolume;
-	m_state.m_unk0x21 = state.m_unk0x21;
+	m_state.m_stereo = state.m_stereo;
 	m_state.m_languageIndex = state.m_languageIndex;
-	m_state.m_unk0x23 = state.m_unk0x23;
+	m_state.m_lapCount = state.m_lapCount;
 
 	LegoU8* destBindingEntry = &m_state.m_inputBindings.m_entries[0].m_deviceSubType;
 	LegoU8* sourceBindingEntry = &state.m_inputBindings.m_entries[0].m_deviceSubType;
@@ -410,7 +410,7 @@ LegoU32 GameState::GetDefaultInputEvent(LegoU32 p_entryIndex, LegoU32 p_eventInd
 			return result;
 		}
 
-		JoystickInputDevice* joystick = m_inputManager->FindJoystickByDeviceId(entry->m_deviceId);
+		JoystickDevice* joystick = m_inputManager->FindJoystickByDeviceId(entry->m_deviceId);
 		p_eventIndex -= 2;
 
 		if (joystick != NULL && static_cast<LegoU32>(joystick->GetButtonCountFast()) > p_eventIndex) {

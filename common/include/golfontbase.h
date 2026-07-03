@@ -3,15 +3,16 @@
 
 #include "compat.h"
 #include "decomp.h"
+#include "fourbytes.h"
 #include "golname.h"
-#include "image/whitebaffoon0x50.h"
 #include "surface/color.h"
 #include "types.h"
 
 class GolD3DRenderDevice;
 class GolRenderDevice;
 class GolString;
-class PurpleDune0x7c;
+class GolD3DTexture;
+class GolSurfaceFormat;
 struct Rect;
 
 // VTABLE: GOLDP 0x10056ea8
@@ -20,26 +21,26 @@ class GolFontBase {
 public:
 	enum Flags {
 		c_flagBit2 = 0x0004,
-		c_flagBit3 = 0x0008,
-		c_flagBit4 = 0x0010,
-		c_flagBit5 = 0x0020,
+		c_flagBmpSource = 0x0008,
+		c_flagTgaSource = 0x0010,
+		c_flagColorKeyed = 0x0020,
 		c_flagBit11 = 0x0800,
 		c_allFlags = 0xffff,
-		c_flagsWithoutBit3 = c_allFlags & ~c_flagBit3,
-		c_flagsWithoutBit4 = c_allFlags & ~c_flagBit4
+		c_flagsWithoutBmp = c_allFlags & ~c_flagBmpSource,
+		c_flagsWithoutTga = c_allFlags & ~c_flagTgaSource
 	};
 
 	GolFontBase();
 
-	virtual void Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer);                      // vtable+0x00
-	virtual void VTable0x04(GolD3DRenderDevice* p_renderer, GolSurfaceFormat* p_textureFormat) = 0; // vtable+0x04
-	virtual PurpleDune0x7c* GetTexture(LegoU32 p_index) = 0;                                        // vtable+0x08
-	virtual void VTable0x0c(GolRenderDevice* p_unk0x04, LegoU32 p_count) = 0;                       // vtable+0x0c
-	virtual void SelectSurface(LegoU32 p_index) = 0;                                                // vtable+0x10
-	virtual void VTable0x14(Rect* p_sourceRect, Rect* p_destRect) = 0;                              // vtable+0x14
-	virtual void VTable0x18() = 0;                                                                  // vtable+0x18
-	virtual ~GolFontBase();                                                                         // vtable+0x1c
-	virtual void Clear();                                                                           // vtable+0x20
+	virtual void Load(const LegoChar* p_name, GolD3DRenderDevice* p_renderer);                          // vtable+0x00
+	virtual void CreateSurfaces(GolD3DRenderDevice* p_renderer, GolSurfaceFormat* p_textureFormat) = 0; // vtable+0x04
+	virtual GolD3DTexture* GetTexture(LegoU32 p_index) = 0;                                             // vtable+0x08
+	virtual void BeginDrawing(GolRenderDevice* p_renderer, LegoU32 p_count) = 0;                        // vtable+0x0c
+	virtual void SelectSurface(LegoU32 p_index) = 0;                                                    // vtable+0x10
+	virtual void DrawGlyph(Rect* p_sourceRect, Rect* p_destRect) = 0;                                   // vtable+0x14
+	virtual void EndDrawing() = 0;                                                                      // vtable+0x18
+	virtual ~GolFontBase();                                                                             // vtable+0x1c
+	virtual void Clear();                                                                               // vtable+0x20
 
 	// SYNTHETIC: GOLDP 0x1001dee0
 	// GolFontBase::`scalar deleting destructor'
@@ -59,27 +60,27 @@ public:
 	static LegoS32 __cdecl CompareGlyphChars(const void* p_left, const void* p_right);
 	void MeasureString(GolString* p_string, LegoS32* p_width, LegoS32* p_height) const;
 	void MeasureString(const LegoChar* p_string, LegoS32* p_width, LegoS32* p_height);
-	void FUN_00408d50(
+	void MeasureString(
 		GolString* p_string,
 		LegoS32 p_wrapWidth,
-		LegoS32 p_unk0x10,
+		LegoS32 p_lineSpacing,
 		LegoFloat p_scaleX,
 		LegoFloat p_scaleY,
 		LegoS32* p_width,
 		LegoS32* p_height
 	);
-	void FUN_00408fe0(
+	void DrawString(
 		GolString* p_string,
 		GolRenderDevice* p_renderer,
 		LegoS32 p_x,
 		LegoS32 p_y,
 		LegoS32 p_wrapWidth,
-		LegoS32 p_unk0x18,
+		LegoS32 p_lineSpacing,
 		LegoFloat p_scaleX,
 		LegoFloat p_scaleY,
 		Rect* p_rect,
 		ColorRGBA* p_color,
-		LegoS32 p_unk0x2c
+		LegoS32 p_centered
 	);
 	LegoU32 FindGlyphIndex(LegoU16 p_char) const;
 

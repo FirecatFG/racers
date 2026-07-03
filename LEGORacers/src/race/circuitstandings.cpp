@@ -5,7 +5,7 @@
 #include "golstringtable.h"
 #include "race/racestate.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/golrendertarget.h"
 
 #include <memory.h>
 #include <stdio.h>
@@ -13,7 +13,7 @@
 DECOMP_SIZE_ASSERT(CircuitStandings, 0x48)
 
 // GLOBAL: LEGORACERS 0x004b0b58
-const LegoU32 g_unk0x004b0b58[6] = {30, 20, 10, 3, 2, 1};
+const LegoU32 g_circuitPointsByPosition[6] = {30, 20, 10, 3, 2, 1};
 
 // GLOBAL: LEGORACERS 0x004bef74
 const LegoChar g_circuitStandingsPlusSign[] = "+";
@@ -38,10 +38,10 @@ void CircuitStandings::Reset()
 {
 	LegoS32 i;
 
-	m_unk0x00 = 0;
+	m_font = 0;
 	m_context = NULL;
-	m_unk0x08 = 0;
-	m_unk0x0c = 0;
+	m_raceState = 0;
+	m_stringTable = 0;
 
 	for (i = 0; i < sizeOfArray(m_points); i++) {
 		m_points[i] = 0;
@@ -73,7 +73,7 @@ void CircuitStandings::Shutdown()
 }
 
 // FUNCTION: LEGORACERS 0x004402b0
-void CircuitStandings::FUN_004402b0()
+void CircuitStandings::ClearRoundPoints()
 {
 	LegoU32* values = m_roundPoints;
 	LegoS32 remaining = sizeOfArray(m_roundPoints);
@@ -83,10 +83,10 @@ void CircuitStandings::FUN_004402b0()
 }
 
 // FUNCTION: LEGORACERS 0x004402c0
-void CircuitStandings::FUN_004402c0(LegoU32 p_unk0x04, LegoU32 p_unk0x08)
+void CircuitStandings::AwardPoints(LegoU32 p_racerIndex, LegoU32 p_position)
 {
-	m_roundPoints[p_unk0x04] = g_unk0x004b0b58[p_unk0x08];
-	m_points[p_unk0x04] += g_unk0x004b0b58[p_unk0x08];
+	m_roundPoints[p_racerIndex] = g_circuitPointsByPosition[p_position];
+	m_points[p_racerIndex] += g_circuitPointsByPosition[p_position];
 }
 
 // FUNCTION: LEGORACERS 0x004402f0
@@ -110,7 +110,7 @@ LegoS32 CircuitStandings::GetRank(LegoU32 p_index)
 }
 
 // FUNCTION: LEGORACERS 0x00440330
-void CircuitStandings::FUN_00440330(LegoU32 p_elapsedMs)
+void CircuitStandings::Update(LegoU32 p_elapsedMs)
 {
 	if (p_elapsedMs > m_displayTimerMs) {
 		m_displayTimerMs = c_displayResetMs;
@@ -121,7 +121,7 @@ void CircuitStandings::FUN_00440330(LegoU32 p_elapsedMs)
 }
 
 // FUNCTION: LEGORACERS 0x004246d0 FOLDED
-LegoU32 CircuitStandings::FUN_004246d0(LegoChar* p_buffer, LegoU32 p_time)
+LegoU32 CircuitStandings::FormatTime(LegoChar* p_buffer, LegoU32 p_time)
 {
 	LegoU32 millisecondsPerHour = 3600000;
 	LegoS32 divisor = 10;
@@ -163,30 +163,30 @@ LegoU32 CircuitStandings::FUN_004246d0(LegoChar* p_buffer, LegoU32 p_time)
 }
 
 // STUB: LEGORACERS 0x00440350
-void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
+void CircuitStandings::Draw(LegoBool32 p_showCircuitPoints)
 {
 	GolString string;
 	LegoChar timeBuffer[12];
 	LegoChar buffer[64];
 	LegoU32 selected[c_racerCount];
-	RaceState::Racer::Field0x00c::StandingsDeltaEntry deltaEntries[c_racerCount];
+	Racer::StandingsDeltaEntry deltaEntries[c_racerCount];
 	GolD3DRenderDevice* renderer = m_context->m_golApp->GetRenderer();
-	const SlatePeak0x58* renderTargetInfo = renderer->GetRenderTargetInfo();
+	const GolRenderTarget* renderTargetInfo = renderer->GetRenderTargetInfo();
 
 	if (!m_isVisible) {
 		return;
 	}
 
-	RaceState::Racer* racers = m_unk0x08->GetRacers();
+	Racer* racers = m_raceState->GetRacers();
 
 	if (p_showCircuitPoints) {
-		string.CopyFromBufSelection(m_unk0x0c->GetStringBuffer(c_titleStringId), 0);
+		string.CopyFromBufSelection(m_stringTable->GetStringBuffer(c_titleStringId), 0);
 		LegoS32 textWidth;
 		LegoS32 textHeight;
-		m_unk0x00->MeasureString(&string, &textWidth, &textHeight);
-		renderer->VTable0x64(
+		m_font->MeasureString(&string, &textWidth, &textHeight);
+		renderer->DrawString(
 			&string,
-			m_unk0x00,
+			m_font,
 			(renderTargetInfo->GetWidth() >> 1) - (static_cast<LegoU32>(textWidth) >> 1),
 			c_titleY,
 			1.0f,
@@ -209,15 +209,15 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 			}
 
 			if (m_displayTimerMs >= c_hiddenInactiveThresholdMs ||
-				m_context->m_playerSetupSlots[selectedIndex].m_unk0x10) {
+				m_context->m_playerSetupSlots[selectedIndex].m_slotState) {
 				::sprintf(buffer, "%ld", rank + 1);
-				renderer->VTable0x68(buffer, m_unk0x00, c_rankX, y, 1.0f, 1.0f, NULL, 0);
+				renderer->DrawCString(buffer, m_font, c_rankX, y, 1.0f, 1.0f, NULL, 0);
 
-				RaceState::Racer* selectedRacer = &racers[selectedIndex];
-				renderer->VTable0x64(&selectedRacer->m_displayName, m_unk0x00, c_racerNameX, y, 1.0f, 1.0f, NULL, 0);
+				Racer* selectedRacer = &racers[selectedIndex];
+				renderer->DrawString(&selectedRacer->m_displayName, m_font, c_racerNameX, y, 1.0f, 1.0f, NULL, 0);
 
 				::sprintf(buffer, "%ld", m_points[selectedIndex]);
-				renderer->VTable0x68(buffer, m_unk0x00, c_pointsX, y, 1.0f, 1.0f, NULL, 0);
+				renderer->DrawCString(buffer, m_font, c_pointsX, y, 1.0f, 1.0f, NULL, 0);
 			}
 
 			selected[selectedIndex] = TRUE;
@@ -234,8 +234,8 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 			}
 		}
 
-		RaceState::Racer* leaderRacer = &racers[leaderIndex];
-		leaderRacer->FUN_00439c70(deltaEntries);
+		Racer* leaderRacer = &racers[leaderIndex];
+		leaderRacer->ComputeStandingsDeltas(deltaEntries);
 
 		LegoS32 sign = 1;
 		LegoS32 rank = 0;
@@ -252,15 +252,15 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 			}
 
 			if (m_displayTimerMs >= c_hiddenInactiveThresholdMs ||
-				m_context->m_playerSetupSlots[selectedIndex].m_unk0x10) {
+				m_context->m_playerSetupSlots[selectedIndex].m_slotState) {
 				::sprintf(buffer, "%ld", rank + 1);
-				renderer->VTable0x68(buffer, m_unk0x00, c_rankX, y, 1.0f, 1.0f, NULL, 0);
+				renderer->DrawCString(buffer, m_font, c_rankX, y, 1.0f, 1.0f, NULL, 0);
 
-				RaceState::Racer* selectedRacer = &racers[selectedIndex];
-				renderer->VTable0x64(&selectedRacer->m_displayName, m_unk0x00, c_racerNameX, y, 1.0f, 1.0f, NULL, 0);
+				Racer* selectedRacer = &racers[selectedIndex];
+				renderer->DrawString(&selectedRacer->m_displayName, m_font, c_racerNameX, y, 1.0f, 1.0f, NULL, 0);
 
 				::sprintf(buffer, "%ld", m_roundPoints[selectedIndex]);
-				renderer->VTable0x68(buffer, m_unk0x00, c_pointsX, y, 1.0f, 1.0f, NULL, 0);
+				renderer->DrawCString(buffer, m_font, c_pointsX, y, 1.0f, 1.0f, NULL, 0);
 
 				LegoU32 deltaIndex = 0;
 				while (deltaIndex < c_racerCount && deltaEntries[deltaIndex].m_racer != selectedRacer) {
@@ -268,12 +268,12 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 				}
 
 				if (deltaIndex < c_racerCount) {
-					RaceState::Racer::Field0x00c::StandingsDeltaEntry* deltaEntry = &deltaEntries[deltaIndex];
+					Racer::StandingsDeltaEntry* deltaEntry = &deltaEntries[deltaIndex];
 					if (deltaEntry->m_racer == leaderRacer) {
-						string.CopyFromBufSelection(m_unk0x0c->GetStringBuffer(c_leaderStringId), 0);
-						renderer->VTable0x64(&string, m_unk0x00, c_deltaSignX, y, 1.0f, 1.0f, NULL, 0);
+						string.CopyFromBufSelection(m_stringTable->GetStringBuffer(c_leaderStringId), 0);
+						renderer->DrawString(&string, m_font, c_deltaSignX, y, 1.0f, 1.0f, NULL, 0);
 					}
-					else if (deltaEntry->m_racer->m_unk0xd04 & c_racerFlags0xd04Bit12) {
+					else if (deltaEntry->m_racer->m_flags & Racer::c_flagFinished) {
 						LegoS32 delta = deltaEntry->m_delta;
 						if (delta <= 0) {
 							if (delta < 0) {
@@ -286,25 +286,17 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 							sign = 1;
 						}
 
-						FUN_004246d0(timeBuffer, delta);
-						renderer->VTable0x68(timeBuffer, m_unk0x00, c_deltaTimeX, y, 1.0f, 1.0f, NULL, 0);
+						FormatTime(timeBuffer, delta);
+						renderer->DrawCString(timeBuffer, m_font, c_deltaTimeX, y, 1.0f, 1.0f, NULL, 0);
 
 						if (sign == 1) {
-							renderer->VTable0x68(
-								g_circuitStandingsPlusSign,
-								m_unk0x00,
-								c_deltaSignX,
-								y,
-								1.0f,
-								1.0f,
-								NULL,
-								0
-							);
+							renderer
+								->DrawCString(g_circuitStandingsPlusSign, m_font, c_deltaSignX, y, 1.0f, 1.0f, NULL, 0);
 						}
 						else if (sign == -1) {
-							renderer->VTable0x68(
+							renderer->DrawCString(
 								g_circuitStandingsMinusSign,
-								m_unk0x00,
+								m_font,
 								c_deltaSignX,
 								y,
 								1.0f,
@@ -315,8 +307,8 @@ void CircuitStandings::FUN_00440350(LegoBool32 p_showCircuitPoints)
 						}
 					}
 					else {
-						string.CopyFromBufSelection(m_unk0x0c->GetStringBuffer(c_trailingStringId), 0);
-						renderer->VTable0x64(&string, m_unk0x00, c_deltaSignX, y, 1.0f, 1.0f, NULL, 0);
+						string.CopyFromBufSelection(m_stringTable->GetStringBuffer(c_trailingStringId), 0);
+						renderer->DrawString(&string, m_font, c_deltaSignX, y, 1.0f, 1.0f, NULL, 0);
 					}
 				}
 			}

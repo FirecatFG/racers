@@ -3,7 +3,7 @@
 
 #include "compat.h"
 #include "decomp.h"
-#include "surface/moltenquillphantom0x34.h"
+#include "surface/golattachedsurface.h"
 
 #include <ddraw.h>
 
@@ -11,7 +11,7 @@ class GolDrawDPState;
 
 // VTABLE: GOLDP 0x10056964
 // SIZE 0x38
-class GolDepthBuffer : public MoltenQuillPhantom0x34 {
+class GolDepthBuffer : public GolAttachedSurface {
 public:
 	GolDepthBuffer();
 	~GolDepthBuffer() override; // vtable+0x00
@@ -21,12 +21,12 @@ public:
 	// SYNTHETIC: GOLDP 0x100182d0
 	// GolDepthBuffer::`scalar deleting destructor'
 
-	LegoS32 Create(GolDrawDPState* p_arg1, SlatePeak0x58* p_surface);
+	LegoS32 Create(GolDrawDPState* p_arg1, GolRenderTarget* p_surface);
 
-	friend class SlatePeak0x58;
+	friend class GolRenderTarget;
 
 protected:
-	LPDIRECTDRAWSURFACE4 m_surface;
+	LPDIRECTDRAWSURFACE4 m_surface; // 0x34
 };
 
 #endif // GOLDEPTHBUFFER_H

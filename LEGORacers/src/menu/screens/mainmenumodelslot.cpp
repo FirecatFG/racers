@@ -14,7 +14,7 @@ DECOMP_SIZE_ASSERT(MainMenuModelSlot, 0x15c)
 DECOMP_SIZE_ASSERT(MainMenuModelSlot::CreateParams, 0x1c)
 
 // GLOBAL: LEGORACERS 0x004b33c4
-LegoFloat g_fltMax0x004b33c4 = FLT_MAX;
+LegoFloat g_unlimitedModelDistance = FLT_MAX;
 
 // FUNCTION: LEGORACERS 0x0047de70
 MainMenuModelSlot::MainMenuModelSlot()
@@ -25,28 +25,28 @@ MainMenuModelSlot::MainMenuModelSlot()
 // FUNCTION: LEGORACERS 0x0047df00
 MainMenuModelSlot::~MainMenuModelSlot()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x0047df60
 void MainMenuModelSlot::Reset()
 {
 	::memset(&m_cosmetics, 0, sizeof(m_cosmetics));
-	m_unk0x150 = NULL;
-	m_unk0x114 = NULL;
-	m_unk0x110 = NULL;
+	m_modelBuilder = NULL;
+	m_bodySceneNode = NULL;
+	m_driverModel = NULL;
 	m_unk0x14c = 0;
 }
 
 // FUNCTION: LEGORACERS 0x0047df90
-void MainMenuModelSlot::FUN_0047df90()
+void MainMenuModelSlot::CreateDriverModel()
 {
-	m_unk0x150->SetExpressionMask(TRUE);
-	m_unk0x110 = m_unk0x0c->VTable0x14();
+	m_modelBuilder->SetExpressionMask(TRUE);
+	m_driverModel = m_golExport->CreateModel();
 
 	undefined4 dimensions[5];
-	m_unk0x150->GetMaxMergedCounts(dimensions);
-	m_unk0x110->VTable0x18(m_unk0x10, 2, dimensions[0], dimensions[1], dimensions[2], dimensions[3]);
+	m_modelBuilder->GetMaxMergedCounts(dimensions);
+	m_driverModel->Allocate(m_renderer, 2, dimensions[0], dimensions[1], dimensions[2], dimensions[3]);
 
 	undefined4 zero = 0;
 	GolModelBase* nullModel = NULL;
@@ -55,105 +55,105 @@ void MainMenuModelSlot::FUN_0047df90()
 	m_cosmetics.m_torsoIndex = zero;
 	m_cosmetics.m_faceIndex = zero;
 	m_cosmetics.m_hatIndex = zero;
-	m_unk0x110 = m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, zero);
-	if (m_unk0x110 == nullModel) {
+	m_driverModel = m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, zero);
+	if (m_driverModel == nullModel) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	m_unk0x114 = m_unk0x0c->VTable0x18();
-	if (m_unk0x114 == nullNode) {
+	m_bodySceneNode = m_golExport->CreateSceneNode();
+	if (m_bodySceneNode == nullNode) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	m_unk0x114->VTable0x10(m_unk0x150->GetBodySceneNode(&m_cosmetics));
-	m_unk0x1c.FUN_0040d550(m_unk0x110, m_unk0x114, &m_unk0x118, g_fltMax0x004b33c4);
+	m_bodySceneNode->CopyFrom(m_modelBuilder->GetBodySceneNode(&m_cosmetics));
+	m_driverEntity.SetModel(m_driverModel, m_bodySceneNode, &m_bodyModelPart, g_unlimitedModelDistance);
 }
 
 // FUNCTION: LEGORACERS 0x0047e0a0
-LegoBool32 MainMenuModelSlot::FUN_0047e0a0(CreateParams* p_createParams)
+LegoBool32 MainMenuModelSlot::Create(CreateParams* p_createParams)
 {
-	VTable0x08();
-	m_unk0x150 = p_createParams->m_unk0x0c;
+	Destroy();
+	m_modelBuilder = p_createParams->m_modelBuilder;
 
-	if (MenuSceneElement::FUN_0046b300(p_createParams)) {
-		FUN_0047df90();
-		m_unk0x1c.VTable0x08(p_createParams->m_position);
+	if (MenuSceneElement::Create(p_createParams)) {
+		CreateDriverModel();
+		m_driverEntity.SetPosition(p_createParams->m_position);
 	}
 
-	return m_unk0x18;
+	return m_created;
 }
 
 // FUNCTION: LEGORACERS 0x0047e0e0
-LegoBool32 MainMenuModelSlot::VTable0x08()
+LegoBool32 MainMenuModelSlot::Destroy()
 {
-	if (!m_unk0x18) {
+	if (!m_created) {
 		return TRUE;
 	}
 
-	m_unk0x1c.VTable0x54();
+	m_driverEntity.ResetModelState();
 
-	if (m_unk0x110) {
-		m_unk0x0c->VTable0x48(m_unk0x110);
+	if (m_driverModel) {
+		m_golExport->DestroyModel(m_driverModel);
 	}
 
-	if (m_unk0x114) {
-		m_unk0x0c->VTable0x4c(m_unk0x114);
+	if (m_bodySceneNode) {
+		m_golExport->DestroySceneNode(m_bodySceneNode);
 	}
 
-	return MenuSceneElement::VTable0x08();
+	return MenuSceneElement::Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x0047e130
-void MainMenuModelSlot::FUN_0047e130(LegoU32 p_unk0x04)
+void MainMenuModelSlot::SetHat(LegoU32 p_hatIndex)
 {
-	m_cosmetics.m_hatIndex = p_unk0x04;
-	m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, 0);
+	m_cosmetics.m_hatIndex = p_hatIndex;
+	m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, 0);
 }
 
 // FUNCTION: LEGORACERS 0x0047e160
-void MainMenuModelSlot::FUN_0047e160(LegoU32 p_unk0x04, LegoU32 p_unk0x08)
+void MainMenuModelSlot::SetFace(LegoU32 p_faceIndex, LegoU32 p_expressionIndex)
 {
-	m_cosmetics.m_faceIndex = p_unk0x04;
-	m_cosmetics.m_expressionIndex = p_unk0x08;
-	GolModelBase* model = m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, 0);
-	m_unk0x150->ApplyFaceExpression(model, &m_cosmetics);
+	m_cosmetics.m_faceIndex = p_faceIndex;
+	m_cosmetics.m_expressionIndex = p_expressionIndex;
+	GolModelBase* model = m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, 0);
+	m_modelBuilder->ApplyFaceExpression(model, &m_cosmetics);
 }
 
 // FUNCTION: LEGORACERS 0x0047e1b0
-void MainMenuModelSlot::FUN_0047e1b0(LegoU32 p_unk0x04)
+void MainMenuModelSlot::SetTorso(LegoU32 p_torsoIndex)
 {
-	m_cosmetics.m_torsoIndex = p_unk0x04;
-	m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, 0);
+	m_cosmetics.m_torsoIndex = p_torsoIndex;
+	m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, 0);
 }
 
 // FUNCTION: LEGORACERS 0x0047e1e0
-void MainMenuModelSlot::FUN_0047e1e0(LegoU32 p_unk0x04)
+void MainMenuModelSlot::SetLegs(LegoU32 p_legIndex)
 {
-	m_cosmetics.m_legIndex = p_unk0x04;
-	m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, 0);
+	m_cosmetics.m_legIndex = p_legIndex;
+	m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, 0);
 }
 
 // FUNCTION: LEGORACERS 0x0047e210
-void MainMenuModelSlot::FUN_0047e210(DriverCosmetics* p_cosmetics)
+void MainMenuModelSlot::SetCosmetics(DriverCosmetics* p_cosmetics)
 {
 	m_cosmetics = *p_cosmetics;
-	m_unk0x150->BuildDriverModel(&m_cosmetics, m_unk0x110, 0);
+	m_modelBuilder->BuildDriverModel(&m_cosmetics, m_driverModel, 0);
 }
 
 // FUNCTION: LEGORACERS 0x0047e250
-LegoBool32 MainMenuModelSlot::VTable0x0c()
+LegoBool32 MainMenuModelSlot::Draw()
 {
 	GolVec3 position;
-	m_unk0x1c.VTable0x04(&position);
-	m_unk0x1c.VTable0x08(position);
-	m_unk0x10->VTable0x94(&m_unk0x1c);
+	m_driverEntity.GetPosition(&position);
+	m_driverEntity.SetPosition(position);
+	m_renderer->DrawModelEntity(&m_driverEntity);
 
 	return TRUE;
 }
 
 // FUNCTION: LEGORACERS 0x0047e290
-LegoBool32 MainMenuModelSlot::VTable0x10(undefined4 p_unk0x04)
+LegoBool32 MainMenuModelSlot::Update(undefined4 p_elapsedMs)
 {
-	m_unk0x1c.VTable0x10(p_unk0x04);
+	m_driverEntity.Update(p_elapsedMs);
 	return TRUE;
 }

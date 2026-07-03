@@ -42,20 +42,20 @@ void TimeRaceManager::Reset()
 	m_worldDatabase = NULL;
 	m_golExport = NULL;
 	m_racer = NULL;
-	m_unk0x110 = NULL;
-	m_unk0x390 = NULL;
-	m_unk0x208 = NULL;
+	m_recordGhostMarker = NULL;
+	m_recordGhostCarModel = NULL;
+	m_recordGhostDriver = NULL;
 	m_recordRun = NULL;
 	m_bestRun = NULL;
 	m_scratchRun = NULL;
-	m_unk0x3b0 = 0;
-	m_flags0x3b4 = 0;
-	m_unk0x394.m_x = 0.0f;
-	m_unk0x394.m_y = 0.0f;
-	m_unk0x394.m_z = 0.0f;
-	m_unk0x3a0.m_x = 0.0f;
-	m_unk0x3a0.m_y = 0.0f;
-	m_unk0x3a0.m_z = 0.0f;
+	m_elapsedTotalMs = 0;
+	m_flags = 0;
+	m_bestDriverMountOffset.m_x = 0.0f;
+	m_bestDriverMountOffset.m_y = 0.0f;
+	m_bestDriverMountOffset.m_z = 0.0f;
+	m_recordDriverMountOffset.m_x = 0.0f;
+	m_recordDriverMountOffset.m_y = 0.0f;
+	m_recordDriverMountOffset.m_z = 0.0f;
 }
 
 // FUNCTION: LEGORACERS 0x00422420
@@ -125,39 +125,39 @@ void TimeRaceManager::Initialize(
 	m_recordRun->m_initialRotation.m_z = 0.0f;
 	m_recordRun->m_initialRotation.m_w = 0.0f;
 
-	m_worldDatabase = m_golExport->VTable0x08();
-	m_worldDatabase->VTable0x14(p_renderer, "ghost", p_binary, 1.0f);
+	m_worldDatabase = m_golExport->CreateWorldDatabase();
+	m_worldDatabase->Load(p_renderer, "ghost", p_binary, 1.0f);
 
-	m_unk0x110 = m_worldDatabase->GetUnk0xa0();
-	m_unk0x208 = m_worldDatabase->GetUnk0xa0() + 1;
-	m_unk0x390 = m_worldDatabase->GetUnk0x9c();
-	m_unk0x208->FUN_0040dad0(12);
+	m_recordGhostMarker = m_worldDatabase->GetAnimatedEntities();
+	m_recordGhostDriver = m_worldDatabase->GetAnimatedEntities() + 1;
+	m_recordGhostCarModel = m_worldDatabase->GetModelEntities();
+	m_recordGhostDriver->PlayPart(12);
 
-	m_unk0x3a0.m_x = -2.131681f;
-	m_unk0x3a0.m_y = 0.01123f;
-	m_unk0x3a0.m_z = 1.608f;
+	m_recordDriverMountOffset.m_x = -2.131681f;
+	m_recordDriverMountOffset.m_y = 0.01123f;
+	m_recordDriverMountOffset.m_z = 1.608f;
 
 	if (p_binary) {
-		m_flags0x3b4 |= c_flag0x3b4Bit2;
+		m_flags |= c_flagBinaryGhosts;
 	}
 
 	if (p_mirror) {
-		m_flags0x3b4 |= c_flag0x3b4Bit5;
+		m_flags |= c_flagMirror;
 	}
 
-	m_unk0x3ac = 0;
+	m_sampleCountdownMs = 0;
 }
 
 // FUNCTION: LEGORACERS 0x00422670
 void TimeRaceManager::Shutdown()
 {
-	m_unk0x20c.VTable0x54();
-	m_unk0x114.VTable0x54();
-	m_unk0x1c.VTable0x54();
-	m_unk0x300.VTable0x54();
+	m_bestGhostSecondary.ResetModelState();
+	m_bestGhostDriver.ResetModelState();
+	m_bestGhostMarker.ResetModelState();
+	m_bestGhostCarModel.ResetModelState();
 
 	if (m_worldDatabase) {
-		m_golExport->VTable0x3c(m_worldDatabase);
+		m_golExport->DestroyWorldDatabase(m_worldDatabase);
 		m_worldDatabase = NULL;
 	}
 	if (m_recordRun) {
@@ -177,36 +177,36 @@ void TimeRaceManager::Shutdown()
 }
 
 // FUNCTION: LEGORACERS 0x00422710
-void TimeRaceManager::FUN_00422710(LegoU32 p_elapsedMs)
+void TimeRaceManager::Update(LegoU32 p_elapsedMs)
 {
-	LegoU8 flags = m_flags0x3b4;
-	if (!(flags & c_flag0x3b4Bit1)) {
+	LegoU8 flags = m_flags;
+	if (!(flags & c_flagRunning)) {
 		return;
 	}
 
-	m_unk0x3b0 += p_elapsedMs;
+	m_elapsedTotalMs += p_elapsedMs;
 
-	if (flags & c_flag0x3b4Bit0) {
-		m_unk0x300.VTable0x10(p_elapsedMs);
-		m_unk0x1c.VTable0x10(p_elapsedMs);
-		m_unk0x114.VTable0x10(p_elapsedMs);
-		if (m_unk0x20c.HasModel()) {
-			m_unk0x20c.VTable0x10(p_elapsedMs);
+	if (flags & c_flagBestRunValid) {
+		m_bestGhostCarModel.Update(p_elapsedMs);
+		m_bestGhostMarker.Update(p_elapsedMs);
+		m_bestGhostDriver.Update(p_elapsedMs);
+		if (m_bestGhostSecondary.HasModel()) {
+			m_bestGhostSecondary.Update(p_elapsedMs);
 		}
 	}
 
-	if (m_flags0x3b4 & c_flag0x3b4Bit3) {
-		m_unk0x110->VTable0x10(p_elapsedMs);
-		m_unk0x390->VTable0x10(p_elapsedMs);
-		m_unk0x208->VTable0x10(p_elapsedMs);
+	if (m_flags & c_flagRecordRunValid) {
+		m_recordGhostMarker->Update(p_elapsedMs);
+		m_recordGhostCarModel->Update(p_elapsedMs);
+		m_recordGhostDriver->Update(p_elapsedMs);
 	}
 
-	if (p_elapsedMs >= m_unk0x3ac) {
-		m_unk0x3ac += c_ghostSampleIntervalMs - p_elapsedMs;
+	if (p_elapsedMs >= m_sampleCountdownMs) {
+		m_sampleCountdownMs += c_ghostSampleIntervalMs - p_elapsedMs;
 		if (m_scratchRun->m_sampleCount < GhostRunData::c_sampleCapacity) {
-			RaceState::Racer::Field0x018* racerField = &m_racer->m_unk0x018;
+			CarVisuals* racerField = &m_racer->m_visuals;
 			GolVec3 position;
-			racerField->m_unk0x044->VTable0x04(&position);
+			racerField->m_carEntity->GetPosition(&position);
 
 			m_scratchRun->m_samples[m_scratchRun->m_sampleCount].m_positionX =
 				static_cast<LegoS16>(32.0f * position.m_x);
@@ -216,7 +216,7 @@ void TimeRaceManager::FUN_00422710(LegoU32 p_elapsedMs)
 				static_cast<LegoS16>(32.0f * position.m_z);
 
 			GolQuat rotation;
-			GolMath::FUN_1002f5a0(m_racer->m_unk0x018.m_unk0x044->GetOrientation(), &rotation);
+			GolMath::Matrix3ToQuat(m_racer->m_visuals.m_carEntity->GetOrientation(), &rotation);
 			m_scratchRun->m_samples[m_scratchRun->m_sampleCount].m_rotationX =
 				static_cast<LegoS8>(127.0f * rotation.m_x);
 			m_scratchRun->m_samples[m_scratchRun->m_sampleCount].m_rotationY =
@@ -238,16 +238,16 @@ void TimeRaceManager::FUN_00422710(LegoU32 p_elapsedMs)
 		}
 	}
 	else {
-		m_unk0x3ac -= p_elapsedMs;
+		m_sampleCountdownMs -= p_elapsedMs;
 	}
 }
 
 // STUB: LEGORACERS 0x00422960
-void TimeRaceManager::FUN_00422960(GolD3DRenderDevice* p_renderer)
+void TimeRaceManager::Draw(GolD3DRenderDevice* p_renderer)
 {
 	GolAnimatedEntity* optionalEntity = NULL;
 
-	if (m_unk0x3b0 >= c_ghostRaceDurationLimitMs) {
+	if (m_elapsedTotalMs >= c_ghostRaceDurationLimitMs) {
 		return;
 	}
 
@@ -262,8 +262,8 @@ void TimeRaceManager::FUN_00422960(GolD3DRenderDevice* p_renderer)
 		GolVec3* attachedOffset;
 
 		if (i == 0) {
-			flags = m_flags0x3b4;
-			if (!(flags & c_flag0x3b4Bit0)) {
+			flags = m_flags;
+			if (!(flags & c_flagBestRunValid)) {
 				continue;
 			}
 
@@ -272,17 +272,17 @@ void TimeRaceManager::FUN_00422960(GolD3DRenderDevice* p_renderer)
 				continue;
 			}
 
-			animatedEntity = &m_unk0x1c;
-			attachedEntity = &m_unk0x114;
-			if (m_unk0x20c.HasModel()) {
-				optionalEntity = &m_unk0x20c;
+			animatedEntity = &m_bestGhostMarker;
+			attachedEntity = &m_bestGhostDriver;
+			if (m_bestGhostSecondary.HasModel()) {
+				optionalEntity = &m_bestGhostSecondary;
 			}
-			modelEntity = &m_unk0x300;
-			attachedOffset = &m_unk0x394;
+			modelEntity = &m_bestGhostCarModel;
+			attachedOffset = &m_bestDriverMountOffset;
 		}
 		else {
-			flags = m_flags0x3b4;
-			if (!(flags & c_flag0x3b4Bit3)) {
+			flags = m_flags;
+			if (!(flags & c_flagRecordRunValid)) {
 				continue;
 			}
 
@@ -291,33 +291,33 @@ void TimeRaceManager::FUN_00422960(GolD3DRenderDevice* p_renderer)
 				continue;
 			}
 
-			attachedEntity = m_unk0x208;
-			animatedEntity = m_unk0x110;
-			modelEntity = m_unk0x390;
-			attachedOffset = &m_unk0x3a0;
+			attachedEntity = m_recordGhostDriver;
+			animatedEntity = m_recordGhostMarker;
+			modelEntity = m_recordGhostCarModel;
+			attachedOffset = &m_recordDriverMountOffset;
 		}
 
-		if (!(flags & c_flag0x3b4Bit1)) {
+		if (!(flags & c_flagRunning)) {
 			GolVec3* position = &ghostRun->m_initialPosition;
 			GolQuat* rotation = &ghostRun->m_initialRotation;
 
-			animatedEntity->VTable0x08(*position);
+			animatedEntity->SetPosition(*position);
 			animatedEntity->SetOrientationFromQuaternion(*rotation);
-			modelEntity->VTable0x08(*position);
+			modelEntity->SetPosition(*position);
 			modelEntity->SetOrientationFromQuaternion(*rotation);
 			if (optionalEntity) {
-				optionalEntity->VTable0x08(*position);
+				optionalEntity->SetPosition(*position);
 				optionalEntity->SetOrientationFromQuaternion(*rotation);
 			}
 
 			GolVec3 attachedPosition;
-			animatedEntity->VTable0x2c(*attachedOffset, &attachedPosition);
-			attachedEntity->VTable0x08(attachedPosition);
+			animatedEntity->LocalToWorld(*attachedOffset, &attachedPosition);
+			attachedEntity->SetPosition(attachedPosition);
 			attachedEntity->SetOrientationFromQuaternion(*rotation);
 		}
 		else {
-			LegoU32 sampleIndex = m_unk0x3b0 / c_ghostSampleIntervalMs;
-			LegoU32 sampleRemainder = m_unk0x3b0 - sampleIndex * c_ghostSampleIntervalMs;
+			LegoU32 sampleIndex = m_elapsedTotalMs / c_ghostSampleIntervalMs;
+			LegoU32 sampleRemainder = m_elapsedTotalMs - sampleIndex * c_ghostSampleIntervalMs;
 			LegoFloat amount =
 				static_cast<LegoFloat>(static_cast<LegoS32>(sampleRemainder)) * g_ghostSampleFractionScale;
 
@@ -360,51 +360,51 @@ void TimeRaceManager::FUN_00422960(GolD3DRenderDevice* p_renderer)
 			nextRotation.m_w = static_cast<LegoFloat>(nextSample->m_rotationW) / 127.0f;
 
 			GolQuat interpolatedRotation;
-			GolMath::FUN_1002f890(rotation, nextRotation, amount, &interpolatedRotation);
+			GolMath::LerpQuat(rotation, nextRotation, amount, &interpolatedRotation);
 
 			LegoFloat distanceSquared = delta.m_z * delta.m_z + delta.m_y * delta.m_y + delta.m_x * delta.m_x;
 			LegoFloat speed = static_cast<LegoFloat>(sqrt(distanceSquared));
 			speed *= g_ghostSpeedScale;
 			speed *= g_ghostAnimationRateScale;
-			animatedEntity->SetUnk0xb8(speed);
+			animatedEntity->SetMsPerFrame(speed);
 
-			animatedEntity->VTable0x08(position);
+			animatedEntity->SetPosition(position);
 			animatedEntity->SetOrientationFromQuaternion(interpolatedRotation);
-			modelEntity->VTable0x08(position);
+			modelEntity->SetPosition(position);
 			modelEntity->SetOrientationFromQuaternion(interpolatedRotation);
 			if (optionalEntity) {
-				optionalEntity->VTable0x08(position);
+				optionalEntity->SetPosition(position);
 				optionalEntity->SetOrientationFromQuaternion(interpolatedRotation);
 			}
 
 			GolVec3 attachedPosition;
-			animatedEntity->VTable0x2c(*attachedOffset, &attachedPosition);
-			attachedEntity->VTable0x08(attachedPosition);
+			animatedEntity->LocalToWorld(*attachedOffset, &attachedPosition);
+			attachedEntity->SetPosition(attachedPosition);
 			attachedEntity->SetOrientationFromQuaternion(interpolatedRotation);
 		}
 
-		p_renderer->VTable0x94(animatedEntity);
-		p_renderer->VTable0x94(modelEntity);
+		p_renderer->DrawModelEntity(animatedEntity);
+		p_renderer->DrawModelEntity(modelEntity);
 		if (optionalEntity) {
-			p_renderer->VTable0x94(optionalEntity);
+			p_renderer->DrawModelEntity(optionalEntity);
 		}
-		p_renderer->VTable0x94(attachedEntity);
+		p_renderer->DrawModelEntity(attachedEntity);
 	}
 
 	p_renderer->ClearAlphaOverride();
 }
 
 // FUNCTION: LEGORACERS 0x00422de0
-void TimeRaceManager::FUN_00422de0()
+void TimeRaceManager::PrepareRun()
 {
-	m_flags0x3b4 &= ~c_flag0x3b4Bit3;
-	FUN_00423160(m_recordRun, "ghost");
+	m_flags &= ~c_flagRecordRunValid;
+	LoadGhostRun(m_recordRun, "ghost");
 	if (0 < m_recordRun->m_sampleCount) {
-		m_flags0x3b4 |= c_flag0x3b4Bit3;
+		m_flags |= c_flagRecordRunValid;
 	}
 
-	m_unk0x3b0 = 0;
-	m_flags0x3b4 &= ~c_flag0x3b4Bit1;
+	m_elapsedTotalMs = 0;
+	m_flags &= ~c_flagRunning;
 
 	for (LegoU32 i = 0; i < c_lapCount; i++) {
 		m_scratchRun->m_lapTimes[i] = 0;
@@ -425,73 +425,73 @@ void TimeRaceManager::FUN_00422de0()
 }
 
 // FUNCTION: LEGORACERS 0x00422eb0
-void TimeRaceManager::FUN_00422eb0(RaceState::Racer* p_racer)
+void TimeRaceManager::AttachRacer(Racer* p_racer)
 {
 	m_racer = p_racer;
-	m_flags0x3b4 |= c_flag0x3b4Bit1;
-	if (m_flags0x3b4 & c_flag0x3b4Bit4) {
-		m_flags0x3b4 |= c_flag0x3b4Bit0;
+	m_flags |= c_flagRunning;
+	if (m_flags & c_flagBit4) {
+		m_flags |= c_flagBestRunValid;
 	}
 
-	if (m_flags0x3b4 & c_flag0x3b4Bit0) {
-		GolModelEntity* sourceModel = p_racer->m_unk0x018.m_unk0x03c;
-		m_unk0x300.VTable0x50(sourceModel->GetModel(0), sourceModel->GetModelDistance(0));
+	if (m_flags & c_flagBestRunValid) {
+		GolModelEntity* sourceModel = p_racer->m_visuals.m_bodyModelEntity;
+		m_bestGhostCarModel.SetPrimaryModel(sourceModel->GetModel(0), sourceModel->GetModelDistance(0));
 		LegoU32 i;
 		for (i = 1; i < 3; i++) {
 			if (sourceModel->GetModel(i)) {
-				m_unk0x300.FUN_10027c50(sourceModel->GetModel(i), sourceModel->GetModelDistance(i));
+				m_bestGhostCarModel.AddModel(sourceModel->GetModel(i), sourceModel->GetModelDistance(i));
 			}
 		}
 
-		GolAnimatedEntity* sourceAnimated = p_racer->m_unk0x018.m_unk0x044;
-		m_unk0x1c.FUN_0040d550(
+		GolAnimatedEntity* sourceAnimated = p_racer->m_visuals.m_carEntity;
+		m_bestGhostMarker.SetModel(
 			sourceAnimated->GetModel(0),
-			sourceAnimated->VTable0x58(0),
+			sourceAnimated->GetSceneNode(0),
 			sourceAnimated->GetModelPart(0),
 			sourceAnimated->GetModelDistance(0)
 		);
 		for (i = 1; i < 3; i++) {
 			if (sourceAnimated->GetModel(i)) {
-				m_unk0x1c.FUN_10023940(
+				m_bestGhostMarker.AddModel(
 					sourceAnimated->GetModel(i),
-					sourceAnimated->VTable0x58(i),
+					sourceAnimated->GetSceneNode(i),
 					sourceAnimated->GetModelPart(i),
 					sourceAnimated->GetModelDistance(i)
 				);
 			}
 		}
 
-		sourceAnimated = p_racer->m_unk0x018.m_unk0x048;
-		m_unk0x114.FUN_0040d550(
+		sourceAnimated = p_racer->m_visuals.m_driverEntity;
+		m_bestGhostDriver.SetModel(
 			sourceAnimated->GetModel(0),
-			sourceAnimated->VTable0x58(0),
+			sourceAnimated->GetSceneNode(0),
 			sourceAnimated->GetModelPart(0),
 			sourceAnimated->GetModelDistance(0)
 		);
 		for (i = 1; i < 3; i++) {
 			if (sourceAnimated->GetModel(i)) {
-				m_unk0x114.FUN_10023940(
+				m_bestGhostDriver.AddModel(
 					sourceAnimated->GetModel(i),
-					sourceAnimated->VTable0x58(i),
+					sourceAnimated->GetSceneNode(i),
 					sourceAnimated->GetModelPart(i),
 					sourceAnimated->GetModelDistance(i)
 				);
 			}
 		}
 
-		sourceAnimated = p_racer->m_unk0x018.m_unk0x040;
+		sourceAnimated = p_racer->m_visuals.m_secondaryEntity;
 		if (sourceAnimated) {
-			m_unk0x20c.FUN_0040d550(
+			m_bestGhostSecondary.SetModel(
 				sourceAnimated->GetModel(0),
-				sourceAnimated->VTable0x58(0),
+				sourceAnimated->GetSceneNode(0),
 				sourceAnimated->GetModelPart(0),
 				sourceAnimated->GetModelDistance(0)
 			);
 			for (i = 1; i < 3; i++) {
 				if (sourceAnimated->GetModel(i)) {
-					m_unk0x20c.FUN_10023940(
+					m_bestGhostSecondary.AddModel(
 						sourceAnimated->GetModel(i),
-						sourceAnimated->VTable0x58(i),
+						sourceAnimated->GetSceneNode(i),
 						sourceAnimated->GetModelPart(i),
 						sourceAnimated->GetModelDistance(i)
 					);
@@ -499,8 +499,8 @@ void TimeRaceManager::FUN_00422eb0(RaceState::Racer* p_racer)
 			}
 		}
 
-		m_unk0x394 = p_racer->m_unk0x018.m_unk0x04c;
-		m_unk0x114.FUN_0040dad0(13);
+		m_bestDriverMountOffset = p_racer->m_visuals.m_driverMountOffset;
+		m_bestGhostDriver.PlayPart(13);
 	}
 }
 
@@ -526,17 +526,17 @@ void TimeRaceManager::UpdateBestRun()
 		m_scratchRun = previousBest;
 	}
 
-	m_flags0x3b4 = (m_flags0x3b4 & 0xfc) | c_flag0x3b4Bit4;
+	m_flags = (m_flags & 0xfc) | c_flagBit4;
 
 	m_racer = NULL;
 }
 
 // FUNCTION: LEGORACERS 0x00423160
-void TimeRaceManager::FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_name)
+void TimeRaceManager::LoadGhostRun(GhostRunData* p_ghostRun, const LegoChar* p_name)
 {
 	GolFileParser* parser;
-	LegoU8 flags = m_flags0x3b4;
-	if (flags & c_flag0x3b4Bit2) {
+	LegoU8 flags = m_flags;
+	if (flags & c_flagBinaryGhosts) {
 		parser = new GolBinParser;
 		if (parser == NULL) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
@@ -578,7 +578,7 @@ void TimeRaceManager::FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_n
 			p_ghostRun->m_initialPosition.m_x = parser->ReadFloat();
 			p_ghostRun->m_initialPosition.m_y = parser->ReadFloat();
 			p_ghostRun->m_initialPosition.m_z = parser->ReadFloat();
-			if (m_flags0x3b4 & c_flag0x3b4Bit5) {
+			if (m_flags & c_flagMirror) {
 				p_ghostRun->m_initialPosition.m_y = -p_ghostRun->m_initialPosition.m_y;
 			}
 			break;
@@ -587,7 +587,7 @@ void TimeRaceManager::FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_n
 			p_ghostRun->m_initialRotation.m_y = parser->ReadFloat();
 			p_ghostRun->m_initialRotation.m_z = parser->ReadFloat();
 			p_ghostRun->m_initialRotation.m_w = parser->ReadFloat();
-			if (m_flags0x3b4 & c_flag0x3b4Bit5) {
+			if (m_flags & c_flagMirror) {
 				p_ghostRun->m_initialRotation.m_y = -p_ghostRun->m_initialRotation.m_y;
 				p_ghostRun->m_initialRotation.m_w = -p_ghostRun->m_initialRotation.m_w;
 			}
@@ -607,7 +607,7 @@ void TimeRaceManager::FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_n
 				sample->m_rotationZ = static_cast<LegoS8>(parser->ReadInteger());
 				sample->m_rotationW = static_cast<LegoS8>(parser->ReadInteger());
 
-				if (m_flags0x3b4 & c_flag0x3b4Bit5) {
+				if (m_flags & c_flagMirror) {
 					sample->m_positionY = -sample->m_positionY;
 					sample->m_rotationY = -sample->m_rotationY;
 					sample->m_rotationW = -sample->m_rotationW;
@@ -630,11 +630,11 @@ void TimeRaceManager::FUN_00423160(GhostRunData* p_ghostRun, const LegoChar* p_n
 // FUNCTION: LEGORACERS 0x004234b0
 LegoBool32 TimeRaceManager::HasBeatenRecord()
 {
-	LegoU8 flags = m_flags0x3b4;
-	if (!(flags & (c_flag0x3b4Bit0 | c_flag0x3b4Bit4))) {
+	LegoU8 flags = m_flags;
+	if (!(flags & (c_flagBestRunValid | c_flagBit4))) {
 		return FALSE;
 	}
-	if (!(flags & c_flag0x3b4Bit3)) {
+	if (!(flags & c_flagRecordRunValid)) {
 		return FALSE;
 	}
 
@@ -650,10 +650,10 @@ LegoBool32 TimeRaceManager::HasBeatenRecord()
 }
 
 // FUNCTION: LEGORACERS 0x004234f0
-TimeRaceManager::GhostRunData* TimeRaceManager::FUN_004234f0()
+TimeRaceManager::GhostRunData* TimeRaceManager::ResetRun()
 {
-	m_flags0x3b4 &= ~c_flag0x3b4Bit1;
-	m_unk0x3b0 = 0;
+	m_flags &= ~c_flagRunning;
+	m_elapsedTotalMs = 0;
 
 	for (LegoU32 i = 0; i < c_lapCount; i++) {
 		m_scratchRun->m_lapTimes[i] = 0;

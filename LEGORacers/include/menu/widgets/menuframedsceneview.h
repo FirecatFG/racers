@@ -1,5 +1,5 @@
-#ifndef OBSCURERUNE0X4D8
-#define OBSCURERUNE0X4D8
+#ifndef MENUFRAMEDSCENEVIEW_H
+#define MENUFRAMEDSCENEVIEW_H
 
 #include "compat.h"
 #include "decomp.h"
@@ -19,15 +19,15 @@ public:
 	MenuFramedSceneView();
 	~MenuFramedSceneView() override; // vtable+0x04
 
-	LegoBool32 FUN_004661f0(CreateParams* p_createParams, undefined4 p_unk0x08);
+	LegoBool32 Create(CreateParams* p_createParams, undefined4 p_binary);
 
 	// SYNTHETIC: LEGORACERS 0x00466100
 	// MenuFramedSceneView::`scalar deleting destructor'
 
 protected:
-	LegoBool32 FUN_00466180(CreateParams* p_createParams);
+	LegoBool32 CreateFrame(CreateParams* p_createParams);
 
-	MenuFrame m_unk0xdc; // 0x0dc
+	MenuFrame m_frame; // 0x0dc
 };
 
-#endif // OBSCURERUNE0X4D8
+#endif // MENUFRAMEDSCENEVIEW_H

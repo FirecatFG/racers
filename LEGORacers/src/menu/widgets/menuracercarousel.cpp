@@ -27,90 +27,93 @@ MenuRacerCarousel::MenuRacerCarousel()
 // FUNCTION: LEGORACERS 0x004839e0
 MenuRacerCarousel::~MenuRacerCarousel()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x00483a30
 void MenuRacerCarousel::Reset()
 {
-	m_unk0xcc = 0;
+	m_partType = 0;
 	m_materialTables = NULL;
-	memset(&m_unk0xd0, 0, sizeof(m_unk0xd0));
+	memset(&m_itemValues, 0, sizeof(m_itemValues));
 	MenuModelCarousel::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x00483a60
-LegoBool32 MenuRacerCarousel::FUN_00483a60(CreateParams* p_createParams, MenuStyleTable::CarouselStyle* p_styleEntry)
+LegoBool32 MenuRacerCarousel::Create(CreateParams* p_createParams, MenuStyleTable::CarouselStyle* p_styleEntry)
 {
-	m_unk0xc8 = p_createParams->m_context;
+	m_context = p_createParams->m_context;
 	m_headBuilder = p_createParams->m_headBuilder;
-	m_unk0xcc = p_createParams->m_unk0x7c;
-	FUN_00483ee0();
+	m_partType = p_createParams->m_partType;
+	CollectItems();
 
-	if (MenuModelCarousel::FUN_0046cb10(p_createParams, p_styleEntry)) {
-		for (LegoS32 i = 0; i < m_unk0x60; i++) {
-			m_golExport->VTable0x48(m_unk0x7c[i].m_model);
-			m_unk0x7c[i].m_model = NULL;
+	if (MenuModelCarousel::Create(p_createParams, p_styleEntry)) {
+		for (LegoS32 i = 0; i < m_slotCount; i++) {
+			m_golExport->DestroyModel(m_items[i].m_model);
+			m_items[i].m_model = NULL;
 		}
 
-		FUN_00483b60(m_unk0x60);
+		CreateMaterialTables(m_slotCount);
 	}
 
 	return m_flags & 1;
 }
 
 // FUNCTION: LEGORACERS 0x00483af0
-LegoBool32 MenuRacerCarousel::VTable0x08()
+LegoBool32 MenuRacerCarousel::Destroy()
 {
 	LegoBool32 result = TRUE;
 
 	if (result & m_flags) {
-		for (LegoS32 i = 0; i < m_unk0x60; i++) {
-			m_unk0x7c[i].m_model = NULL;
+		for (LegoS32 i = 0; i < m_slotCount; i++) {
+			m_items[i].m_model = NULL;
 		}
 
 		if (m_materialTables) {
 			delete[] m_materialTables;
 		}
 
-		result = MenuModelCarousel::VTable0x08();
+		result = MenuModelCarousel::Destroy();
 	}
 
 	return result;
 }
 
 // FUNCTION: LEGORACERS 0x00483b60
-void MenuRacerCarousel::FUN_00483b60(LegoS32)
+void MenuRacerCarousel::CreateMaterialTables(LegoS32)
 {
-	m_materialTables = new GolBillboard::Field0x2c[m_unk0x68];
+	m_materialTables = new GolBillboard::ManagedMaterialTable[m_itemCount];
 	if (m_materialTables == NULL) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	for (LegoS32 i = 0; i < m_unk0x68; i++) {
+	for (LegoS32 i = 0; i < m_itemCount; i++) {
 		m_materialTables[i].Initialize(m_renderer, 2);
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483c20
-void MenuRacerCarousel::CopyModelMaterialTable(GolModelBase* p_model, GolBillboard::Field0x2c* p_materialTable)
+void MenuRacerCarousel::CopyModelMaterialTable(
+	GolModelBase* p_model,
+	GolBillboard::ManagedMaterialTable* p_materialTable
+)
 {
 	GolModelMaterialTable* source = p_model->GetMaterialTable();
 	LegoS32 count = source->GetCount();
 	for (LegoS32 i = 0; i < count; i++) {
-		void* material = source->GetPosition(i);
+		void* material = source->GetEntry(i);
 		if (material) {
-			p_materialTable->SetPosition(i, material);
+			p_materialTable->SetEntry(i, material);
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483c60
-void MenuRacerCarousel::FUN_00483c60(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
+void MenuRacerCarousel::CollectHats(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
 {
 	for (LegoS32 i = 0; i < p_partCatalog->GetHatCount(); i++) {
 		DriverCosmetics cosmetics;
-		m_unk0xc8->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
+		m_context->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
 
 		if (cosmetics.m_hatIndex != i) {
 			LegoS32 unlockFlag = p_partCatalog->GetHatUnlockFlag(i);
@@ -124,16 +127,16 @@ void MenuRacerCarousel::FUN_00483c60(DriverPartCatalog* p_partCatalog, SaveSyste
 			}
 		}
 
-		m_unk0xd0[m_unk0x68++] = i;
+		m_itemValues[m_itemCount++] = i;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483d00
-void MenuRacerCarousel::FUN_00483d00(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
+void MenuRacerCarousel::CollectFaces(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
 {
 	for (LegoS32 i = 0; i < p_partCatalog->GetFaceCount(); i++) {
 		DriverCosmetics cosmetics;
-		m_unk0xc8->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
+		m_context->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
 
 		if (cosmetics.m_faceIndex != i) {
 			LegoS32 unlockFlag = p_partCatalog->GetFaceUnlockFlag(i);
@@ -147,16 +150,16 @@ void MenuRacerCarousel::FUN_00483d00(DriverPartCatalog* p_partCatalog, SaveSyste
 			}
 		}
 
-		m_unk0xd0[m_unk0x68++] = i;
+		m_itemValues[m_itemCount++] = i;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483da0
-void MenuRacerCarousel::FUN_00483da0(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
+void MenuRacerCarousel::CollectTorsos(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
 {
 	for (LegoS32 i = 0; i < p_partCatalog->GetTorsoCount(); i++) {
 		DriverCosmetics cosmetics;
-		m_unk0xc8->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
+		m_context->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
 
 		if (cosmetics.m_torsoIndex != i) {
 			LegoS32 unlockFlag = p_partCatalog->GetTorsoUnlockFlag(i);
@@ -170,16 +173,16 @@ void MenuRacerCarousel::FUN_00483da0(DriverPartCatalog* p_partCatalog, SaveSyste
 			}
 		}
 
-		m_unk0xd0[m_unk0x68++] = i;
+		m_itemValues[m_itemCount++] = i;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483e40
-void MenuRacerCarousel::FUN_00483e40(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
+void MenuRacerCarousel::CollectLegs(DriverPartCatalog* p_partCatalog, SaveSystem* p_saveSystem, LegoU32 p_unlockFlags)
 {
 	for (LegoS32 i = 0; i < p_partCatalog->GetLegCount(); i++) {
 		DriverCosmetics cosmetics;
-		m_unk0xc8->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
+		m_context->m_saveSystem.GetActiveRecord().GetSelectedRecord()->GetCosmetics(&cosmetics);
 
 		if (cosmetics.m_legIndex != i) {
 			LegoS32 unlockFlag = p_partCatalog->GetLegUnlockFlag(i);
@@ -193,46 +196,46 @@ void MenuRacerCarousel::FUN_00483e40(DriverPartCatalog* p_partCatalog, SaveSyste
 			}
 		}
 
-		m_unk0xd0[m_unk0x68++] = i;
+		m_itemValues[m_itemCount++] = i;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483ee0
-void MenuRacerCarousel::FUN_00483ee0()
+void MenuRacerCarousel::CollectItems()
 {
-	SaveSystem* saveSystem = &m_unk0xc8->m_saveSystem;
-	DriverPartCatalog* partCatalog = &m_unk0xc8->m_partCatalog;
+	SaveSystem* saveSystem = &m_context->m_saveSystem;
+	DriverPartCatalog* partCatalog = &m_context->m_partCatalog;
 	LegoU32 unlockFlags = saveSystem->GetGameState().GetPartUnlockFlags();
 
-	switch (m_unk0xcc) {
+	switch (m_partType) {
 	case 0:
-		FUN_00483c60(partCatalog, saveSystem, unlockFlags);
+		CollectHats(partCatalog, saveSystem, unlockFlags);
 		break;
 	case 1:
-		FUN_00483d00(partCatalog, saveSystem, unlockFlags);
+		CollectFaces(partCatalog, saveSystem, unlockFlags);
 		break;
 	case 2:
-		FUN_00483da0(partCatalog, saveSystem, unlockFlags);
+		CollectTorsos(partCatalog, saveSystem, unlockFlags);
 		break;
 	case 3:
-		FUN_00483e40(partCatalog, saveSystem, unlockFlags);
+		CollectLegs(partCatalog, saveSystem, unlockFlags);
 		break;
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00483f70
-void MenuRacerCarousel::VTable0x60(LegoS32 p_index)
+void MenuRacerCarousel::RefreshItemModel(LegoS32 p_index)
 {
 	GolModelEntity* entity = GetItemEntity(p_index);
-	LegoS32 modelIndex = m_unk0xd0[FUN_0046c9a0(m_unk0xb8 + p_index)];
+	LegoS32 modelIndex = m_itemValues[WrapIndex(m_ringBaseIndex + p_index)];
 	GolModelBase* model;
 	void* material;
 	LegoChar materialName[8];
 
-	switch (m_unk0xcc) {
+	switch (m_partType) {
 	case 0:
 		model = m_headBuilder->LoadHatModel(modelIndex);
-		material = model->GetMaterialTable()->GetPosition(0);
+		material = model->GetMaterialTable()->GetEntry(0);
 		m_headBuilder->MarkHatModelUsed(model);
 		materialName[0] = '\0';
 		break;
@@ -257,121 +260,121 @@ void MenuRacerCarousel::VTable0x60(LegoS32 p_index)
 		break;
 	}
 
-	entity->VTable0x50(model, g_maroonAtollMaxFloat);
+	entity->SetPrimaryModel(model, g_maroonAtollMaxFloat);
 
-	GolBillboard::Field0x2c* materialTable = &m_materialTables[FUN_0046c9a0(m_unk0xb8 + p_index)];
+	GolBillboard::ManagedMaterialTable* materialTable = &m_materialTables[WrapIndex(m_ringBaseIndex + p_index)];
 	CopyModelMaterialTable(model, materialTable);
 
 	LegoS32 materialIndex = model->GetMaterialTable()->FindEntryIndexByName(materialName);
 	if (materialIndex != -1) {
-		materialTable->SetPosition(materialIndex, material);
+		materialTable->SetEntry(materialIndex, material);
 		entity->SetPrimaryMaterialTable(materialTable);
 	}
 
-	MenuModelCarousel::VTable0x60(p_index);
+	MenuModelCarousel::RefreshItemModel(p_index);
 }
 
 // FUNCTION: LEGORACERS 0x00484100
-void MenuRacerCarousel::VTable0x50(undefined4 p_index)
+void MenuRacerCarousel::SetSelection(undefined4 p_index)
 {
-	if (m_unk0x68) {
-		m_unk0x6c = p_index;
-		m_unk0xb8 = FUN_0046c9a0(p_index - m_unk0x64);
+	if (m_itemCount) {
+		m_selectedIndex = p_index;
+		m_ringBaseIndex = WrapIndex(p_index - m_focusedSlot);
 
-		if (!m_unk0x70) {
-			if (!m_unk0xcc) {
+		if (!m_scrolling) {
+			if (!m_partType) {
 				::memset(m_headBuilder->GetHatModelUsedFlags(), 0, 7 * sizeof(LegoBool32));
 			}
 
-			for (LegoS32 i = 0; i < m_unk0x60; i++) {
-				VTable0x60(i);
+			for (LegoS32 i = 0; i < m_slotCount; i++) {
+				RefreshItemModel(i);
 			}
 
-			VTable0x40();
+			SnapToSelection();
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00484170
-void MenuRacerCarousel::FUN_00484170(LegoS32 p_index)
+void MenuRacerCarousel::SelectValue(LegoS32 p_index)
 {
-	for (LegoS32 i = 0; i < m_unk0x68; i++) {
-		if (m_unk0xd0[i] == p_index) {
-			VTable0x50(i);
+	for (LegoS32 i = 0; i < m_itemCount; i++) {
+		if (m_itemValues[i] == p_index) {
+			SetSelection(i);
 		}
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004841b0
-LegoS32 MenuRacerCarousel::VTable0x54()
+LegoS32 MenuRacerCarousel::ScrollNext()
 {
-	if (!m_unk0x68) {
+	if (!m_itemCount) {
 		return 0;
 	}
 
-	if (m_unk0x70) {
-		return m_unk0x6c;
+	if (m_scrolling) {
+		return m_selectedIndex;
 	}
 
-	if (m_unk0x6c >= m_unk0x68 - 1 && m_unk0x68 < m_unk0x60 - 1) {
-		m_unk0x5c->FUN_0046e970(m_unk0x58->m_unk0x00[2]);
+	if (m_selectedIndex >= m_itemCount - 1 && m_itemCount < m_slotCount - 1) {
+		m_soundGroupBinding->PlaySoundByIndex(m_style->m_soundIds[2]);
 	}
 	else {
-		MenuModelCarousel::VTable0x54();
-		VTable0x50(FUN_0046c9a0(m_unk0x6c + 1));
+		MenuModelCarousel::ScrollNext();
+		SetSelection(WrapIndex(m_selectedIndex + 1));
 
-		LegoS32 firstVisibleIndex = static_cast<LegoS32>(m_unk0x64);
-		if (m_unk0x68 >= m_unk0x60 - 1 || m_unk0x68 - m_unk0x6c > m_unk0x60 - firstVisibleIndex - 1) {
-			VTable0x60(m_unk0x60 - 1);
+		LegoS32 firstVisibleIndex = static_cast<LegoS32>(m_focusedSlot);
+		if (m_itemCount >= m_slotCount - 1 || m_itemCount - m_selectedIndex > m_slotCount - firstVisibleIndex - 1) {
+			RefreshItemModel(m_slotCount - 1);
 		}
 
-		m_unk0x5c->FUN_0046e970(m_unk0x58->m_unk0x00[0]);
+		m_soundGroupBinding->PlaySoundByIndex(m_style->m_soundIds[0]);
 	}
 
-	if (!m_unk0xcc) {
+	if (!m_partType) {
 		::memset(m_headBuilder->GetHatModelUsedFlags(), 0, 7 * sizeof(LegoBool32));
 
-		for (LegoS32 i = 0; i < m_unk0x60; i++) {
-			m_headBuilder->MarkHatModelUsed(m_unk0x7c[i].m_model);
+		for (LegoS32 i = 0; i < m_slotCount; i++) {
+			m_headBuilder->MarkHatModelUsed(m_items[i].m_model);
 		}
 	}
 
-	return m_unk0x6c;
+	return m_selectedIndex;
 }
 
 // FUNCTION: LEGORACERS 0x00484290
-LegoS32 MenuRacerCarousel::VTable0x58()
+LegoS32 MenuRacerCarousel::ScrollPrevious()
 {
-	if (!m_unk0x68) {
+	if (!m_itemCount) {
 		return 0;
 	}
 
-	if (m_unk0x70) {
-		return m_unk0x6c;
+	if (m_scrolling) {
+		return m_selectedIndex;
 	}
 
-	if (!m_unk0x6c && m_unk0x68 < m_unk0x60 - 1) {
-		m_unk0x5c->FUN_0046e970(m_unk0x58->m_unk0x00[2]);
+	if (!m_selectedIndex && m_itemCount < m_slotCount - 1) {
+		m_soundGroupBinding->PlaySoundByIndex(m_style->m_soundIds[2]);
 	}
 	else {
-		MenuModelCarousel::VTable0x58();
-		VTable0x50(FUN_0046c9a0(m_unk0x6c - 1));
+		MenuModelCarousel::ScrollPrevious();
+		SetSelection(WrapIndex(m_selectedIndex - 1));
 
-		LegoS32 firstVisibleIndex = static_cast<LegoS32>(m_unk0x64);
-		if (m_unk0x68 >= m_unk0x60 - 1 || m_unk0x6c > firstVisibleIndex - 1) {
-			VTable0x60(0);
+		LegoS32 firstVisibleIndex = static_cast<LegoS32>(m_focusedSlot);
+		if (m_itemCount >= m_slotCount - 1 || m_selectedIndex > firstVisibleIndex - 1) {
+			RefreshItemModel(0);
 		}
 
-		m_unk0x5c->FUN_0046e970(m_unk0x58->m_unk0x00[1]);
+		m_soundGroupBinding->PlaySoundByIndex(m_style->m_soundIds[1]);
 	}
 
-	if (!m_unk0xcc) {
+	if (!m_partType) {
 		::memset(m_headBuilder->GetHatModelUsedFlags(), 0, 7 * sizeof(LegoBool32));
 
-		for (LegoS32 i = 0; i < m_unk0x60; i++) {
-			m_headBuilder->MarkHatModelUsed(m_unk0x7c[i].m_model);
+		for (LegoS32 i = 0; i < m_slotCount; i++) {
+			m_headBuilder->MarkHatModelUsed(m_items[i].m_model);
 		}
 	}
 
-	return m_unk0x6c;
+	return m_selectedIndex;
 }

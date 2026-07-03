@@ -37,11 +37,11 @@ void CutsceneTextVisual::Parse(GolFileParser* p_parser, CutscenePlayer* p_owner,
 	GolFileParser::ParserTokenType token;
 	while ((token = p_parser->GetNextToken()) != GolFileParser::e_rightCurly) {
 		switch (token) {
-		case GolFileParser::e_unknown0x40:
+		case CutscenePlayer::CebTxtParser::e_string:
 			m_stringTableIndex = p_parser->ReadInteger();
 			m_stringIndex = p_parser->ReadInteger();
 			break;
-		case GolFileParser::e_unknown0x41: {
+		case CutscenePlayer::CebTxtParser::e_text: {
 			LegoChar* text = p_parser->ReadString();
 			m_rawString = new LegoChar[::strlen(text) + 1];
 			if (m_rawString == NULL) {
@@ -51,7 +51,7 @@ void CutsceneTextVisual::Parse(GolFileParser* p_parser, CutscenePlayer* p_owner,
 			::strcpy(m_rawString, text);
 			break;
 		}
-		case GolFileParser::e_unknown0x42:
+		case CutscenePlayer::CebTxtParser::e_font:
 			::strncpy(m_fontName, p_parser->ReadStringWithMaxLength(sizeof(GolName)), sizeof(GolName));
 			break;
 		default:
@@ -102,7 +102,7 @@ void CutsceneTextVisual::Clear()
 }
 
 // FUNCTION: LEGORACERS 0x004a4890
-void CutsceneTextVisual::VTable0x1c(LegoS32* p_width, LegoS32* p_height)
+void CutsceneTextVisual::GetContentSize(LegoS32* p_width, LegoS32* p_height)
 {
 	if (m_rawString != NULL) {
 		m_font->MeasureString(m_rawString, p_width, p_height);
@@ -113,7 +113,7 @@ void CutsceneTextVisual::VTable0x1c(LegoS32* p_width, LegoS32* p_height)
 }
 
 // FUNCTION: LEGORACERS 0x004a48d0
-void CutsceneTextVisual::VTable0x20(
+void CutsceneTextVisual::DrawContent(
 	GolRenderDevice* p_renderer,
 	LegoS32 p_x,
 	LegoS32 p_y,
@@ -128,10 +128,10 @@ void CutsceneTextVisual::VTable0x20(
 	}
 
 	if (m_rawString != NULL) {
-		p_renderer->VTable0x68(m_rawString, m_font, p_x, p_y, p_scaleX, p_scaleY, NULL, 0);
+		p_renderer->DrawCString(m_rawString, m_font, p_x, p_y, p_scaleX, p_scaleY, NULL, 0);
 	}
 	else {
-		p_renderer->VTable0x64(&m_string, m_font, p_x, p_y, p_scaleX, p_scaleY, NULL, 0);
+		p_renderer->DrawString(&m_string, m_font, p_x, p_y, p_scaleX, p_scaleY, NULL, 0);
 	}
 
 	if (m_flags & 0x100) {

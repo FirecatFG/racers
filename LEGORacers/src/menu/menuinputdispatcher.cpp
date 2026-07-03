@@ -1,6 +1,6 @@
 #include "menu/menuinputdispatcher.h"
 
-#include "image/utopianpan0xa4.h"
+#include "image/golimage.h"
 #include "input/inputmanager.h"
 #include "input/mousedevice.h"
 #include "menu/screens/menugamescreen.h"
@@ -91,7 +91,7 @@ LegoS32 MenuInputDispatcher::Cursor::Shutdown()
 LegoS32 MenuInputDispatcher::Cursor::UpdatePosition(undefined4)
 {
 	if (m_golExport && m_isCursorVisible && m_cursorEnabled) {
-		MouseInputDevice* mouse = m_inputManager->GetMouse();
+		MouseDevice* mouse = m_inputManager->GetMouse();
 
 		m_cursorX += (LegoS32) mouse->GetAxisValue(1);
 		m_cursorY += (LegoS32) mouse->GetAxisValue(2);
@@ -125,7 +125,7 @@ LegoS32 MenuInputDispatcher::Cursor::Draw()
 		destRect.m_top = m_cursorY;
 		destRect.m_bottom = m_cursorY + m_sourceRect.m_right;
 
-		m_renderer->VTable0x7c(m_cursorImage, 0, &destRect, &m_sourceRect, 0);
+		m_renderer->DrawImageClipped(m_cursorImage, 0, &destRect, &m_sourceRect, 0);
 		return TRUE;
 	}
 
@@ -218,51 +218,51 @@ LegoS32 MenuInputDispatcher::Shutdown()
 // FUNCTION: LEGORACERS 0x004690b0
 void MenuInputDispatcher::FocusNext()
 {
-	MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+	MenuIcon* icon = m_activeScreen->GetRootIcon();
 
-	if (!icon->VTable0x60()) {
-		icon->VTable0x68();
+	if (!icon->SelectNext()) {
+		icon->SelectFirst();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004690d0
 void MenuInputDispatcher::FocusPrevious()
 {
-	MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+	MenuIcon* icon = m_activeScreen->GetRootIcon();
 
-	if (!icon->VTable0x64()) {
-		icon->VTable0x6c();
+	if (!icon->SelectPrevious()) {
+		icon->SelectLast();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004690f0
 LegoS32 MenuInputDispatcher::DispatchMouseButtonEvent(InputEventQueue::Event* p_item)
 {
-	MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+	MenuIcon* icon = m_activeScreen->GetRootIcon();
 	MenuWidget* active = icon->FindFocusedLeaf();
 	undefined4 x = m_cursor.m_originX + m_cursor.m_cursorX;
 	undefined4 y = m_cursor.m_originY + m_cursor.m_cursorY;
 
 	if (p_item->m_isPressed) {
-		if (m_activeScreen->VTable0x18(icon, p_item, x, y)) {
+		if (m_activeScreen->HandleKeyDown(icon, p_item, x, y)) {
 			return TRUE;
 		}
 		if (active) {
 			Rect* rect = active->GetGlobalRect();
 
-			if (active->VTable0x30(p_item, x - rect->m_left, y - rect->m_top)) {
+			if (active->OnKeyDown(p_item, x - rect->m_left, y - rect->m_top)) {
 				return TRUE;
 			}
 		}
 	}
 	else {
-		if (m_activeScreen->VTable0x1c(icon, p_item, x, y)) {
+		if (m_activeScreen->HandleKeyUp(icon, p_item, x, y)) {
 			return TRUE;
 		}
 		if (active) {
 			Rect* rect = active->GetGlobalRect();
 
-			if (active->VTable0x34(p_item, x - rect->m_left, y - rect->m_top)) {
+			if (active->OnKeyUp(p_item, x - rect->m_left, y - rect->m_top)) {
 				return TRUE;
 			}
 		}
@@ -272,11 +272,11 @@ LegoS32 MenuInputDispatcher::DispatchMouseButtonEvent(InputEventQueue::Event* p_
 }
 
 // FUNCTION: LEGORACERS 0x004691e0
-void MenuInputDispatcher::DispatchMouseMove(MouseInputDevice* p_mouse)
+void MenuInputDispatcher::DispatchMouseMove(MouseDevice* p_mouse)
 {
-	MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+	MenuIcon* icon = m_activeScreen->GetRootIcon();
 	MenuWidget* active = icon->FindFocusedLeaf();
-	UtopianPan0xa4* cursorImage = m_cursor.m_cursorImage;
+	GolImage* cursorImage = m_cursor.m_cursorImage;
 	LegoS32 right = m_screenWidth - (cursorImage->m_width >> 2);
 	LegoS32 bottom = m_screenHeight - (cursorImage->m_height >> 2);
 	Rect* bounds = &m_cursor.m_bounds;
@@ -290,14 +290,14 @@ void MenuInputDispatcher::DispatchMouseMove(MouseInputDevice* p_mouse)
 	undefined4 x = cursor->m_originX + cursor->m_cursorX;
 	undefined4 y = cursor->m_originY + cursor->m_cursorY;
 
-	if (!m_activeScreen->VTable0x14(icon, cursor, x, y)) {
+	if (!m_activeScreen->OnWidgetKeyUp(icon, cursor, x, y)) {
 		if (active) {
-			if (active->VTable0x2c(cursor, (LegoS32) p_mouse->GetAxisValue(1), (LegoS32) p_mouse->GetAxisValue(2))) {
+			if (active->OnCursorEvent(cursor, (LegoS32) p_mouse->GetAxisValue(1), (LegoS32) p_mouse->GetAxisValue(2))) {
 				return;
 			}
 		}
 
-		icon->VTable0x20(cursor, x, y);
+		icon->DispatchCursorEvent(cursor, x, y);
 	}
 }
 
@@ -347,13 +347,13 @@ LegoS32 MenuInputDispatcher::ProcessInputEvents(MenuIcon*)
 			case c_joystickButton1:
 				break;
 			default:
-				MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+				MenuIcon* icon = m_activeScreen->GetRootIcon();
 
 				if (item->m_isPressed) {
-					icon->VTable0x24(item, x, y);
+					icon->DispatchKeyDown(item, x, y);
 				}
 				else {
-					icon->VTable0x28(item, x, y);
+					icon->DispatchKeyUp(item, x, y);
 				}
 				break;
 			}
@@ -366,23 +366,23 @@ LegoS32 MenuInputDispatcher::ProcessInputEvents(MenuIcon*)
 // FUNCTION: LEGORACERS 0x004694b0
 LegoS32 MenuInputDispatcher::Update(undefined4 p_elapsedMs)
 {
-	MenuIcon* icon = m_activeScreen->GetUnk0xd8();
+	MenuIcon* icon = m_activeScreen->GetRootIcon();
 
 	if (icon) {
-		icon->VTable0x18(p_elapsedMs);
+		icon->BroadcastEvent(p_elapsedMs);
 		if (!ProcessInputEvents(icon)) {
 			return FALSE;
 		}
 	}
 
 	if (m_cursor.m_golExport) {
-		MouseInputDevice* mouse = m_inputManager->GetMouse();
+		MouseDevice* mouse = m_inputManager->GetMouse();
 
 		if (mouse->GetAxisValue(1) != 0.0f || mouse->GetAxisValue(2) != 0.0f) {
 			DispatchMouseMove(mouse);
 		}
 
-		if (m_drawState->m_flags & GolDrawState::c_flagBit9) {
+		if (m_drawState->m_flags & GolDrawState::c_flagHardwareDevice) {
 			m_cursor.UpdatePosition(p_elapsedMs);
 		}
 	}
@@ -403,7 +403,7 @@ void MenuInputDispatcher::DrawCursor()
 	rect2.m_right = rect1.m_right = m_drawState->m_width;
 	rect2.m_bottom = rect1.m_bottom = m_drawState->m_height;
 
-	if (m_activeScreen->VTable0x7c(&rect2, &rect1)) {
+	if (m_activeScreen->Draw(&rect2, &rect1)) {
 		m_cursor.Draw();
 	}
 }

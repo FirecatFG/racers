@@ -1,9 +1,9 @@
 #include "model/legocolortable.h"
 
 #include "core/gol.h"
-#include "duskwindbananarelic0x24.h"
 #include "golbinparser.h"
 #include "golerror.h"
+#include "golmaterial.h"
 #include "golmateriallibrary.h"
 #include "goltxtparser.h"
 #include "model/legopiecelibrary.h"
@@ -69,8 +69,8 @@ void LegoColorTable::Destroy()
 	}
 
 	if (m_golExport != NULL && m_wdf != NULL) {
-		m_wdf->VTable0x18();
-		m_golExport->VTable0x3c(m_wdf);
+		m_wdf->Destroy();
+		m_golExport->DestroyWorldDatabase(m_wdf);
 	}
 
 	if (m_colorRecords != NULL) {
@@ -94,9 +94,9 @@ void LegoColorTable::RebuildColorMaterialLookup()
 	for (LegoS32 i = 0; i < m_colorRecordCount; i++) {
 		m_colorMaterialIndices[m_colorRecords[i].m_materialIndex] = -1;
 		for (LegoS32 j = 0; j < materialCount; j++) {
-			DuskwindBananaRelic0x24* material = static_cast<DuskwindBananaRelic0x24*>(m_materialTable.m_entries[j]);
-			DuskWindName0x8 materialName = material->GetNameRecord();
-			if (::strncmp(materialName.m_unk0x0, m_colorRecords[i].m_name, sizeof(GolName)) == 0) {
+			GolMaterial* material = static_cast<GolMaterial*>(m_materialTable.m_entries[j]);
+			GolMaterial::NameRecord materialName = material->GetNameRecord();
+			if (::strncmp(materialName.m_name, m_colorRecords[i].m_name, sizeof(GolName)) == 0) {
 				m_colorMaterialIndices[m_colorRecords[i].m_materialIndex] = j;
 				j = materialCount;
 			}
@@ -137,7 +137,7 @@ void LegoColorTable::LoadColors(const LegoChar* p_filename, undefined4 p_binary)
 		GOL_FATALERROR_MESSAGE("Unable to open LEGO Color file");
 	}
 
-	if (parser->GetNextToken() != GolFileParser::e_unknown0x2d) {
+	if (parser->GetNextToken() != LegoColorTable::e_colors) {
 		parser->HandleUnexpectedToken(GolFileParser::e_expectedKeyword);
 	}
 	m_colorRecordCount = LegoPieceLibrary::ReadBracketedCountAndLeftCurly(parser);
@@ -179,29 +179,29 @@ static LegoS32 CompareColorRecords(const void* p_lhs, const void* p_rhs)
 }
 
 // FUNCTION: LEGORACERS 0x00497c30
-void LegoColorTable::LoadMaterials(const LegoChar* p_filename, undefined4 p_binary, undefined4 p_unk0x0c)
+void LegoColorTable::LoadMaterials(const LegoChar* p_filename, undefined4 p_binary, undefined4 p_loadTextures)
 {
 	if (m_materialTable.m_renderer != NULL) {
 		m_materialTable.Clear();
 	}
 	if (m_wdf != NULL) {
-		m_wdf->VTable0x18();
+		m_wdf->Destroy();
 	}
 	else {
-		m_wdf = m_golExport->VTable0x08();
+		m_wdf = m_golExport->CreateWorldDatabase();
 	}
 
-	m_wdf->VTable0x54(p_unk0x0c);
-	m_wdf->VTable0x14(m_renderer, p_filename, p_binary, 1.0f);
-	m_wdf->VTable0x54(TRUE);
+	m_wdf->SetLoadTexturesImmediately(p_loadTextures);
+	m_wdf->Load(m_renderer, p_filename, p_binary, 1.0f);
+	m_wdf->SetLoadTexturesImmediately(TRUE);
 
-	m_materials = m_wdf->VTable0x30(0);
+	m_materials = m_wdf->GetMaterialLibrary(0);
 	LegoS32 materialCount = m_materials->GetItemCount();
 	m_materialCount = materialCount;
 	m_materialTable.Initialize(m_renderer, materialCount);
 	for (LegoS32 i = materialCount; i != 0;) {
 		i--;
-		m_materialTable.SetPosition(i, m_materials->GetItem(i));
+		m_materialTable.SetEntry(i, m_materials->GetItem(i));
 	}
 
 	m_materialUsage = new MaterialUsage[m_materialCount];
@@ -209,7 +209,7 @@ void LegoColorTable::LoadMaterials(const LegoChar* p_filename, undefined4 p_bina
 }
 
 // FUNCTION: LEGORACERS 0x00497cf0
-GolBillboard::Field0x2c* LegoColorTable::GetMaterialTable()
+GolBillboard::ManagedMaterialTable* LegoColorTable::GetMaterialTable()
 {
 	return m_materialTable.m_renderer != NULL ? &m_materialTable : NULL;
 }
@@ -233,9 +233,8 @@ void LegoColorTable::MarkMaterialUsed(LegoS32 p_materialIndex)
 		m_materialUsage[p_materialIndex].m_order = static_cast<LegoU16>(m_usedMaterialCount);
 		m_usedMaterialCount++;
 
-		DuskwindBananaRelic0x24* material =
-			static_cast<DuskwindBananaRelic0x24*>(m_materialTable.m_entries[p_materialIndex]);
-		if (material->GetUnk0x08() & DuskwindBananaRelic0x24::c_flag0x08Bit3) {
+		GolMaterial* material = static_cast<GolMaterial*>(m_materialTable.m_entries[p_materialIndex]);
+		if (material->GetFlags() & GolMaterial::c_flagTextured) {
 			m_transparentMaterialCount++;
 		}
 	}

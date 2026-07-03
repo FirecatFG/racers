@@ -14,23 +14,27 @@ GolCollidableEntity::GolCollidableEntity()
 }
 
 // FUNCTION: GOLDP 0x1001aca0
-void GolCollidableEntity::VTable0x60(GolModelBase* p_model, GolBoundingShape* p_shape, LegoFloat p_modelDistance)
+void GolCollidableEntity::SetPrimaryModelAndShape(
+	GolModelBase* p_model,
+	GolBoundingShape* p_shape,
+	LegoFloat p_modelDistance
+)
 {
-	GolModelEntity::VTable0x50(p_model, p_modelDistance);
+	GolModelEntity::SetPrimaryModel(p_model, p_modelDistance);
 	m_boundingShapes[0] = p_shape;
 }
 
 // FUNCTION: GOLDP 0x1001acd0
-void GolCollidableEntity::VTable0x54()
+void GolCollidableEntity::ResetModelState()
 {
 	m_boundingShapes[0] = NULL;
 	m_boundingShapes[1] = NULL;
 	m_boundingShapes[2] = NULL;
-	GolModelEntity::VTable0x54();
+	GolModelEntity::ResetModelState();
 }
 
 // FUNCTION: GOLDP 0x1001acf0
-void GolCollidableEntity::FUN_1001acf0(GolModelBase* p_model, GolBoundingShape* p_shape, LegoFloat p_modelDistance)
+void GolCollidableEntity::AddModel(GolModelBase* p_model, GolBoundingShape* p_shape, LegoFloat p_modelDistance)
 {
 	LegoU32 i;
 
@@ -54,18 +58,18 @@ void GolCollidableEntity::FUN_1001acf0(GolModelBase* p_model, GolBoundingShape* 
 }
 
 // FUNCTION: GOLDP 0x1001ad70
-void GolCollidableEntity::VTable0x1c(GolRenderDevice& p_renderer)
+void GolCollidableEntity::Draw(GolRenderDevice& p_renderer)
 {
-	p_renderer.VTable0x90(this);
+	p_renderer.DrawCollidableEntity(this);
 }
 
 // FUNCTION: LEGORACERS 0x00403c60
-void GolCollidableEntity::FUN_00403c60()
+void GolCollidableEntity::MirrorY()
 {
 	for (LegoU32 i = 0; i < sizeOfArray(m_boundingShapes); i++) {
 		if (m_boundingShapes[i] != NULL) {
-			m_boundingShapes[i]->FUN_00403f20();
+			m_boundingShapes[i]->MirrorY();
 		}
 	}
-	FUN_00411040();
+	GolOrientedEntity::MirrorY();
 }

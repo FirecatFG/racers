@@ -7,13 +7,17 @@
 #include "goltxtparser.h"
 #include "render/golrenderdevice.h"
 #include "surface/color.h"
+#include "world/wdbbillboardsprite.h"
+#include "world/wdbcamera.h"
+#include "world/wdblight.h"
+#include "world/wdbmodel.h"
 
 class GolCameraBase;
 class GolCamera;
 class GolMaterialLibrary;
 class GolBoundingShape;
 class GolBoundingVolume;
-class CmbModelPart0x34;
+class CmbModelPart;
 class GolFileParser;
 class GolWorldEntity;
 class GolModelEntity;
@@ -22,86 +26,12 @@ class GolAnimatedEntity;
 class GolCollidableEntity;
 class GolBillboard;
 class GolModelBase;
-class MabMaterialAnimation0x14;
+class MabMaterialAnimation;
 class GolTextureList;
 class GolModelMaterialTable;
 class GolRenderDevice;
 class GolSceneNode;
 struct Rect;
-
-// SIZE 0x8c
-struct WdbModel0x8c {
-	enum {
-		e_flagBit1 = 0x1 << 1,
-		e_flagBit2 = 0x1 << 2,
-		e_flagBit3 = 0x1 << 3,
-	};
-
-	GolName m_unk0x00;      // 0x00
-	LegoS32 m_unk0x08[3];   // 0x08
-	LegoS32 m_unk0x14[3];   // 0x14
-	LegoS32 m_unk0x20[3];   // 0x14
-	LegoS32 m_unk0x2c[3];   // 0x2c
-	LegoFloat m_unk0x38[3]; // 0x38
-	LegoS32 m_unk0x44;      // 0x44
-	GolName m_unk0x48;      // 0x48
-	GolVec3 m_unk0x50;      // 0x50
-	GolVec3 m_unk0x5c;      // 0x5c
-	GolVec3 m_unk0x68;      // 0x68
-	LegoFloat m_unk0x74;    // 0x74
-	Rect* m_unk0x78;        // 0x78
-	LegoU32 m_unk0x7c;      // 0x7c
-	LegoFloat m_unk0x80;    // 0x80
-	LegoFloat m_unk0x84;    // 0x84
-	LegoU32 m_flags;        // 0x88
-};
-
-// SIZE 0x38
-struct WdbBillboardSprite0x38 {
-	enum {
-		c_flagBit1 = 0x1 << 1,
-		c_flagBit2 = 0x1 << 2,
-	};
-
-	GolName m_unk0x00;                // 0x00
-	GolVec3 m_unk0x08;                // 0x08
-	GolVec3 m_unk0x14;                // 0x14
-	LegoFloat m_unk0x20;              // 0x20
-	LegoFloat m_unk0x24;              // 0x24
-	LegoFloat m_unk0x28;              // 0x28
-	LegoU8 m_flags;                   // 0x2c
-	undefined m_unk0x2d[0x2e - 0x2d]; // 0x2d
-	undefined2 m_unk0x2e;             // 0x2e
-	undefined2 m_unk0x30;             // 0x30
-	undefined2 m_unk0x32;             // 0x32
-	undefined2 m_unk0x34;             // 0x34
-	undefined2 m_unk0x36;             // 0x36
-};
-
-// SIZE 0x4c
-struct WdbCamera0x4c {
-	LegoFloat GetUnk0x40() const { return m_unk0x40; }
-	LegoFloat GetUnk0x44() const { return m_unk0x44; }
-	LegoFloat GetUnk0x48() const { return m_unk0x48; }
-
-	GolName m_unk0x00;    // 0x00
-	LegoS32 m_unk0x08;    // 0x08
-	undefined4 m_unk0x0c; // 0x0c
-	LegoS32 m_unk0x10;    // 0x10
-	GolName m_unk0x14;    // 0x14
-	GolVec3 m_unk0x1c;    // 0x1c
-	GolVec3 m_unk0x28;    // 0x28
-	GolVec3 m_unk0x34;    // 0x34
-	LegoFloat m_unk0x40;  // 0x40
-	LegoFloat m_unk0x44;  // 0x44
-	LegoFloat m_unk0x48;  // 0x48
-};
-
-// SIZE 0x10
-struct WdbLight0x10 {
-	ColorRGBA m_color; // 0x00
-	GolVec3 m_unk0x04; // 0x04
-};
 
 // VTABLE: GOLDP 0x100576ec
 // SIZE 0xf0
@@ -112,6 +42,54 @@ public:
 	// VTABLE: GOLDP 0x10057744
 	// SIZE 0x1fc
 	class WdbTxtParser : public GolTxtParser {
+	public:
+		// .wdb tokens; ids are section-scoped, so several carry one name per context
+		enum {
+			e_textureLists = 0x27,
+			e_materialLibraries = 0x28,
+			e_modelParts = 0x29,
+			e_models = 0x2a,
+			e_materialTables = 0x2b,
+			e_materialAssignment = 0x2b,
+			e_sceneNodes = 0x2c,
+			e_nodeLod = 0x2c,
+			e_boundingShapes = 0x2d,
+			e_modelEntities = 0x2e,
+			e_animatedEntities = 0x2f,
+			e_trackedEntity = 0x2f,
+			e_collidableEntities = 0x30,
+			e_position = 0x31,
+			e_orientation = 0x32,
+			e_jointedModel = 0x33,
+			e_collidableModel = 0x34,
+			e_node = 0x35,
+			e_scale = 0x36,
+			e_sprites = 0x37,
+			e_axis = 0x38,
+			e_materialName = 0x39,
+			e_width = 0x3a,
+			e_height = 0x3b,
+			e_maxDistance = 0x3c,
+			e_materialAnimations = 0x3d,
+			e_materialAnimation = 0x3e,
+			e_lod = 0x3f,
+			e_textureScroll = 0x3f,
+			e_boundingVolumes = 0x40,
+			e_boundingVolumeRef = 0x40,
+			e_boundedEntities = 0x41,
+			e_modelFlag1 = 0x42,
+			e_cameras = 0x43,
+			e_target = 0x44,
+			e_nearClip = 0x45,
+			e_farClip = 0x46,
+			e_fov = 0x47,
+			e_ambientLights = 0x48,
+			e_lights = 0x49,
+			e_color = 0x4a,
+			e_direction = 0x4b,
+			e_modelFlag2 = 0x4c,
+		};
+
 		// SYNTHETIC: GOLDP 0x10030050 FOLDED
 		// GolWorldDatabase::WdbTxtParser::`scalar deleting destructor'
 
@@ -120,185 +98,192 @@ public:
 	};
 
 	GolWorldDatabase();
-	virtual void VTable0x00();                                                                         // vtable+0x00
-	virtual void VTable0x04();                                                                         // vtable+0x04
-	virtual void VTable0x08() = 0;                                                                     // vtable+0x08
-	virtual undefined4* VTable0x0c() = 0;                                                              // vtable+0x0c
-	virtual ~GolWorldDatabase();                                                                       // vtable+0x10
-	virtual void VTable0x14(GolRenderDevice*, const LegoChar* p_name, LegoBool32 p_binary, LegoFloat); // vtable+0x14
-	virtual void VTable0x18();                                                                         // vtable+0x18
-	virtual void VTable0x1c(GolRenderDevice*) = 0;                                                     // vtable+0x1c
-	virtual void VTable0x20(GolRenderDevice*) = 0;                                                     // vtable+0x20
-	virtual void VTable0x24(GolRenderDevice*) = 0;                                                     // vtable+0x24
-	virtual void VTable0x28(GolRenderDevice*) = 0;                                                     // vtable+0x28
-	virtual GolTextureList* VTable0x2c(LegoU32 p_index) const = 0;                                     // vtable+0x2c
-	virtual GolMaterialLibrary* VTable0x30(LegoU32 p_index) const = 0;                                 // vtable+0x30
-	virtual CmbModelPart0x34* VTable0x34(LegoU32 p_index) const = 0;                                   // vtable+0x34
-	virtual GolModelBase* VTable0x38(LegoU32 p_index) const = 0;                                       // vtable+0x38
-	virtual GolModelMaterialTable* VTable0x3c(LegoU32 p_index) const = 0;                              // vtable+0x3c
-	virtual GolSceneNode* VTable0x40(LegoU32 p_index) const = 0;                                       // vtable+0x40
-	virtual GolBoundingShape* VTable0x44(LegoU32 p_index) const = 0;                                   // vtable+0x44
-	virtual GolWorldEntity* VTable0x48(LegoU32 p_index) const = 0;                                     // vtable+0x48
-	virtual MabMaterialAnimation0x14* VTable0x4c(LegoU32 p_index) const = 0;                           // vtable+0x4c
-	virtual GolCameraBase* VTable0x50(LegoU32 p_index) const = 0;                                      // vtable+0x50
-	virtual void VTable0x54(undefined4);                                                               // vtable+0x54
+	virtual void DestroyRecords();           // vtable+0x00
+	virtual void AllocateEntities();         // vtable+0x04
+	virtual void AllocateResources() = 0;    // vtable+0x08
+	virtual undefined4* LoadResources() = 0; // vtable+0x0c
+	virtual ~GolWorldDatabase();             // vtable+0x10
+	virtual void Load(
+		GolRenderDevice* p_renderer,
+		const LegoChar* p_name,
+		LegoBool32 p_binary,
+		LegoFloat p_worldScale
+	);                                                                             // vtable+0x14
+	virtual void Destroy();                                                        // vtable+0x18
+	virtual void DrawCollidableEntities(GolRenderDevice*) = 0;                     // vtable+0x1c
+	virtual void DrawModelEntities(GolRenderDevice*) = 0;                          // vtable+0x20
+	virtual void DrawAnimatedEntities(GolRenderDevice*) = 0;                       // vtable+0x24
+	virtual void DrawSprites(GolRenderDevice*) = 0;                                // vtable+0x28
+	virtual GolTextureList* GetTextureList(LegoU32 p_index) const = 0;             // vtable+0x2c
+	virtual GolMaterialLibrary* GetMaterialLibrary(LegoU32 p_index) const = 0;     // vtable+0x30
+	virtual CmbModelPart* GetModelPart(LegoU32 p_index) const = 0;                 // vtable+0x34
+	virtual GolModelBase* GetModel(LegoU32 p_index) const = 0;                     // vtable+0x38
+	virtual GolModelMaterialTable* GetMaterialTable(LegoU32 p_index) const = 0;    // vtable+0x3c
+	virtual GolSceneNode* GetSceneNode(LegoU32 p_index) const = 0;                 // vtable+0x40
+	virtual GolBoundingShape* GetBoundingShape(LegoU32 p_index) const = 0;         // vtable+0x44
+	virtual GolWorldEntity* GetWorldEntity(LegoU32 p_index) const = 0;             // vtable+0x48
+	virtual MabMaterialAnimation* GetMaterialAnimation(LegoU32 p_index) const = 0; // vtable+0x4c
+	virtual GolCameraBase* GetCamera(LegoU32 p_index) const = 0;                   // vtable+0x50
+	virtual void SetLoadTexturesImmediately(undefined4 p_immediate);               // vtable+0x54
 
 	// SYNTHETIC: GOLDP 0x1002c0c0
 	// GolWorldDatabase::`scalar deleting destructor'
 
-	LegoU32 GetUnk0x0c() const { return m_unk0x0c; }
-	LegoU32 GetUnk0x14() const { return m_unk0x14; }
-	LegoU32 GetUnk0x1c() const { return m_unk0x1c; }
-	LegoU32 GetUnk0x24() const { return m_unk0x24; }
-	LegoU32 GetUnk0x2c() const { return m_unk0x2c; }
-	LegoU32 GetUnk0x34() const { return m_unk0x34; }
-	LegoU32 GetUnk0x3c() const { return m_unk0x3c; }
-	LegoU32 GetUnk0x4c() const { return m_unk0x4c; }
-	LegoU32 GetUnk0x54() const { return m_unk0x54; }
-	LegoU32 GetUnk0x5c() const { return m_unk0x5c; }
-	LegoU32 GetUnk0x64() const { return m_unk0x64; }
-	LegoU32 GetUnk0x6c() const { return m_unk0x6c; }
-	LegoU32 GetUnk0x74() const { return m_unk0x74; }
-	GolName* GetUnk0x78() const { return m_unk0x78; }
-	LegoU32 GetUnk0x7c() const { return m_unk0x7c; }
-	LegoU32 GetUnk0x84() const { return m_unk0x84; }
-	LegoU32 GetUnk0x8c() const { return m_unk0x8c; }
-	GolModelEntity* GetUnk0x9c() const { return m_unk0x9c; }
-	GolAnimatedEntity* GetUnk0xa0() const { return m_unk0xa0; }
-	GolCollidableEntity* GetUnk0xa4() const { return m_unk0xa4; }
-	GolBoundedEntity* GetUnk0xa8() const { return m_unk0xa8; }
-	GolRenderDevice::MaterialColor* GetUnk0xac() { return m_unk0xac; }
-	const GolRenderDevice::MaterialColor* GetUnk0xac() const { return m_unk0xac; }
-	GolRenderDevice::Light* GetUnk0xb0() { return m_unk0xb0; }
-	const GolRenderDevice::Light* GetUnk0xb0() const { return m_unk0xb0; }
-	void FUN_00416040();
-	void FUN_00416090(LegoS32 p_elapsedMs);
-	void FUN_00416140();
-	LegoU32 FUN_00416290(LegoFloat p_scale);
-	GolNameTable::Entry* GetUnk0xb4NameEntries() const { return m_unk0xb4.GetNameEntries(); }
-	GolModelEntity* GetUnk0xb4Name(const LegoChar* p_name) const
+	LegoU32 GetTextureListCount() const { return m_textureListCount; }
+	LegoU32 GetMaterialLibraryCount() const { return m_materialLibraryCount; }
+	LegoU32 GetModelPartCount() const { return m_modelPartCount; }
+	LegoU32 GetModelEventCount() const { return m_modelCount; }
+	LegoU32 GetMaterialTableCount() const { return m_materialTableCount; }
+	LegoU32 GetSceneNodeCount() const { return m_sceneNodeCount; }
+	LegoU32 GetBoundingShapeCount() const { return m_boundingShapeCount; }
+	LegoU32 GetModelEntityCount() const { return m_modelEntityCount; }
+	LegoU32 GetAnimatedEntityCount() const { return m_animatedEntityCount; }
+	LegoU32 GetCollidableEntityCount() const { return m_collidableEntityCount; }
+	LegoU32 GetBoundedEntityCount() const { return m_boundedEntityCount; }
+	LegoU32 GetSpriteCount() const { return m_spriteCount; }
+	LegoU32 GetMaterialAnimationCount() const { return m_materialAnimationCount; }
+	GolName* GetMaterialAnimationNames() const { return m_materialAnimationNames; }
+	LegoU32 GetCameraCount() const { return m_cameraCount; }
+	LegoU32 GetAmbientLightCount() const { return m_ambientLightCount; }
+	LegoU32 GetLightCount() const { return m_lightCount; }
+	GolModelEntity* GetModelEntities() const { return m_modelEntities; }
+	GolAnimatedEntity* GetAnimatedEntities() const { return m_animatedEntities; }
+	GolCollidableEntity* GetCollidableEntities() const { return m_collidableEntities; }
+	GolBoundedEntity* GetBoundedEntities() const { return m_boundedEntities; }
+	GolRenderDevice::MaterialColor* GetAmbientMaterial() { return m_ambientMaterial; }
+	const GolRenderDevice::MaterialColor* GetAmbientMaterial() const { return m_ambientMaterial; }
+	GolRenderDevice::Light* GetLight() { return m_light; }
+	const GolRenderDevice::Light* GetLight() const { return m_light; }
+	void DrawWorld();
+	void Update(LegoS32 p_elapsedMs);
+	void ResetEntities();
+	LegoU32 SetCameraAspectRatios(LegoFloat p_aspectRatio);
+	GolNameTable::Entry* GetModelEntityEntries() const { return m_modelEntityNames.GetNameEntries(); }
+	GolModelEntity* GetModelEntityByName(const LegoChar* p_name) const
 	{
-		return static_cast<GolModelEntity*>(m_unk0xb4.GetName(p_name));
+		return static_cast<GolModelEntity*>(m_modelEntityNames.GetName(p_name));
 	}
-	GolNameTable::Entry* GetUnk0xc0NameEntries() const { return m_unk0xc0.GetNameEntries(); }
-	GolAnimatedEntity* GetUnk0xc0Name(const LegoChar* p_name) const
+	GolNameTable::Entry* GetAnimatedEntityEntries() const { return m_animatedEntityNames.GetNameEntries(); }
+	GolAnimatedEntity* GetAnimatedEntityByName(const LegoChar* p_name) const
 	{
-		return static_cast<GolAnimatedEntity*>(m_unk0xc0.GetName(p_name));
+		return static_cast<GolAnimatedEntity*>(m_animatedEntityNames.GetName(p_name));
 	}
-	GolNameTable::Entry* GetUnk0xccNameEntries() const { return m_unk0xcc.GetNameEntries(); }
-	GolCollidableEntity* GetUnk0xccName(const LegoChar* p_name) const
+	GolNameTable::Entry* GetCollidableEntityEntries() const { return m_collidableEntityNames.GetNameEntries(); }
+	GolCollidableEntity* GetCollidableEntityByName(const LegoChar* p_name) const
 	{
-		return static_cast<GolCollidableEntity*>(m_unk0xcc.GetName(p_name));
+		return static_cast<GolCollidableEntity*>(m_collidableEntityNames.GetName(p_name));
 	}
-	GolModelEntity* FindUnk0xb4(const LegoChar* p_name) const
+	GolModelEntity* FindModelEntity(const LegoChar* p_name) const
 	{
-		if (m_unk0xb4.GetNameEntries() == NULL) {
+		if (m_modelEntityNames.GetNameEntries() == NULL) {
 			return NULL;
 		}
 
-		return static_cast<GolModelEntity*>(m_unk0xb4.GetName(p_name));
+		return static_cast<GolModelEntity*>(m_modelEntityNames.GetName(p_name));
 	}
-	GolAnimatedEntity* FindUnk0xc0(const LegoChar* p_name) const
+	GolAnimatedEntity* FindAnimatedEntity(const LegoChar* p_name) const
 	{
-		if (m_unk0xc0.GetNameEntries() == NULL) {
+		if (m_animatedEntityNames.GetNameEntries() == NULL) {
 			return NULL;
 		}
-		return static_cast<GolAnimatedEntity*>(m_unk0xc0.GetName(p_name));
+		return static_cast<GolAnimatedEntity*>(m_animatedEntityNames.GetName(p_name));
 	}
-	GolCollidableEntity* FindUnk0xcc(const LegoChar* p_name) const
+	GolCollidableEntity* FindCollidableEntity(const LegoChar* p_name) const
 	{
-		return m_unk0xcc.GetNameEntries() ? static_cast<GolCollidableEntity*>(m_unk0xcc.GetName(p_name)) : NULL;
+		return m_collidableEntityNames.GetNameEntries()
+				   ? static_cast<GolCollidableEntity*>(m_collidableEntityNames.GetName(p_name))
+				   : NULL;
 	}
-	GolBoundedEntity* FindUnk0xd8(const LegoChar* p_name) const
+	GolBoundedEntity* FindBoundedEntity(const LegoChar* p_name) const
 	{
-		if (m_unk0xd8.GetNameEntries() == NULL) {
-			return NULL;
-		}
-
-		return static_cast<GolBoundedEntity*>(m_unk0xd8.GetName(p_name));
-	}
-	GolCamera* FindUnk0xe4(const LegoChar* p_name) const
-	{
-		if (m_unk0xe4.GetNameEntries() == NULL) {
+		if (m_boundedEntityNames.GetNameEntries() == NULL) {
 			return NULL;
 		}
 
-		return static_cast<GolCamera*>(m_unk0xe4.GetName(p_name));
+		return static_cast<GolBoundedEntity*>(m_boundedEntityNames.GetName(p_name));
+	}
+	GolCamera* FindCamera(const LegoChar* p_name) const
+	{
+		if (m_cameraNames.GetNameEntries() == NULL) {
+			return NULL;
+		}
+
+		return static_cast<GolCamera*>(m_cameraNames.GetName(p_name));
 	}
 
 protected:
 	void Reset();
-	void FUN_1002c7b0(GolFileParser&);
-	void FUN_1002c840(GolFileParser&);
-	void FUN_1002c8d0(GolFileParser&);
-	void FUN_1002c960(GolFileParser&);
-	void FUN_1002c9f0(GolFileParser&);
-	void FUN_1002ca80(GolFileParser&);
-	void FUN_1002cb10(GolFileParser&);
-	void FUN_1002cba0(GolFileParser&);
-	void FUN_1002cc30(GolFileParser&);
-	void FUN_1002cfa0(GolFileParser&);
-	void FUN_1002d400(GolFileParser&);
-	void FUN_1002d720(GolFileParser&);
-	void FUN_1002d950(GolFileParser&);
-	void FUN_1002db50(GolFileParser&);
-	void FUN_1002dbe0(GolFileParser&, Rect**, LegoU32* p_count);
-	void FUN_1002dc80(GolFileParser&);
-	void FUN_1002df90(GolFileParser&);
-	void FUN_1002e0d0(GolFileParser&);
-	void FUN_1002e250(GolBillboard* p_billboard, WdbBillboardSprite0x38* p_sprite);
-	void FUN_1002e640();
-	void FUN_1002f210(LegoU32 p_cameraIndex, GolCameraBase* p_lens);
+	void ParseTextureListNames(GolFileParser&);
+	void ParseMaterialLibraryNames(GolFileParser&);
+	void ParseModelPartNames(GolFileParser&);
+	void ParseModelNames(GolFileParser&);
+	void ParseMaterialTableNames(GolFileParser&);
+	void ParseSceneNodeNames(GolFileParser&);
+	void ParseBoundingShapeNames(GolFileParser&);
+	void ParseBoundingVolumeNames(GolFileParser&);
+	void ParseModelEntities(GolFileParser&);
+	void ParseAnimatedEntities(GolFileParser&);
+	void ParseCollidableEntities(GolFileParser&);
+	void ParseBoundedEntities(GolFileParser&);
+	void ParseSprites(GolFileParser&);
+	void ParseMaterialAnimationNames(GolFileParser&);
+	void ParseAnimationBindings(GolFileParser&, Rect**, LegoU32* p_count);
+	void ParseCameras(GolFileParser&);
+	void ParseAmbientLights(GolFileParser&);
+	void ParseLights(GolFileParser&);
+	void BindSpriteMaterialAnimation(GolBillboard* p_billboard, WdbBillboardSprite* p_sprite);
+	void InitializeEntities();
+	void SetupCamera(LegoU32 p_cameraIndex, GolCameraBase* p_lens);
 
-	GolRenderDevice* m_unk0x04;                // 0x04
-	LegoBool32 m_binary;                       // 0x08
-	LegoU32 m_unk0x0c;                         // 0x0c
-	GolName* m_unk0x10;                        // 0x10
-	LegoU32 m_unk0x14;                         // 0x14
-	GolName* m_unk0x18;                        // 0x18
-	LegoU32 m_unk0x1c;                         // 0x1c
-	GolName* m_unk0x20;                        // 0x20
-	LegoU32 m_unk0x24;                         // 0x24
-	GolName* m_unk0x28;                        // 0x28
-	LegoU32 m_unk0x2c;                         // 0x2c
-	GolName* m_unk0x30;                        // 0x30
-	LegoU32 m_unk0x34;                         // 0x34
-	GolName* m_unk0x38;                        // 0x38
-	LegoU32 m_unk0x3c;                         // 0x3c
-	GolName* m_unk0x40;                        // 0x40
-	LegoU32 m_unk0x44;                         // 0x44
-	GolName* m_unk0x48;                        // 0x48
-	LegoU32 m_unk0x4c;                         // 0x4c
-	WdbModel0x8c* m_unk0x50;                   // 0x50
-	LegoU32 m_unk0x54;                         // 0x54
-	WdbModel0x8c* m_unk0x58;                   // 0x58
-	LegoU32 m_unk0x5c;                         // 0x5c
-	WdbModel0x8c* m_unk0x60;                   // 0x60
-	LegoU32 m_unk0x64;                         // 0x64
-	WdbModel0x8c* m_unk0x68;                   // 0x68
-	LegoU32 m_unk0x6c;                         // 0x6c
-	WdbBillboardSprite0x38* m_unk0x70;         // 0x70
-	LegoU32 m_unk0x74;                         // 0x74
-	GolName* m_unk0x78;                        // 0x78
-	LegoU32 m_unk0x7c;                         // 0x7c
-	WdbCamera0x4c* m_unk0x80;                  // 0x80
-	LegoU32 m_unk0x84;                         // 0x84
-	WdbLight0x10* m_unk0x88;                   // 0x88
-	LegoU32 m_unk0x8c;                         // 0x8c
-	WdbLight0x10* m_unk0x90;                   // 0x90
-	LegoFloat m_unk0x94;                       // 0x94
-	GolBoundingVolume* m_unk0x98;              // 0x98
-	GolModelEntity* m_unk0x9c;                 // 0x9c
-	GolAnimatedEntity* m_unk0xa0;              // 0xa0
-	GolCollidableEntity* m_unk0xa4;            // 0xa4
-	GolBoundedEntity* m_unk0xa8;               // 0xa8
-	GolRenderDevice::MaterialColor* m_unk0xac; // 0xac
-	GolRenderDevice::Light* m_unk0xb0;         // 0xb0
-	GolNameTable m_unk0xb4;                    // 0xb4
-	GolNameTable m_unk0xc0;                    // 0xc0
-	GolNameTable m_unk0xcc;                    // 0xcc
-	GolNameTable m_unk0xd8;                    // 0xd8
-	GolNameTable m_unk0xe4;                    // 0xe4
+	GolRenderDevice* m_renderer;                       // 0x04
+	LegoBool32 m_binary;                               // 0x08
+	LegoU32 m_textureListCount;                        // 0x0c
+	GolName* m_textureListNames;                       // 0x10
+	LegoU32 m_materialLibraryCount;                    // 0x14
+	GolName* m_materialLibraryNames;                   // 0x18
+	LegoU32 m_modelPartCount;                          // 0x1c
+	GolName* m_modelPartNames;                         // 0x20
+	LegoU32 m_modelCount;                              // 0x24
+	GolName* m_modelNames;                             // 0x28
+	LegoU32 m_materialTableCount;                      // 0x2c
+	GolName* m_materialTableNames;                     // 0x30
+	LegoU32 m_sceneNodeCount;                          // 0x34
+	GolName* m_sceneNodeNames;                         // 0x38
+	LegoU32 m_boundingShapeCount;                      // 0x3c
+	GolName* m_boundingShapeNames;                     // 0x40
+	LegoU32 m_boundingVolumeCount;                     // 0x44
+	GolName* m_boundingVolumeNames;                    // 0x48
+	LegoU32 m_modelEntityCount;                        // 0x4c
+	WdbModel* m_modelEntityRecords;                    // 0x50
+	LegoU32 m_animatedEntityCount;                     // 0x54
+	WdbModel* m_animatedEntityRecords;                 // 0x58
+	LegoU32 m_collidableEntityCount;                   // 0x5c
+	WdbModel* m_collidableEntityRecords;               // 0x60
+	LegoU32 m_boundedEntityCount;                      // 0x64
+	WdbModel* m_boundedEntityRecords;                  // 0x68
+	LegoU32 m_spriteCount;                             // 0x6c
+	WdbBillboardSprite* m_spriteRecords;               // 0x70
+	LegoU32 m_materialAnimationCount;                  // 0x74
+	GolName* m_materialAnimationNames;                 // 0x78
+	LegoU32 m_cameraCount;                             // 0x7c
+	WdbCamera* m_cameraRecords;                        // 0x80
+	LegoU32 m_ambientLightCount;                       // 0x84
+	WdbLight* m_ambientLightRecords;                   // 0x88
+	LegoU32 m_lightCount;                              // 0x8c
+	WdbLight* m_lightRecords;                          // 0x90
+	LegoFloat m_worldScale;                            // 0x94
+	GolBoundingVolume* m_boundingVolumes;              // 0x98
+	GolModelEntity* m_modelEntities;                   // 0x9c
+	GolAnimatedEntity* m_animatedEntities;             // 0xa0
+	GolCollidableEntity* m_collidableEntities;         // 0xa4
+	GolBoundedEntity* m_boundedEntities;               // 0xa8
+	GolRenderDevice::MaterialColor* m_ambientMaterial; // 0xac
+	GolRenderDevice::Light* m_light;                   // 0xb0
+	GolNameTable m_modelEntityNames;                   // 0xb4
+	GolNameTable m_animatedEntityNames;                // 0xc0
+	GolNameTable m_collidableEntityNames;              // 0xcc
+	GolNameTable m_boundedEntityNames;                 // 0xd8
+	GolNameTable m_cameraNames;                        // 0xe4
 };
 
 #endif // GOLWORLDDATABASE_H

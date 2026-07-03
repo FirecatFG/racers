@@ -17,7 +17,7 @@ DECOMP_SIZE_ASSERT(ChampionDefinitionList::ChampionDefinition, 0x30)
 DECOMP_SIZE_ASSERT(ChampionDefinitionList::LoadParams, 0x14)
 
 // GLOBAL: LEGORACERS 0x004afde4
-extern const LegoFloat g_unk0x004afde4 = 250000.0f;
+extern const LegoFloat g_championModelMaxDistance = 250000.0f;
 
 // FUNCTION: LEGORACERS 0x0041d1a0
 ChampionDefinitionList::ChampionDefinitionList()
@@ -73,7 +73,7 @@ void ChampionDefinitionList::Clear()
 
 	if (m_models != NULL) {
 		for (LegoU32 i = 0; i < m_entryCount; i++) {
-			m_golExport->VTable0x48(m_models[i]);
+			m_golExport->DestroyModel(m_models[i]);
 			m_models[i] = NULL;
 		}
 
@@ -100,7 +100,7 @@ void ChampionDefinitionList::ClearDefinitions()
 }
 
 // FUNCTION: LEGORACERS 0x0041d370
-void ChampionDefinitionList::FUN_0041d370(const LoadParams* p_params)
+void ChampionDefinitionList::Load(const LoadParams* p_params)
 {
 	if (m_definitions != NULL) {
 		Clear();
@@ -124,7 +124,7 @@ void ChampionDefinitionList::FUN_0041d370(const LoadParams* p_params)
 	}
 
 	parser->OpenFileForRead(p_params->m_fileName);
-	parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+	parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(CcbTxtParser::e_champion));
 
 	LegoU32 count = parser->ReadBracketedCountAndLeftCurly();
 	if (count != 0) {
@@ -137,57 +137,57 @@ void ChampionDefinitionList::FUN_0041d370(const LoadParams* p_params)
 
 		for (LegoU32 i = 0; i < count; i++) {
 			GolName name;
-			m_definitions[i].m_unk0x00[0] = '\0';
-			m_definitions[i].m_unk0x08[0] = '\0';
-			m_definitions[i].m_unk0x10[0] = '\0';
-			m_definitions[i].m_unk0x18[0] = '\0';
-			m_definitions[i].m_unk0x20 = 0.0f;
-			m_definitions[i].m_unk0x24 = 0.0f;
-			m_definitions[i].m_unk0x28 = 0.0f;
-			m_definitions[i].m_unk0x2c = 0.0f;
+			m_definitions[i].m_materialLibraryName[0] = '\0';
+			m_definitions[i].m_textureListName[0] = '\0';
+			m_definitions[i].m_modelName[0] = '\0';
+			m_definitions[i].m_chassisName[0] = '\0';
+			m_definitions[i].m_mass = 0.0f;
+			m_definitions[i].m_centerOfMassX = 0.0f;
+			m_definitions[i].m_centerOfMassY = 0.0f;
+			m_definitions[i].m_centerOfMassZ = 0.0f;
 
-			parser->AssertNextTokenIs(GolFileParser::e_unknown0x27);
+			parser->AssertNextTokenIs(static_cast<GolFileParser::ParserTokenType>(CcbTxtParser::e_champion));
 			::strncpy(name, parser->ReadStringWithMaxLength(sizeof(name)), sizeof(name));
 			parser->ReadLeftCurly();
 
 			GolFileParser::ParserTokenType token;
 			while ((token = parser->GetNextToken()) != GolFileParser::e_rightCurly) {
 				switch (token) {
-				case GolFileParser::e_unknown0x28:
+				case CcbTxtParser::e_materialLibrary:
 					::strncpy(
-						m_definitions[i].m_unk0x00,
-						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_unk0x00)),
-						sizeof(m_definitions[i].m_unk0x00)
+						m_definitions[i].m_materialLibraryName,
+						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_materialLibraryName)),
+						sizeof(m_definitions[i].m_materialLibraryName)
 					);
 					break;
-				case GolFileParser::e_unknown0x29:
+				case CcbTxtParser::e_textureList:
 					::strncpy(
-						m_definitions[i].m_unk0x08,
-						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_unk0x08)),
-						sizeof(m_definitions[i].m_unk0x08)
+						m_definitions[i].m_textureListName,
+						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_textureListName)),
+						sizeof(m_definitions[i].m_textureListName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2a:
+				case CcbTxtParser::e_model:
 					::strncpy(
-						m_definitions[i].m_unk0x10,
-						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_unk0x10)),
-						sizeof(m_definitions[i].m_unk0x10)
+						m_definitions[i].m_modelName,
+						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_modelName)),
+						sizeof(m_definitions[i].m_modelName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2b:
+				case CcbTxtParser::e_chassis:
 					::strncpy(
-						m_definitions[i].m_unk0x18,
-						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_unk0x18)),
-						sizeof(m_definitions[i].m_unk0x18)
+						m_definitions[i].m_chassisName,
+						parser->ReadStringWithMaxLength(sizeof(m_definitions[i].m_chassisName)),
+						sizeof(m_definitions[i].m_chassisName)
 					);
 					break;
-				case GolFileParser::e_unknown0x2c:
-					m_definitions[i].m_unk0x20 = parser->ReadFloat();
+				case CcbTxtParser::e_mass:
+					m_definitions[i].m_mass = parser->ReadFloat();
 					break;
-				case GolFileParser::e_unknown0x2d:
-					m_definitions[i].m_unk0x24 = parser->ReadFloat();
-					m_definitions[i].m_unk0x28 = parser->ReadFloat();
-					m_definitions[i].m_unk0x2c = parser->ReadFloat();
+				case CcbTxtParser::e_centerOfMass:
+					m_definitions[i].m_centerOfMassX = parser->ReadFloat();
+					m_definitions[i].m_centerOfMassY = parser->ReadFloat();
+					m_definitions[i].m_centerOfMassZ = parser->ReadFloat();
 					break;
 				default:
 					parser->HandleUnexpectedToken(GolFileParser::e_syntaxerror);
@@ -244,33 +244,33 @@ void ChampionDefinitionList::FUN_0041d370(const LoadParams* p_params)
 }
 
 // FUNCTION: LEGORACERS 0x0041d780
-GolModelEntity* ChampionDefinitionList::FUN_0041d780(const LegoChar* p_name)
+GolModelEntity* ChampionDefinitionList::CreateChampionModel(const LegoChar* p_name)
 {
 	ChampionDefinition* definition = static_cast<ChampionDefinition*>(GetName(p_name));
-	return FUN_0041d7a0(definition);
+	return CreateChampionModel(definition);
 }
 
 // FUNCTION: LEGORACERS 0x0041d7a0
-GolModelEntity* ChampionDefinitionList::FUN_0041d7a0(ChampionDefinition* p_definition)
+GolModelEntity* ChampionDefinitionList::CreateChampionModel(ChampionDefinition* p_definition)
 {
 	LegoChar name[sizeof(GolName) + 1];
 
 	m_textureLists[m_entryCount] = m_golExport->CreateTextureList();
-	::strncpy(name, p_definition->m_unk0x08, sizeof(GolName));
+	::strncpy(name, p_definition->m_textureListName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_textureLists[m_entryCount]->VTable0x24(m_renderer, p_definition->m_unk0x08, m_binary);
+	m_textureLists[m_entryCount]->Load(m_renderer, p_definition->m_textureListName, m_binary);
 
 	m_materialLists[m_entryCount] = m_golExport->CreateMaterialList();
-	::strncpy(name, p_definition->m_unk0x00, sizeof(GolName));
+	::strncpy(name, p_definition->m_materialLibraryName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_materialLists[m_entryCount]->VTable0x24(m_renderer, name, m_binary);
+	m_materialLists[m_entryCount]->Load(m_renderer, name, m_binary);
 
-	m_models[m_entryCount] = m_golExport->VTable0x14();
-	::strncpy(name, p_definition->m_unk0x10, sizeof(GolName));
+	m_models[m_entryCount] = m_golExport->CreateModel();
+	::strncpy(name, p_definition->m_modelName, sizeof(GolName));
 	name[sizeof(GolName)] = '\0';
-	m_models[m_entryCount]->VTable0x1c(m_renderer, name, m_binary);
+	m_models[m_entryCount]->Load(m_renderer, name, m_binary);
 
-	m_modelEntities[m_entryCount].VTable0x50(m_models[m_entryCount], g_unk0x004afde4);
+	m_modelEntities[m_entryCount].SetPrimaryModel(m_models[m_entryCount], g_championModelMaxDistance);
 	m_entryCount++;
 
 	return &m_modelEntities[m_entryCount - 1];

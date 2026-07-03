@@ -1,5 +1,9 @@
 #include "golbinparser.h"
 
+#include "decomp.h"
+
+DECOMP_SIZE_ASSERT(GolBinParser, 0x650)
+
 #include "golconstants.h"
 #include "golerror.h"
 
@@ -7,15 +11,15 @@
 
 // GLOBAL: GOLDP 0x10065b58
 // GLOBAL: LEGORACERS 0x004c7070
-const LegoFloat g_token0x0fconstant = 1.0f / g_floatConst4096.m_value;
+const LegoFloat g_dequantize4096 = 1.0f / g_floatConst4096.m_value;
 
 // GLOBAL: GOLDP 0x10065b60
 // GLOBAL: LEGORACERS 0x004c7078
-const LegoFloat g_token0x10constant = 1.0f / g_floatConst32.m_value;
+const LegoFloat g_dequantize32 = 1.0f / g_floatConst32.m_value;
 
 // GLOBAL: GOLDP 0x10065b64
 // GLOBAL: LEGORACERS 0x004c707c
-const LegoFloat g_token0x12constant = 1.0f / g_floatConst127;
+const LegoFloat g_dequantize127 = 1.0f / g_floatConst127;
 
 // GLOBAL: GOLDP 0x1005f030
 // GLOBAL: LEGORACERS 0x004c182c
@@ -120,7 +124,7 @@ void GolBinParser::OpenFileForRead(const LegoChar* p_fileName)
 	m_fileOffset = 0;
 	m_unk0x1f4 = 0;
 	m_currentToken = e_syntaxerror;
-	m_unk0x30 = 0;
+	m_replayToken = 0;
 }
 
 // FUNCTION: GOLDP 0x10030280
@@ -148,8 +152,8 @@ GolFileParser::ParserTokenType GolBinParser::GetNextToken()
 	LegoS32 code;
 	LegoS32 lenRead;
 
-	if (m_unk0x30) {
-		m_unk0x30 = 0;
+	if (m_replayToken) {
+		m_replayToken = 0;
 		return (GolFileParser::ParserTokenType) m_currentToken;
 	}
 
@@ -344,7 +348,7 @@ GolFileParser::ParserTokenType GolBinParser::GetNextToken()
 				return e_syntaxerror;
 			}
 
-			m_lastFloat = g_token0x0fconstant * (LegoS16) (m_readBuffer[0] + ((m_readBuffer[1] << 8)));
+			m_lastFloat = g_dequantize4096 * (LegoS16) (m_readBuffer[0] + ((m_readBuffer[1] << 8)));
 			m_currentToken = e_float;
 			return (GolFileParser::ParserTokenType) m_currentToken;
 
@@ -353,7 +357,7 @@ GolFileParser::ParserTokenType GolBinParser::GetNextToken()
 				return e_syntaxerror;
 			}
 
-			m_lastFloat = g_token0x10constant * (LegoS16) (m_readBuffer[0] + ((m_readBuffer[1] << 8)));
+			m_lastFloat = g_dequantize32 * (LegoS16) (m_readBuffer[0] + ((m_readBuffer[1] << 8)));
 			m_currentToken = e_float;
 			return (GolFileParser::ParserTokenType) m_currentToken;
 
@@ -371,7 +375,7 @@ GolFileParser::ParserTokenType GolBinParser::GetNextToken()
 				return e_syntaxerror;
 			}
 
-			m_lastFloat = g_token0x12constant * (LegoU8) (m_readBuffer[0]);
+			m_lastFloat = g_dequantize127 * (LegoU8) (m_readBuffer[0]);
 			m_currentToken = e_float;
 			return (GolFileParser::ParserTokenType) m_currentToken;
 
@@ -605,7 +609,7 @@ void GolBinParser::WriteToken(ParserTokenType p_token)
 
 // FUNCTION: GOLDP 0x10031100
 // FUNCTION: LEGORACERS 0x0044b4a0
-void GolBinParser::VTable0x54(undefined4 p_param)
+void GolBinParser::WriteByte(undefined4 p_param)
 {
 	*m_readBuffer = p_param;
 
@@ -647,7 +651,7 @@ void GolBinParser::WriteFloat(LegoFloat p_param)
 
 // FUNCTION: GOLDP 0x1002fd50 FOLDED
 // FUNCTION: LEGORACERS 0x0044b570 FOLDED
-void GolBinParser::VTable0x5c(LegoFloat p_param)
+void GolBinParser::WriteFloat2(LegoFloat p_param)
 {
 	WriteFloat(p_param);
 }

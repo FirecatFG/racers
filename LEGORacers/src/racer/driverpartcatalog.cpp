@@ -24,10 +24,10 @@ DriverPartCatalog::~DriverPartCatalog()
 void DriverPartCatalog::Reset()
 {
 	m_loaded = FALSE;
-	m_countLegs = 0;
-	m_countTorsos = 0;
-	m_countFaces = 0;
-	m_countHats = 0;
+	m_legCount = 0;
+	m_torsoCount = 0;
+	m_faceCount = 0;
+	m_hatCount = 0;
 }
 
 // FUNCTION: LEGORACERS 0x00498740
@@ -114,14 +114,14 @@ void DriverPartCatalog::ReadHats(GolFileParser& p_parser)
 {
 	const LegoChar* str;
 
-	m_countHats = ReadBracketedCount(p_parser);
-	if (m_countHats > static_cast<LegoS32>(sizeOfArray(m_hatNames))) {
+	m_hatCount = ReadBracketedCount(p_parser);
+	if (m_hatCount > static_cast<LegoS32>(sizeOfArray(m_hatNames))) {
 		GOL_FATALERROR_MESSAGE("Too many hats!");
 	}
 
 	p_parser.ReadLeftCurly();
 
-	for (LegoS32 i = 0; i < m_countHats; i++) {
+	for (LegoS32 i = 0; i < m_hatCount; i++) {
 		str = p_parser.ReadStringWithMaxLength(sizeof(m_hatNames[i]));
 		::memcpy(m_hatNames[i], str, sizeof(m_hatNames[i]));
 		m_hatUnlockFlags[i] = p_parser.ReadInteger();
@@ -135,8 +135,8 @@ void DriverPartCatalog::ReadFaces(GolFileParser& p_parser)
 {
 	const LegoChar* str;
 
-	m_countFaces = ReadBracketedCount(p_parser);
-	if (m_countFaces > static_cast<LegoS32>(sizeOfArray(m_faceNames))) {
+	m_faceCount = ReadBracketedCount(p_parser);
+	if (m_faceCount > static_cast<LegoS32>(sizeOfArray(m_faceNames))) {
 		GOL_FATALERROR_MESSAGE("Too many faces!");
 	}
 
@@ -144,7 +144,7 @@ void DriverPartCatalog::ReadFaces(GolFileParser& p_parser)
 	str = p_parser.ReadStringWithMaxLength(sizeof(m_faceDirectory));
 	::memcpy(m_faceDirectory, str, sizeof(m_faceDirectory));
 
-	for (LegoS32 i = 0; i < m_countFaces; i++) {
+	for (LegoS32 i = 0; i < m_faceCount; i++) {
 		str = p_parser.ReadString();
 		::strcpy(m_faceNames[i], str);
 		m_faceUnlockFlags[i] = p_parser.ReadInteger();
@@ -164,8 +164,8 @@ void DriverPartCatalog::ReadTorsos(GolFileParser& p_parser)
 {
 	const LegoChar* str;
 
-	m_countTorsos = ReadBracketedCount(p_parser);
-	if (m_countTorsos > static_cast<LegoS32>(sizeOfArray(m_torsoNames))) {
+	m_torsoCount = ReadBracketedCount(p_parser);
+	if (m_torsoCount > static_cast<LegoS32>(sizeOfArray(m_torsoNames))) {
 		GOL_FATALERROR_MESSAGE("Too many torsos");
 	}
 
@@ -175,7 +175,7 @@ void DriverPartCatalog::ReadTorsos(GolFileParser& p_parser)
 	str = p_parser.ReadStringWithMaxLength(sizeof(m_torsoVariantDirs[1]));
 	::memcpy(&m_torsoVariantDirs[1], str, sizeof(m_torsoVariantDirs[1]));
 
-	for (LegoS32 i = 0; i < m_countTorsos; i++) {
+	for (LegoS32 i = 0; i < m_torsoCount; i++) {
 		str = p_parser.ReadStringWithMaxLength(sizeof(m_torsoNames[i]));
 		::memcpy(m_torsoNames[i], str, sizeof(m_torsoNames[i]));
 		m_torsoVariants[i] = p_parser.ReadInteger();
@@ -190,8 +190,8 @@ void DriverPartCatalog::ReadLegs(GolFileParser& p_parser)
 {
 	const LegoChar* str;
 
-	m_countLegs = ReadBracketedCount(p_parser);
-	if (m_countLegs > static_cast<LegoS32>(sizeOfArray(m_legNames))) {
+	m_legCount = ReadBracketedCount(p_parser);
+	if (m_legCount > static_cast<LegoS32>(sizeOfArray(m_legNames))) {
 		GOL_FATALERROR_MESSAGE("Too many legs!");
 	}
 
@@ -201,7 +201,7 @@ void DriverPartCatalog::ReadLegs(GolFileParser& p_parser)
 	str = p_parser.ReadStringWithMaxLength(sizeof(m_legVariantDirs[1]));
 	::strncpy(m_legVariantDirs[1], str, sizeof(m_legVariantDirs[1]));
 
-	for (LegoS32 i = 0; i < m_countLegs; i++) {
+	for (LegoS32 i = 0; i < m_legCount; i++) {
 		str = p_parser.ReadStringWithMaxLength(sizeof(m_legNames[i]));
 		::strncpy(m_legNames[i], str, sizeof(m_legNames[i]));
 		m_legVariants[i] = p_parser.ReadInteger();
@@ -248,7 +248,7 @@ void DriverPartCatalog::ReadBodyModelNames(GolFileParser& p_parser)
 }
 
 // FUNCTION: LEGORACERS 0x00498e40
-void DriverPartCatalog::FUN_00498e40(GolFileParser& p_parser)
+void DriverPartCatalog::ReadPartSlotNames(GolFileParser& p_parser)
 {
 	const LegoChar* str;
 
@@ -256,8 +256,8 @@ void DriverPartCatalog::FUN_00498e40(GolFileParser& p_parser)
 	p_parser.ReadLeftCurly();
 
 	for (LegoS32 i = 0; i < count; i++) {
-		str = p_parser.ReadStringWithMaxLength(sizeof(m_unk0x741[i]));
-		::strncpy(m_unk0x741[i], str, sizeof(m_unk0x741[i]));
+		str = p_parser.ReadStringWithMaxLength(sizeof(m_partSlotNames[i]));
+		::strncpy(m_partSlotNames[i], str, sizeof(m_partSlotNames[i]));
 	}
 
 	p_parser.ReadRightCurly();
@@ -270,32 +270,32 @@ void DriverPartCatalog::ReadFile(GolFileParser& p_parser)
 
 	while ((token = p_parser.GetNextToken()) != 0) {
 		switch (token) {
-		case GolFileParser::e_unknown0x27:
+		case PcbTxtParser::e_modelFiles:
 			ReadModelFileNames(p_parser);
 			break;
-		case GolFileParser::e_unknown0x28:
+		case PcbTxtParser::e_modelDirectories:
 			ReadModelDirectories(p_parser);
 			break;
-		case GolFileParser::e_unknown0x29:
+		case PcbTxtParser::e_hats:
 			ReadHats(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2a:
+		case PcbTxtParser::e_faces:
 			ReadFaces(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2b:
+		case PcbTxtParser::e_torsos:
 			ReadTorsos(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2c:
+		case PcbTxtParser::e_legs:
 			ReadLegs(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2d:
+		case PcbTxtParser::e_headHats:
 			ReadHeadHats(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2e:
+		case PcbTxtParser::e_bodyModels:
 			ReadBodyModelNames(p_parser);
 			break;
-		case GolFileParser::e_unknown0x2f:
-			FUN_00498e40(p_parser);
+		case PcbTxtParser::e_partSlots:
+			ReadPartSlotNames(p_parser);
 			break;
 		default:
 			p_parser.HandleUnexpectedToken(GolFileParser::e_expectedKeyword);

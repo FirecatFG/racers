@@ -3,24 +3,24 @@
 
 #include "compat.h"
 #include "golworldentity.h"
-#include "material/materialtable0x0c.h"
+#include "material/materialtable.h"
 
 #include <d3d.h>
 
 class GolD3DRenderDevice;
 class GolRenderDevice;
-class DuskwindBananaRelic0x24;
+class GolMaterial;
 
 typedef void(__cdecl* GolBillboardInitializerFunction)();
-extern GolBillboardInitializerFunction g_unk0x1005c010;
+extern GolBillboardInitializerFunction g_billboardTexCoordInit;
 
 // VTABLE: GOLDP 0x10057500
 // SIZE 0x4c
 class GolBillboard : public GolWorldEntity {
 public:
 	enum {
-		c_flagBit1 = 1 << 1,
-		c_flagBit2 = 1 << 2,
+		c_flagAxisLocked = 1 << 1,
+		c_flagMaterialAssignment = 1 << 2,
 	};
 
 #ifdef BUILDING_LEGORACERS
@@ -30,49 +30,49 @@ public:
 #endif
 
 	// SIZE 0x0c
-	struct Field0x2c : public MaterialTable0x0c {
-		Field0x2c();
-		~Field0x2c();
+	struct ManagedMaterialTable : public MaterialTable {
+		ManagedMaterialTable();
+		~ManagedMaterialTable();
 
 		void Initialize(GolRenderDevice* p_renderer, LegoU32 p_count);
 		void Clear();
 	};
 
 	GolBillboard();
-	static void FUN_10014e20();
+	static void InitializeTexCoords();
 
 	// FUNCTION: GOLDP 0x100156c0
-	void VTable0x08(const GolVec3& p_v) override { GolWorldEntity::VTable0x08(p_v); } // vtable+0x08
+	void SetPosition(const GolVec3& p_v) override { GolWorldEntity::SetPosition(p_v); } // vtable+0x08
 
-	void VTable0x14(const GolViewFrustum& p_view, ResultStruct* p_result) override; // vtable+0x14
-	void VTable0x1c(GolRenderDevice&) override;                                     // vtable+0x1c
-	LegoBool32 VTable0x20() override;                                               // vtable+0x20
-	virtual VTable0x4cReturn VTable0x4c(
-		DuskwindBananaRelic0x24* p_position,
+	void ComputeVisibility(const GolViewFrustum& p_view, ResultStruct* p_result) override; // vtable+0x14
+	void Draw(GolRenderDevice&) override;                                                  // vtable+0x1c
+	LegoBool32 GetKind() override;                                                         // vtable+0x20
+	virtual VTable0x4cReturn Configure(
+		GolMaterial* p_material,
 		LegoFloat p_width,
 		LegoFloat p_height,
 		LegoFloat p_maxDistanceSquared
-	);                         // vtable+0x4c
-	virtual void VTable0x50(); // vtable+0x50
+	);                              // vtable+0x4c
+	virtual void SetPrimaryModel(); // vtable+0x50
 
-	LegoBool32 FUN_10014e50(const GolVec3* p_arg1, const GolVec3* p_arg2, GolMatrix4* p_matrix);
-	void FUN_10014ff0(GolD3DRenderDevice* p_renderer);
-	void FUN_10026fa0(LegoFloat p_arg1);
-	VTable0x4cReturn FUN_10029e90(
-		MaterialTable0x0c* p_container,
+	LegoBool32 BuildModelMatrix(const GolVec3* p_right, const GolVec3* p_forward, GolMatrix4* p_matrix);
+	void DrawQuad(GolD3DRenderDevice* p_renderer);
+	void SetBoundsRadius(LegoFloat p_arg1);
+	VTable0x4cReturn ConfigureFromMaterialTable(
+		MaterialTable* p_container,
 		LegoS32 p_index,
 		LegoFloat p_width,
 		LegoFloat p_height,
 		LegoFloat p_maxDistanceSquared
 	);
-	void FUN_10029fa0(const GolVec3& p_arg1, LegoBool32* p_result);
-	DuskwindBananaRelic0x24* FUN_1002a020();
-	MaterialTable0x0c* GetPositionContainer() const { return m_positionContainer; }
+	void TestVisibility(const GolVec3& p_cameraPosition, LegoBool32* p_visibility);
+	GolMaterial* ResolveMaterial();
+	MaterialTable* GetMaterialTable() const { return m_materialTable; }
 	LegoU16 GetFlags() const { return m_flags; }
 	void SetWidth(LegoFloat p_width) { m_width = p_width; }
 	void SetHeight(LegoFloat p_height) { m_height = p_height; }
-	void EnableFlagBit1() { m_flags |= c_flagBit1; }
-	void SetUnk0x30(const GolVec3& p_unk0x30) { m_unk0x30 = p_unk0x30; }
+	void EnableAxisLock() { m_flags |= c_flagAxisLocked; }
+	void SetAxis(const GolVec3& p_axis) { m_axis = p_axis; }
 
 private:
 	static GolVec3 g_billboardPositions[4];
@@ -80,14 +80,14 @@ private:
 	static LegoU32 g_billboardColors[4];
 	static LegoU8 g_billboardTriangleIndices[8];
 
-	DuskwindBananaRelic0x24* m_position;    // 0x28
-	MaterialTable0x0c* m_positionContainer; // 0x2c
-	GolVec3 m_unk0x30;                      // 0x30
-	LegoFloat m_width;                      // 0x3c
-	LegoFloat m_height;                     // 0x40
-	LegoFloat m_maxDistanceSquared;         // 0x44
-	LegoU16 m_flags;                        // 0x48
-	LegoU16 m_positionIndex;                // 0x4a
+	GolMaterial* m_material;        // 0x28
+	MaterialTable* m_materialTable; // 0x2c
+	GolVec3 m_axis;                 // 0x30
+	LegoFloat m_width;              // 0x3c
+	LegoFloat m_height;             // 0x40
+	LegoFloat m_maxDistanceSquared; // 0x44
+	LegoU16 m_flags;                // 0x48
+	LegoU16 m_materialIndex;        // 0x4a
 };
 
 #endif // GOLBILLBOARD_H

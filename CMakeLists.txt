@@ -108,33 +108,33 @@ set(COMMON_SOURCES
   common/src/golfontbase.cpp
   common/src/goltransformbase.cpp
   common/src/golscenenode.cpp
-  common/src/whitefalcon0x140light.cpp
-  common/src/silverdune0x30.cpp
-  common/src/golddune0x38.cpp
-  common/src/bronzedunebag0xc.cpp
-  common/src/bronzedune0x4c.cpp
-  common/src/whitefalcon0x140materialcolor.cpp
-  common/src/cmbmodelpart0x34.cpp
-  common/src/cmbmodelpartdata0x18.cpp
-  common/src/cmbmodelpartdata0x28.cpp
-  common/src/mabmaterialanimation0x14.cpp
-  common/src/materialtable0x0c.cpp
-  common/src/golbillboardfield0x2c.cpp
+  common/src/golrenderdevicelight.cpp
+  common/src/golsurface.cpp
+  common/src/goltexture.cpp
+  common/src/goltexturepalette.cpp
+  common/src/golpalettedtexture.cpp
+  common/src/golrenderdevicematerialcolor.cpp
+  common/src/cmbmodelpart.cpp
+  common/src/cmbmodelparttrackdata.cpp
+  common/src/cmbmodelpartdata.cpp
+  common/src/mabmaterialanimation.cpp
+  common/src/materialtable.cpp
+  common/src/golbillboardmaterialtable.cpp
   common/src/golworldentity.cpp
-  common/src/golworldentitygroup0x38.cpp
+  common/src/golworldentitygroup.cpp
   common/src/golorientedentity.cpp
   common/src/golviewfrustum.cpp
   common/src/golmodelmaterialtable.cpp
   common/src/golmodelbase.cpp
-  common/src/gdbvertexarray0xc.cpp
-  common/src/igdbmodelindexarray0x8.cpp
-  common/src/gdbmodelindexarray0xc.cpp
+  common/src/gdbvertexarray.cpp
+  common/src/gdbmodelindexarraybase.cpp
+  common/src/gdbmodelindexarray.cpp
   common/src/golmodelentity.cpp
   common/src/golanimatedentity.cpp
-  common/src/mabmaterialanimationitem0x8.cpp
-  common/src/mabmaterialanimationitem0x18.cpp
-  common/src/duskwindbananarelic0x24.cpp
-  common/src/amethystbreeze0x104.cpp
+  common/src/mabmaterialframe.cpp
+  common/src/mabmaterialtrack.cpp
+  common/src/golmaterial.cpp
+  common/src/golmodelrenderstate.cpp
   common/src/golmateriallibrary.cpp
 )
 
@@ -142,21 +142,21 @@ set(COMMON_SOURCES
 #This might represent another original static library or project grouping; keep the list
 #narrow until more source units show the same codegen fingerprint.
 set(GOLDP_INLINE_EXPANSION_SOURCES
-  GolDP/src/material/duskwindbananarelic0x30.cpp
+  GolDP/src/material/golsoftwarematerial.cpp
   GolDP/src/render/goldrawstate.cpp
   GolDP/src/render/golrasterizers1.cpp
   GolDP/src/render/golrasterizers2.cpp
-  GolDP/src/image/utopianpan0xa4.cpp
-  GolDP/src/image/whitebaffoon0x50.cpp
+  GolDP/src/image/golimage.cpp
+  GolDP/src/image/goltiledtexture.cpp
   GolDP/src/render/golrenderdevice.cpp
   GolDP/src/render/gold3drendersurface.cpp
-  GolDP/src/surface/falcondunebag0x10.cpp
+  GolDP/src/surface/gold3dtexturepalette.cpp
   GolDP/src/surface/goldepthbuffer.cpp
   GolDP/src/font/golfont.cpp
-  GolDP/src/surface/purpledune0x7c.cpp
-  GolDP/src/material/purpleribbon0x24.cpp
-  GolDP/src/material/amberhaze0x20.cpp
-  GolDP/src/mesh/gdbcommonvertexarray0x1c.cpp
+  GolDP/src/surface/gold3dtexture.cpp
+  GolDP/src/material/gold3dtexturelist.cpp
+  GolDP/src/material/golsoftwaremateriallibrary.cpp
+  GolDP/src/mesh/gdbcoloredvertexarraybase.cpp
   GolDP/src/mesh/golmodel.cpp
   GolDP/src/camera/golscenetransformnode.cpp
 )
@@ -195,35 +195,35 @@ add_library(goldp SHARED
   GolDP/src/world/golworlddatabase.cpp
   GolDP/src/scene/golbillboard.cpp
   GolDP/src/scene/golbillboardex.cpp
-  GolDP/src/surface/slatepeak0x58.cpp
-  GolDP/src/surface/azureridge0x38.cpp
+  GolDP/src/surface/golrendertarget.cpp
+  GolDP/src/surface/goldisplaysurface.cpp
   GolDP/src/camera/golcamera.cpp
   GolDP/src/camera/goltransform.cpp
   GolDP/src/device/ddrawutil.cpp
-  GolDP/src/material/amberhaze0x20.cpp
+  GolDP/src/material/golsoftwaremateriallibrary.cpp
   GolDP/src/font/golfontlibrary.cpp
   GolDP/src/material/goltexturelist.cpp
-  GolDP/src/material/purpleribbon0x24.cpp
-  GolDP/src/surface/purpledune0x7c.cpp
+  GolDP/src/material/gold3dtexturelist.cpp
+  GolDP/src/surface/gold3dtexture.cpp
   GolDP/src/render/golrenderdevice.cpp
   GolDP/src/render/gold3drenderdevice.cpp
   GolDP/src/render/gold3drendersurface.cpp
-  GolDP/src/material/awakekite0x20.cpp
+  GolDP/src/material/golimagedefinitionlist.cpp
   GolDP/src/material/golimagelist.cpp
   GolDP/src/font/golfonttable.cpp
   GolDP/src/font/golfont.cpp
-  GolDP/src/surface/moltenquillphantom0x34.cpp
-  GolDP/src/image/whitebaffoon0x50.cpp
-  GolDP/src/image/utopianpan0xa4.cpp
-  GolDP/src/material/duskwindbananarelic0x30.cpp
+  GolDP/src/surface/golattachedsurface.cpp
+  GolDP/src/image/goltiledtexture.cpp
+  GolDP/src/image/golimage.cpp
+  GolDP/src/material/golsoftwarematerial.cpp
   GolDP/src/surface/goldepthbuffer.cpp
   GolDP/src/render/golsoftwarerenderer.cpp
-  GolDP/src/surface/falcondunebag0x10.cpp
-  GolDP/src/mesh/gdbcommonvertexarray0x1c.cpp
-  GolDP/src/mesh/gdbvertexarraytypetwo0x20.cpp
-  GolDP/src/mesh/gdbvertexarraytypeone0x1c.cpp
-  GolDP/src/mesh/gdbvertexarraytypethree0x20.cpp
-  GolDP/src/mesh/gdbvertexarraymistery0x1c.cpp
+  GolDP/src/surface/gold3dtexturepalette.cpp
+  GolDP/src/mesh/gdbcoloredvertexarraybase.cpp
+  GolDP/src/mesh/gdbcoloredvertexarray.cpp
+  GolDP/src/mesh/gdbnormalvertexarray.cpp
+  GolDP/src/mesh/gdbprelitvertexarray.cpp
+  GolDP/src/mesh/gdbuncoloredvertexarray.cpp
   GolDP/src/mesh/golmodel.cpp
   GolDP/src/camera/golscenetransformnode.cpp
   util/decomp.cpp
@@ -283,7 +283,6 @@ add_executable(legoracers WIN32
   LEGORacers/src/audio/soundmanager.cpp
   LEGORacers/src/audio/soundnode.cpp
   LEGORacers/src/audio/streamingsoundinstance.cpp
-  LEGORacers/src/input/inputmanager.cpp
   LEGORacers/src/input/directinputmanager.cpp
   LEGORacers/src/input/joystickdevice.cpp
   LEGORacers/src/input/keyboarddevice.cpp
@@ -291,65 +290,109 @@ add_executable(legoracers WIN32
   LEGORacers/src/input/directinputdevice.cpp
   LEGORacers/src/input/inputdevice.cpp
   LEGORacers/src/menu/menumanager.cpp
-  LEGORacers/src/race/racemoderunner.cpp
   LEGORacers/src/race/timeracemanager.cpp
   LEGORacers/src/util/stackoflegou16.cpp
   LEGORacers/src/util/legoeventqueue.cpp
-  LEGORacers/src/util/legoeventqueuefield0x10.cpp
-  LEGORacers/src/util/legoeventqueuefield0x30.cpp
+  LEGORacers/src/util/legoeventqueuerigidbody.cpp
+  LEGORacers/src/util/legoeventqueuecollision.cpp
   LEGORacers/src/util/legoeventqueueevent.cpp
-  LEGORacers/src/util/marblepath0x114.cpp
   LEGORacers/src/menu/menudialogscreen.cpp
   LEGORacers/src/menu/menudialog.cpp
   LEGORacers/src/race/racesession.cpp
-  LEGORacers/src/race/racesessionfield0x2080.cpp
-  LEGORacers/src/race/racesessionfield0x2098.cpp
-  LEGORacers/src/race/racesessionfield0x2098resource0x24.cpp
-  LEGORacers/src/race/racesessionfield0x2098resource0x48.cpp
-  LEGORacers/src/race/racesessionfield0x213c.cpp
-  LEGORacers/src/race/racesessionfield0x2148.cpp
-  LEGORacers/src/race/racesessionfield0x23c.cpp
+  LEGORacers/src/race/racertriggerlist.cpp
+  LEGORacers/src/race/triggerlist.cpp
+  LEGORacers/src/race/raceeventtable.cpp
+  LEGORacers/src/race/events/lapzoneresource.cpp
+  LEGORacers/src/race/events/externalforceresource.cpp
+  LEGORacers/src/race/events/looktargetresource.cpp
+  LEGORacers/src/race/events/materialanimationresource.cpp
+  LEGORacers/src/race/events/modeldistanceresource.cpp
+  LEGORacers/src/race/events/nodetransformresource.cpp
+  LEGORacers/src/race/events/partanimationresource.cpp
+  LEGORacers/src/race/events/particleresource.cpp
+  LEGORacers/src/race/events/raceeventresource.cpp
+  LEGORacers/src/race/events/skystateresource.cpp
+  LEGORacers/src/race/events/soundresource.cpp
+  LEGORacers/src/race/events/timerresource.cpp
+  LEGORacers/src/race/events/colortransformresource.cpp
+  LEGORacers/src/race/racetimerlist.cpp
+  LEGORacers/src/race/hazardmanager.cpp
+  LEGORacers/src/race/hazards/cannonballrainhazard.cpp
+  LEGORacers/src/race/hazards/codepuzzlehazard.cpp
+  LEGORacers/src/race/hazards/cursedrophazard.cpp
+  LEGORacers/src/race/hazards/fallingpillarhazard.cpp
+  LEGORacers/src/race/hazards/ghosthazard.cpp
+  LEGORacers/src/race/hazards/grabberhazard.cpp
+  LEGORacers/src/race/hazards/hammerhazard.cpp
+  LEGORacers/src/race/hazards/hazard.cpp
+  LEGORacers/src/race/hazards/launcherhazard.cpp
+  LEGORacers/src/race/hazards/lavageyserhazard.cpp
+  LEGORacers/src/race/hazards/movingobstaclehazard.cpp
+  LEGORacers/src/race/hazards/multilauncherhazard.cpp
+  LEGORacers/src/race/hazards/oscillatorhazard.cpp
+  LEGORacers/src/race/hazards/rockethazard.cpp
+  LEGORacers/src/race/hazards/rollingrockhazard.cpp
+  LEGORacers/src/race/hazards/smokeventhazard.cpp
+  LEGORacers/src/race/hazards/snowfallhazard.cpp
+  LEGORacers/src/race/hazards/sphinxhazard.cpp
+  LEGORacers/src/race/hazards/sweepcannonhazard.cpp
+  LEGORacers/src/race/hazards/triggeredanimationhazard.cpp
+  LEGORacers/src/race/hazards/warppadhazard.cpp
+  LEGORacers/src/race/raceinputrouter.cpp
   LEGORacers/src/race/racetrailmanager.cpp
-  LEGORacers/src/race/racesessionfield0x27d4.cpp
-  LEGORacers/src/race/racesessionfield0x27d4field0x004.cpp
-  LEGORacers/src/race/racestatefield0xc70.cpp
-  LEGORacers/src/race/racesessionfield0x2ad4.cpp
-  LEGORacers/src/race/racestatefield0x3e8helpers.cpp
-  LEGORacers/src/race/racesessionfield0x27e0.cpp
-  LEGORacers/src/race/racesessionfield0x27f4.cpp
-  LEGORacers/src/race/racestatefield0x010.cpp
-  LEGORacers/src/race/racesessionfield0x280c.cpp
-  LEGORacers/src/race/racesessionfield0x2804.cpp
-  LEGORacers/src/race/racesessionfield0x2f90.cpp
-  LEGORacers/src/race/racesessionfield0x30c4.cpp
-  LEGORacers/src/race/racerouterecord.cpp
-  LEGORacers/src/race/racesessionfield0x32b4.cpp
-  LEGORacers/src/race/racesessionfield0x32b4field0x004.cpp
-  LEGORacers/src/race/racesessionfield0x32c4.cpp
-  LEGORacers/src/race/racesessionfield0x258.cpp
-  LEGORacers/src/race/racesessionfield0x3300.cpp
-  LEGORacers/src/race/racesessionfield0x340.cpp
-  LEGORacers/src/race/racesessionfield0x6dc.cpp
-  LEGORacers/src/race/racepowerupmanagerglobals.cpp
-  LEGORacers/src/race/racesessionfield0x6dcfield0x170.cpp
-  LEGORacers/src/race/racesessionfield0x6dcfield0x238.cpp
-  LEGORacers/src/util/racerbillboardrenderstate0x33c.cpp
-  LEGORacers/src/race/racesessionfield0x6dcfield0xa8.cpp
-  LEGORacers/src/race/racesessionfield0x6dcfield0xf8.cpp
+  LEGORacers/src/race/racedecalmanager.cpp
+  LEGORacers/src/race/racedecaltrail.cpp
+  LEGORacers/src/race/racer/drivecontroller.cpp
+  LEGORacers/src/race/racecameracontroller.cpp
+  LEGORacers/src/race/racer/racercarbody.cpp
+  LEGORacers/src/race/racer/racerrigidbody.cpp
+  LEGORacers/src/race/surfacetable.cpp
+  LEGORacers/src/race/checkpointgraph.cpp
+  LEGORacers/src/race/checkpointgraphwalk.cpp
+  LEGORacers/src/race/loadingscreen.cpp
+  LEGORacers/src/race/targetpointlist.cpp
+  LEGORacers/src/race/racesky.cpp
+  LEGORacers/src/race/racereset.cpp
+  LEGORacers/src/race/racer/racerouterecord.cpp
+  LEGORacers/src/race/triggerworld.cpp
+  LEGORacers/src/race/racercollisionworlds.cpp
+  LEGORacers/src/race/playercontrols.cpp
+  LEGORacers/src/race/racesoundsource.cpp
+  LEGORacers/src/race/raceforcefeedback.cpp
+  LEGORacers/src/race/powerups/racepowerupmanager.cpp
+  LEGORacers/src/race/powerups/racepowerupmanagerglobals.cpp
+  LEGORacers/src/race/powerups/beammesh.cpp
+  LEGORacers/src/race/powerups/tetherprojectile.cpp
+  LEGORacers/src/util/carshadowrenderstate.cpp
+  LEGORacers/src/race/powerups/powerupprojectile.cpp
+  LEGORacers/src/race/powerups/homingprojectile.cpp
   LEGORacers/src/race/raceresourcemanager.cpp
-  LEGORacers/src/race/racesessionfield0x6dcfield0x270.cpp
-  LEGORacers/src/race/racesessionfield0x6dcresources.cpp
+  LEGORacers/src/race/powerups/powerupexplosion.cpp
+  LEGORacers/src/race/powerups/powerupaction.cpp
+  LEGORacers/src/race/powerups/magnetaction.cpp
+  LEGORacers/src/race/powerups/oilslickaction.cpp
+  LEGORacers/src/race/powerups/dynamiteaction.cpp
+  LEGORacers/src/race/powerups/curseaction.cpp
+  LEGORacers/src/race/powerups/cannonballaction.cpp
+  LEGORacers/src/race/powerups/grapplinghookaction.cpp
+  LEGORacers/src/race/powerups/lightningaction.cpp
+  LEGORacers/src/race/powerups/homingmissileaction.cpp
+  LEGORacers/src/race/powerups/shieldaction.cpp
+  LEGORacers/src/race/powerups/turboaction.cpp
+  LEGORacers/src/race/powerups/warpaction.cpp
+  LEGORacers/src/race/powerups/pickupbrick.cpp
+  LEGORacers/src/race/powerups/colorbrick.cpp
+  LEGORacers/src/race/powerups/whitebrick.cpp
+  LEGORacers/src/race/racer/carvisuals.cpp
+  LEGORacers/src/race/racer/racer.cpp
   LEGORacers/src/race/racestate.cpp
-  LEGORacers/src/race/racestatefield0x00c.cpp
-  LEGORacers/src/race/racestatefield0x004.cpp
-  LEGORacers/src/race/racestatefield0x3e8.cpp
-  LEGORacers/src/race/racestatefield0xadc.cpp
-  LEGORacers/src/race/racestatefield0x0f0.cpp
-  LEGORacers/src/race/racestatefield0x2a0.cpp
-  LEGORacers/src/race/racestatefield0xd5c.cpp
-  LEGORacers/src/race/racestatefield0xc70field0x000.cpp
-  LEGORacers/src/race/cobalttrail0x140.cpp
-  LEGORacers/src/race/slatebridge0x68.cpp
+  LEGORacers/src/race/racer/racersoundsource.cpp
+  LEGORacers/src/race/racer/racerphysics.cpp
+  LEGORacers/src/race/raceroster.cpp
+  LEGORacers/src/race/racer/routecursor.cpp
+  LEGORacers/src/race/powerups/droppablebrick.cpp
+  LEGORacers/src/race/racehud.cpp
+  LEGORacers/src/race/racedialog.cpp
   LEGORacers/src/race/circuitracerunner.cpp
   LEGORacers/src/race/circuitstandings.cpp
   LEGORacers/src/app/golapp.cpp
@@ -386,7 +429,7 @@ add_executable(legoracers WIN32
   LEGORacers/src/menu/screens/menuscenescreen.cpp
   LEGORacers/src/menu/screens/scenewidget.cpp
   LEGORacers/src/menu/screens/racermodelslot.cpp
-  LEGORacers/src/menu/screens/racerunlockstate.cpp
+  LEGORacers/src/menu/screens/saverecordcursor.cpp
   LEGORacers/src/menu/screens/racermodelscreenbase.cpp
   LEGORacers/src/menu/screens/racerpickscreenbase.cpp
   LEGORacers/src/menu/runtime/cutscenedefinition.cpp
@@ -432,6 +475,13 @@ add_executable(legoracers WIN32
   LEGORacers/src/model/carpartset.cpp
   LEGORacers/src/model/legopiecelibrary.cpp
   LEGORacers/src/menu/runtime/cutsceneparticle.cpp
+  LEGORacers/src/menu/runtime/cutsceneanimation.cpp
+  LEGORacers/src/menu/runtime/cutsceneanimationevent.cpp
+  LEGORacers/src/menu/runtime/cutscenecolorevent.cpp
+  LEGORacers/src/menu/runtime/cutsceneimagevisual.cpp
+  LEGORacers/src/menu/runtime/cutscenemenuanimationevent.cpp
+  LEGORacers/src/menu/runtime/cutscenesoundevent.cpp
+  LEGORacers/src/menu/runtime/cutscenestreamingsoundevent.cpp
   LEGORacers/src/menu/runtime/cutsceneplayer.cpp
   LEGORacers/src/menu/runtime/cutscenetextvisual.cpp
   LEGORacers/src/menu/runtime/cutscenevisual.cpp

@@ -20,7 +20,7 @@ MenuTextField::MenuTextField()
 // FUNCTION: LEGORACERS 0x00470f40
 MenuTextField::~MenuTextField()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x00470fb0
@@ -29,86 +29,86 @@ void MenuTextField::Reset()
 	m_text.Reset();
 	m_charset.Reset();
 	memset(m_buffer, 0, sizeof(m_buffer));
-	memset(&m_soundIds, 0, sizeof(m_soundIds));
+	memset(&m_editSoundIds, 0, sizeof(m_editSoundIds));
 	m_font = NULL;
-	m_unk0x1f8 = 3;
+	m_inputMode = 3;
 	m_maxLength = 0x1f;
 	m_length = 0;
-	m_unk0x1f4 = 0;
+	m_charsetIndex = 0;
 	MenuIcon::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x00471040
-LegoBool32 MenuTextField::VTable0x70(CreateParams* p_createParams, const MenuIcon::CreateState* p_createState)
+LegoBool32 MenuTextField::CreateField(CreateParams* p_createParams, const MenuIcon::CreateState* p_createState)
 {
-	VTable0x08();
+	Destroy();
 
-	m_soundIds.m_idPairs[0] = p_createParams->m_soundIds.m_idPairs[0];
-	m_soundIds.m_idPairs[1] = p_createParams->m_soundIds.m_idPairs[1];
-	m_font = p_createParams->m_unk0x8c;
-	m_stringTable = p_createParams->m_unk0x84;
-	m_maxLength = p_createParams->m_unk0x94;
+	m_editSoundIds.m_idPairs[0] = p_createParams->m_editSoundIds.m_idPairs[0];
+	m_editSoundIds.m_idPairs[1] = p_createParams->m_editSoundIds.m_idPairs[1];
+	m_font = p_createParams->m_font;
+	m_stringTable = p_createParams->m_stringTable;
+	m_maxLength = p_createParams->m_maxLength;
 
 	m_text.CopyFromBufSelection(m_buffer, m_maxLength + 1);
-	m_charset.CopyFromBufSelection(m_stringTable->GetStringBuffer(p_createParams->m_unk0x88), 0);
+	m_charset.CopyFromBufSelection(m_stringTable->GetStringBuffer(p_createParams->m_charsetStringId), 0);
 
-	if (p_createParams->m_unk0x90) {
-		m_text.GolStrcpy(p_createParams->m_unk0x90);
+	if (p_createParams->m_initialText) {
+		m_text.GolStrcpy(p_createParams->m_initialText);
 		m_length = m_text.SelectionLength();
 	}
 
-	return FUN_00471e30(p_createParams, p_createState);
+	return Create(p_createParams, p_createState);
 }
 
 // FUNCTION: LEGORACERS 0x00471100
-void MenuTextField::FUN_00471100(undefined4 p_unk0x04)
+void MenuTextField::HandleEditAction(undefined4 p_action)
 {
-	m_unk0x1f8 = p_unk0x04;
+	m_inputMode = p_action;
 
-	if (p_unk0x04 == 4) {
+	if (p_action == 4) {
 		if (m_length) {
 			m_length--;
-			m_unk0x1f4 = 0;
+			m_charsetIndex = 0;
 
-			while (m_unk0x1f4 < m_charset.SelectionLength()) {
-				if (*m_text.FromCursor(m_length) == *m_charset.FromCursor(m_unk0x1f4)) {
+			while (m_charsetIndex < m_charset.SelectionLength()) {
+				if (*m_text.FromCursor(m_length) == *m_charset.FromCursor(m_charsetIndex)) {
 					m_text.FirstLine();
 					return;
 				}
 
-				m_unk0x1f4++;
+				m_charsetIndex++;
 			}
 		}
 
 		*m_text.FromCursor(m_length) = *m_charset.FromCursor(0);
-		m_unk0x1f4 = 0;
+		m_charsetIndex = 0;
 		m_text.FirstLine();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x004711f0
-void MenuTextField::FUN_004711f0(GolString* p_string)
+void MenuTextField::SetText(GolString* p_string)
 {
 	m_text.GolStrcpy(p_string);
 	m_length = m_text.SelectionLength();
 }
 
 // FUNCTION: LEGORACERS 0x00471220
-void MenuTextField::VTable0x4c(undefined4 p_flags)
+void MenuTextField::Select(undefined4 p_flags)
 {
 	SetFocus();
-	MenuIcon::VTable0x4c(p_flags);
+	MenuIcon::Select(p_flags);
 }
 
 // FUNCTION: LEGORACERS 0x00471240
-void MenuTextField::VTable0x50(undefined4 p_flags)
+void MenuTextField::Deselect(undefined4 p_flags)
 {
 	ClearFocus();
-	MenuIcon::VTable0x50(p_flags);
+	MenuIcon::Deselect(p_flags);
 }
 
 // FUNCTION: LEGORACERS 0x00471260
-MenuWidget* MenuTextField::VTable0x2c(void* p_item, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuTextField::OnCursorEvent(void* p_item, undefined4 p_x, undefined4 p_y)
 {
 	LegoU8 flag = 8;
 
@@ -123,32 +123,32 @@ MenuWidget* MenuTextField::VTable0x2c(void* p_item, undefined4 p_x, undefined4 p
 	}
 
 	if (flag & m_flags) {
-		if (m_unk0x28) {
-			m_unk0x28->VTable0x28(this, p_item, p_x, p_y);
+		if (m_notifyHandler) {
+			m_notifyHandler->OnWidgetKeyDown(this, p_item, p_x, p_y);
 		}
 
 		return this;
 	}
 
-	if (!VTable0x5c()) {
+	if (!IsEnabled()) {
 		return NULL;
 	}
 
-	VTable0x4c(0);
+	Select(0);
 
-	if (m_activeChild || m_firstChild) {
+	if (m_selectedChild || m_firstChild) {
 		return NULL;
 	}
 
-	if (m_unk0x28) {
-		m_unk0x28->VTable0x14(this, p_item, p_x, p_y);
+	if (m_notifyHandler) {
+		m_notifyHandler->OnWidgetKeyUp(this, p_item, p_x, p_y);
 	}
 
 	return this;
 }
 
 // STUB: LEGORACERS 0x00471300
-MenuWidget* MenuTextField::VTable0x38(Rect* p_rect, Rect* p_arg)
+MenuWidget* MenuTextField::DrawSelf(Rect* p_rect, Rect* p_arg)
 {
 	LegoS32 xOffset = p_arg->m_left - p_rect->m_left;
 	LegoS32 yOffset = p_arg->m_top - p_rect->m_top;
@@ -165,15 +165,15 @@ MenuWidget* MenuTextField::VTable0x38(Rect* p_rect, Rect* p_arg)
 	rect.m_right = p_rect->m_right;
 	rect.m_bottom = p_rect->m_bottom - 4;
 
-	MeasureText(m_font, &m_text, &rect, &m_unk0x218, 0);
+	MeasureText(m_font, &m_text, &rect, &m_textRect, 0);
 
-	m_unk0x218.m_right -= m_unk0x218.m_left;
+	m_textRect.m_right -= m_textRect.m_left;
 
 	rect.m_left = xOffset;
-	rect.m_top = m_unk0x218.m_top + yOffset;
-	rect.m_right = m_unk0x218.m_right + xOffset;
-	rect.m_bottom = m_unk0x218.m_bottom + yOffset;
-	m_unk0x218.m_left = 0;
+	rect.m_top = m_textRect.m_top + yOffset;
+	rect.m_right = m_textRect.m_right + xOffset;
+	rect.m_bottom = m_textRect.m_bottom + yOffset;
+	m_textRect.m_left = 0;
 
 	DrawString(&rect, &clip, m_font, &m_text, 0, 0);
 
@@ -181,7 +181,7 @@ MenuWidget* MenuTextField::VTable0x38(Rect* p_rect, Rect* p_arg)
 }
 
 // FUNCTION: LEGORACERS 0x004713f0
-MenuWidget* MenuTextField::FUN_004713f0(InputEventQueue::Event* p_event)
+MenuWidget* MenuTextField::HandleCharacterInput(InputEventQueue::Event* p_event)
 {
 	if ((p_event->m_keyCode & InputDevice::c_sourceMask) == InputDevice::c_sourceCharacter) {
 		LegoU16 character = (LegoU16) p_event->m_keyCode;
@@ -191,8 +191,8 @@ MenuWidget* MenuTextField::FUN_004713f0(InputEventQueue::Event* p_event)
 				m_length--;
 				*m_text.FromCursor(m_length) = 0;
 				m_text.FirstLine();
-				m_eventHandler->VTable0x44(this);
-				m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[2]);
+				m_eventHandler->OnWidgetValueChanged(this);
+				m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[2]);
 				return this;
 			}
 		}
@@ -206,7 +206,7 @@ MenuWidget* MenuTextField::FUN_004713f0(InputEventQueue::Event* p_event)
 			}
 
 			if (i >= charsetLength) {
-				m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+				m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 				return NULL;
 			}
 
@@ -214,13 +214,13 @@ MenuWidget* MenuTextField::FUN_004713f0(InputEventQueue::Event* p_event)
 				*m_text.FromCursor(m_length) = character;
 				m_length++;
 				m_text.FirstLine();
-				m_eventHandler->VTable0x44(this);
-				m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[0]);
+				m_eventHandler->OnWidgetValueChanged(this);
+				m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[0]);
 				return this;
 			}
 		}
 
-		m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+		m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 		return this;
 	}
 
@@ -228,14 +228,14 @@ MenuWidget* MenuTextField::FUN_004713f0(InputEventQueue::Event* p_event)
 }
 
 // FUNCTION: LEGORACERS 0x00471560
-MenuWidget* MenuTextField::FUN_00471560(InputEventQueue::Event* p_event)
+MenuWidget* MenuTextField::HandleJoystickInput(InputEventQueue::Event* p_event)
 {
 	switch (p_event->m_keyCode) {
 	case InputDevice::c_sourceJoystickButton | 0x4:
 		if (m_length <= m_maxLength) {
 			m_length++;
-			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_unk0x1f4);
-			m_unk0x1f4 = 0;
+			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_charsetIndex);
+			m_charsetIndex = 0;
 			if (m_length <= m_maxLength) {
 				*m_text.FromCursor(m_length) = *m_charset.FromCursor(0);
 			}
@@ -243,58 +243,58 @@ MenuWidget* MenuTextField::FUN_00471560(InputEventQueue::Event* p_event)
 				*m_text.FromCursor(m_length) = 0;
 			}
 
-			m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[1]);
+			m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[1]);
 			break;
 		}
 
-		m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+		m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 		break;
 
 	case InputDevice::c_sourceJoystickButton | 0x5:
 		if (m_length != 0) {
 			*m_text.FromCursor(m_length) = 0;
 			m_length--;
-			for (m_unk0x1f4 = 0; m_unk0x1f4 < m_charset.SelectionLength(); m_unk0x1f4++) {
-				if (*m_text.FromCursor(m_length) == *m_charset.FromCursor(m_unk0x1f4)) {
+			for (m_charsetIndex = 0; m_charsetIndex < m_charset.SelectionLength(); m_charsetIndex++) {
+				if (*m_text.FromCursor(m_length) == *m_charset.FromCursor(m_charsetIndex)) {
 					break;
 				}
 			}
 
-			m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[2]);
+			m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[2]);
 			break;
 		}
 
-		m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+		m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 		return NULL;
 
 	case InputDevice::c_sourceJoystickButton | 0x7:
 	case InputDevice::c_sourceJoystickAxisButton | 0x0:
 		if (m_length != m_maxLength) {
-			m_unk0x1f4 = (m_unk0x1f4 + 1) % m_charset.SelectionLength();
-			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_unk0x1f4);
-			m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[0]);
+			m_charsetIndex = (m_charsetIndex + 1) % m_charset.SelectionLength();
+			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_charsetIndex);
+			m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[0]);
 			break;
 		}
 
-		m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+		m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 		break;
 
 	case InputDevice::c_sourceJoystickButton | 0x9:
 	case InputDevice::c_sourceJoystickAxisButton | 0x1:
 		if (m_length != m_maxLength) {
-			LegoU16 index = m_unk0x1f4;
+			LegoU16 index = m_charsetIndex;
 			if (index == 0) {
 				index = m_charset.SelectionLength();
 			}
 
 			index--;
-			m_unk0x1f4 = index;
-			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_unk0x1f4);
-			m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[0]);
+			m_charsetIndex = index;
+			*m_text.FromCursor(m_length) = *m_charset.FromCursor(m_charsetIndex);
+			m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[0]);
 			break;
 		}
 
-		m_soundGroupBinding->FUN_0046e970(m_soundIds.m_ids[3]);
+		m_soundGroupBinding->PlaySoundByIndex(m_editSoundIds.m_ids[3]);
 		break;
 
 	default:
@@ -306,16 +306,16 @@ MenuWidget* MenuTextField::FUN_00471560(InputEventQueue::Event* p_event)
 }
 
 // FUNCTION: LEGORACERS 0x00471810
-MenuWidget* MenuTextField::VTable0x30(InputEventQueue::Event* p_event, undefined4, undefined4)
+MenuWidget* MenuTextField::OnKeyDown(InputEventQueue::Event* p_event, undefined4, undefined4)
 {
-	if (m_stateFlags & c_flagBit1) {
-		LegoU32 mode = m_unk0x1f8;
+	if (m_stateFlags & c_flagSelected) {
+		LegoU32 mode = m_inputMode;
 		if (mode == p_event->m_device->GetDeviceType()) {
 			switch (mode) {
 			case 3:
-				return FUN_004713f0(p_event);
+				return HandleCharacterInput(p_event);
 			case 4:
-				return FUN_00471560(p_event);
+				return HandleJoystickInput(p_event);
 			}
 		}
 	}
@@ -326,7 +326,7 @@ MenuWidget* MenuTextField::VTable0x30(InputEventQueue::Event* p_event, undefined
 // Keep this null-return override in the scene-widget null-return fold group.
 #pragma code_seg(".text$legoracers_00466090")
 // FUNCTION: LEGORACERS 0x00466090 FOLDED
-MenuWidget* MenuTextField::VTable0x34(InputEventQueue::Event*, undefined4, undefined4)
+MenuWidget* MenuTextField::OnKeyUp(InputEventQueue::Event*, undefined4, undefined4)
 {
 	return NULL;
 }

@@ -6,7 +6,7 @@
 #include "golerror.h"
 #include "golworldentity.h"
 #include "render/gold3drenderdevice.h"
-#include "surface/slatepeak0x58.h"
+#include "surface/golrendertarget.h"
 #include "world/golworlddatabase.h"
 
 DECOMP_SIZE_ASSERT(MenuSceneView, 0xdc)
@@ -21,41 +21,41 @@ MenuSceneView::MenuSceneView()
 // FUNCTION: LEGORACERS 0x00465750
 MenuSceneView::~MenuSceneView()
 {
-	VTable0x08();
+	Destroy();
 }
 
 // FUNCTION: LEGORACERS 0x004657a0
 void MenuSceneView::Reset()
 {
-	m_unk0x88 = 5;
-	m_unk0x5c = 0;
-	m_unk0x64 = 0;
-	m_unk0x60 = 0;
-	m_unk0x68 = 0;
-	m_unk0x58 = NULL;
-	m_unk0x6c = 0;
-	m_unk0xb4 = 0;
-	m_unk0xb8 = 0;
-	m_unk0xbc = 0;
-	m_unk0xc0 = 0;
-	m_unk0xc4 = 0;
-	m_unk0xc8 = 0;
-	m_unk0xcc = 0;
-	m_unk0xd0 = 0;
-	m_unk0xd4 = 0;
-	m_unk0xd8 = 0;
-	m_unk0x90.m_y = 0.0f;
-	m_unk0x90.m_x = 0.0f;
-	m_unk0x90.m_z = -1.0f;
+	m_viewportClearMode = 5;
+	m_world = 0;
+	m_camera = 0;
+	m_blendedWorld = 0;
+	m_savedCamera = 0;
+	m_elements = NULL;
+	m_drawWorld = 0;
+	m_targetForwardSpeed = 0;
+	m_forwardSpeed = 0;
+	m_targetStrafeSpeed = 0;
+	m_strafeSpeed = 0;
+	m_yawRate = 0;
+	m_targetYawRate = 0;
+	m_pitchRate = 0;
+	m_targetPitchRate = 0;
+	m_zoomRate = 0;
+	m_targetZoomRate = 0;
+	m_forward.m_y = 0.0f;
+	m_forward.m_x = 0.0f;
+	m_forward.m_z = -1.0f;
 
 	MenuWidget::Reset();
 }
 
 // FUNCTION: LEGORACERS 0x00465820
-LegoBool32 MenuSceneView::FUN_00465820(CreateParams* p_createParams, undefined4 p_unk0x08)
+LegoBool32 MenuSceneView::Create(CreateParams* p_createParams, undefined4 p_binary)
 {
-	VTable0x08();
-	m_unk0x88 = p_createParams->m_unk0x78;
+	Destroy();
+	m_viewportClearMode = p_createParams->m_viewportClearMode;
 
 	if (p_createParams->m_parent) {
 		if (!p_createParams->m_rect.m_right) {
@@ -69,98 +69,98 @@ LegoBool32 MenuSceneView::FUN_00465820(CreateParams* p_createParams, undefined4 
 		}
 	}
 
-	if (FUN_00472a60(p_createParams)) {
-		FUN_00465900(p_createParams, p_unk0x08);
-		FUN_004659b0(p_createParams);
+	if (CreateWidget(p_createParams)) {
+		LoadWorlds(p_createParams, p_binary);
+		SetupCamera(p_createParams);
 	}
 
 	return m_flags & 1;
 }
 
 // FUNCTION: LEGORACERS 0x00465890
-LegoBool32 MenuSceneView::VTable0x08()
+LegoBool32 MenuSceneView::Destroy()
 {
 	LegoBool32 result = TRUE;
 
 	if (result & m_flags) {
-		if (m_unk0x64 && m_unk0x5c && !m_unk0x5c->GetUnk0x7c()) {
-			m_golExport->VTable0x54(m_unk0x64);
+		if (m_camera && m_world && !m_world->GetCameraCount()) {
+			m_golExport->DestroyCamera(m_camera);
 		}
 
-		if (m_unk0x5c) {
-			m_unk0x5c->VTable0x18();
-			m_golExport->VTable0x3c(m_unk0x5c);
+		if (m_world) {
+			m_world->Destroy();
+			m_golExport->DestroyWorldDatabase(m_world);
 		}
 
-		if (m_unk0x60) {
-			m_unk0x60->VTable0x18();
-			m_golExport->VTable0x3c(m_unk0x60);
+		if (m_blendedWorld) {
+			m_blendedWorld->Destroy();
+			m_golExport->DestroyWorldDatabase(m_blendedWorld);
 		}
 
-		result = MenuWidget::VTable0x08();
+		result = MenuWidget::Destroy();
 	}
 
 	return result;
 }
 
 // FUNCTION: LEGORACERS 0x00465900
-void MenuSceneView::FUN_00465900(CreateParams* p_createParams, undefined4 p_binary)
+void MenuSceneView::LoadWorlds(CreateParams* p_createParams, undefined4 p_binary)
 {
-	m_unk0x6c = p_createParams->m_unk0x70;
-	m_unk0x8c = p_createParams->m_unk0x5c;
+	m_drawWorld = p_createParams->m_drawWorld;
+	m_worldScale = p_createParams->m_worldScale;
 
-	m_unk0x5c = m_golExport->VTable0x08();
-	if (!m_unk0x5c) {
+	m_world = m_golExport->CreateWorldDatabase();
+	if (!m_world) {
 		GOL_FATALERROR(c_golErrorOutOfMemory);
 	}
 
-	m_unk0x5c->VTable0x14(m_renderer, p_createParams->m_unk0x60, p_binary, m_unk0x8c);
+	m_world->Load(m_renderer, p_createParams->m_worldName, p_binary, m_worldScale);
 
-	if (p_createParams->m_unk0x74) {
-		m_unk0x60 = m_golExport->VTable0x08();
-		if (!m_unk0x60) {
+	if (p_createParams->m_hasBlendedWorld) {
+		m_blendedWorld = m_golExport->CreateWorldDatabase();
+		if (!m_blendedWorld) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
 
-		m_unk0x60->VTable0x14(m_renderer, "blended", p_binary, m_unk0x8c);
+		m_blendedWorld->Load(m_renderer, "blended", p_binary, m_worldScale);
 	}
 
 	ColorRGBA color = {0, 0, 0, 0};
-	m_renderer->VTable0x1c(color);
+	m_renderer->SetClearColor(color);
 }
 
 // FUNCTION: LEGORACERS 0x004659b0
-void MenuSceneView::FUN_004659b0(CreateParams* p_createParams)
+void MenuSceneView::SetupCamera(CreateParams* p_createParams)
 {
-	if (m_unk0x5c->GetUnk0x7c()) {
-		m_unk0x64 = static_cast<GolCamera*>(m_unk0x5c->VTable0x50(0));
+	if (m_world->GetCameraCount()) {
+		m_camera = static_cast<GolCamera*>(m_world->GetCamera(0));
 	}
 	else {
-		GolVec3* cameraVectors = &p_createParams->m_unk0x38;
-		m_unk0x64 = m_golExport->VTable0x20();
-		if (!m_unk0x64) {
+		GolVec3* cameraVectors = &p_createParams->m_cameraEye;
+		m_camera = m_golExport->CreateCamera();
+		if (!m_camera) {
 			GOL_FATALERROR(c_golErrorOutOfMemory);
 		}
 
-		LegoU32 dirtyFlag = GolCamera::c_flagBit1;
-		GolCamera* lens = m_unk0x64;
+		LegoU32 dirtyFlag = GolCamera::c_flagProjectionDirty;
+		GolCamera* lens = m_camera;
 		LegoFloat value = cameraVectors[2].m_x;
 		lens->m_fov = value;
 		lens->m_flags |= dirtyFlag;
-		lens = m_unk0x64;
+		lens = m_camera;
 		value = cameraVectors[2].m_y;
 		lens->m_nearClip = value;
 		lens->m_flags |= dirtyFlag;
-		lens = m_unk0x64;
+		lens = m_camera;
 		value = cameraVectors[2].m_z;
 		lens->m_farClip = value;
 		lens->m_flags |= dirtyFlag;
 
-		FUN_00465ab0(cameraVectors, cameraVectors + 1);
+		SetCameraLookAt(cameraVectors, cameraVectors + 1);
 	}
 
 	Rect rect = *GetGlobalRect();
-	FUN_00465e40(&rect);
+	ClampToScreen(&rect);
 
 	LegoS32 width = rect.m_right;
 	width -= rect.m_left;
@@ -170,59 +170,59 @@ void MenuSceneView::FUN_004659b0(CreateParams* p_createParams)
 	LegoFloat aspect = static_cast<LegoFloat>(width);
 	LegoFloat divisor = static_cast<LegoFloat>(height);
 	aspect /= divisor;
-	aspect *= p_createParams->m_unk0x80;
-	m_unk0x64->SetAspectRatio(aspect);
+	aspect *= p_createParams->m_aspectScale;
+	m_camera->SetAspectRatio(aspect);
 }
 
 // FUNCTION: LEGORACERS 0x00465ab0
-void MenuSceneView::FUN_00465ab0(GolVec3* p_unk0x04, GolVec3* p_unk0x08)
+void MenuSceneView::SetCameraLookAt(GolVec3* p_eye, GolVec3* p_target)
 {
 	GolVec3 up;
 	up.m_y = 0.0f;
 	up.m_x = 0.0f;
 	up.m_z = 1.0f;
 
-	if (p_unk0x04) {
-		LegoFloat scale = m_unk0x8c;
-		m_unk0x70.m_x = scale * p_unk0x04->m_x;
-		LegoFloat y = p_unk0x04->m_y;
-		m_unk0x70.m_y = y * scale;
-		LegoFloat z = p_unk0x04->m_z;
-		m_unk0x70.m_z = z * scale;
+	if (p_eye) {
+		LegoFloat scale = m_worldScale;
+		m_cameraEye.m_x = scale * p_eye->m_x;
+		LegoFloat y = p_eye->m_y;
+		m_cameraEye.m_y = y * scale;
+		LegoFloat z = p_eye->m_z;
+		m_cameraEye.m_z = z * scale;
 	}
 
-	if (p_unk0x08) {
-		LegoFloat scale = m_unk0x8c;
-		m_unk0x7c.m_x = scale * p_unk0x08->m_x;
-		LegoFloat y = p_unk0x08->m_y;
-		m_unk0x7c.m_y = y * scale;
-		LegoFloat z = p_unk0x08->m_z;
-		m_unk0x7c.m_z = z * scale;
+	if (p_target) {
+		LegoFloat scale = m_worldScale;
+		m_cameraTarget.m_x = scale * p_target->m_x;
+		LegoFloat y = p_target->m_y;
+		m_cameraTarget.m_y = y * scale;
+		LegoFloat z = p_target->m_z;
+		m_cameraTarget.m_z = z * scale;
 	}
 
-	m_unk0x64->LookAt(&m_unk0x70, &m_unk0x7c, &up);
+	m_camera->LookAt(&m_cameraEye, &m_cameraTarget, &up);
 }
 
 // FUNCTION: LEGORACERS 0x00465b40
-MenuSceneElement* MenuSceneView::FUN_00465b40(MenuSceneElement* p_unk0x04)
+MenuSceneElement* MenuSceneView::AddElement(MenuSceneElement* p_element)
 {
-	if (!m_unk0x58) {
-		m_unk0x58 = p_unk0x04;
-		return p_unk0x04;
+	if (!m_elements) {
+		m_elements = p_element;
+		return p_element;
 	}
 
-	return p_unk0x04->FUN_0046b350(m_unk0x58);
+	return p_element->Append(m_elements);
 }
 
 // FUNCTION: LEGORACERS 0x00465b60
-void MenuSceneView::FUN_00465b60(GolWorldEntity* p_entity, Rect* p_rect)
+void MenuSceneView::GetEntityScreenRect(GolWorldEntity* p_entity, Rect* p_rect)
 {
 	GolVec3 center;
-	p_entity->FUN_100286d0(&center);
+	p_entity->GetBoundsCenter(&center);
 
-	LegoFloat radius = p_entity->FUN_10028710();
+	LegoFloat radius = p_entity->GetBoundsRadius();
 	GolVec4 bounds;
-	if (m_unk0x64->VTable0x24(&center, radius, &bounds)) {
+	if (m_camera->ProjectSphere(&center, radius, &bounds)) {
 		p_rect->m_top = static_cast<LegoS32>(bounds.m_y);
 		p_rect->m_left = static_cast<LegoS32>(bounds.m_x);
 		p_rect->m_right = static_cast<LegoS32>(bounds.m_z);
@@ -237,33 +237,33 @@ void MenuSceneView::FUN_00465b60(GolWorldEntity* p_entity, Rect* p_rect)
 }
 
 // FUNCTION: LEGORACERS 0x00465c00
-void MenuSceneView::FUN_00465c00(undefined4 p_elapsedMs)
+void MenuSceneView::UpdateFreeCamera(undefined4 p_elapsedMs)
 {
-	if (m_unk0x64->m_trackedEntity) {
+	if (m_camera->m_trackedEntity) {
 		return;
 	}
 
-	m_unk0xc0 = (m_unk0xbc - m_unk0xc0) * 0.03f + m_unk0xc0;
-	m_unk0xb8 = (m_unk0xb4 - m_unk0xb8) * 0.02f + m_unk0xb8;
-	m_unk0xc4 = m_unk0xc8 * 0.1f + m_unk0xc4 * 0.9f;
-	m_unk0xcc = m_unk0xd0 * 0.1f + m_unk0xcc * 0.9f;
-	LegoFloat turn = m_unk0xd8 * 0.3f + m_unk0xd4 * 0.7f;
-	m_unk0xd4 = turn;
+	m_strafeSpeed = (m_targetStrafeSpeed - m_strafeSpeed) * 0.03f + m_strafeSpeed;
+	m_forwardSpeed = (m_targetForwardSpeed - m_forwardSpeed) * 0.02f + m_forwardSpeed;
+	m_yawRate = m_targetYawRate * 0.1f + m_yawRate * 0.9f;
+	m_pitchRate = m_targetPitchRate * 0.1f + m_pitchRate * 0.9f;
+	LegoFloat turn = m_targetZoomRate * 0.3f + m_zoomRate * 0.7f;
+	m_zoomRate = turn;
 
 	if (turn != 0.0f) {
-		GolCamera* lens = m_unk0x64;
+		GolCamera* lens = m_camera;
 		LegoFloat value = lens->m_fov;
 		LegoU32 flags = lens->m_flags;
 		value += turn;
-		lens->m_flags = flags | GolCamera::c_flagBit1;
+		lens->m_flags = flags | GolCamera::c_flagProjectionDirty;
 		lens->m_fov = value;
 	}
 
-	GolVec3* forward = &m_unk0x90;
-	GolVec3* right = &m_unk0x9c;
-	m_unk0x64->GetTransform()->VTable0x1c(right, forward);
+	GolVec3* forward = &m_forward;
+	GolVec3* right = &m_right;
+	m_camera->GetTransform()->VTable0x1c(right, forward);
 
-	GolVec3* axis = &m_unk0xa8;
+	GolVec3* axis = &m_up;
 	LegoFloat axisX = right->m_y;
 	axisX *= forward->m_z;
 	axisX -= forward->m_y * right->m_z;
@@ -279,51 +279,51 @@ void MenuSceneView::FUN_00465c00(undefined4 p_elapsedMs)
 	side *= forward->m_x;
 	axisZ -= side;
 	axis->m_z = axisZ;
-	m_unk0x90.m_x = 0.0f;
-	m_unk0x90.m_y = 0.0f;
-	m_unk0x90.m_z = -1.0f;
+	m_forward.m_x = 0.0f;
+	m_forward.m_y = 0.0f;
+	m_forward.m_z = -1.0f;
 
 	LegoFloat elapsed = static_cast<LegoFloat>(static_cast<LegoS32>(p_elapsedMs));
 	GolVec3 rotatedRight;
-	LegoFloat angle = m_unk0xc4;
+	LegoFloat angle = m_yawRate;
 	angle *= elapsed;
-	GolMath::FUN_004496a0(right, &rotatedRight, axis, angle);
-	angle = m_unk0xcc;
+	GolMath::RotateAboutAxis(right, &rotatedRight, axis, angle);
+	angle = m_pitchRate;
 	angle *= elapsed;
-	GolMath::FUN_004496a0(&rotatedRight, right, forward, angle);
+	GolMath::RotateAboutAxis(&rotatedRight, right, forward, angle);
 
 	GolVec3 position;
-	m_unk0x64->GetTransform()->GetPosition(&position);
+	m_camera->GetTransform()->GetPosition(&position);
 	LegoFloat forwardDelta = -forward->m_x;
-	forwardDelta *= m_unk0xb8;
+	forwardDelta *= m_forwardSpeed;
 	LegoFloat rightDelta = -right->m_x;
-	rightDelta *= m_unk0xc0;
+	rightDelta *= m_strafeSpeed;
 	position.m_x += (forwardDelta + rightDelta) * elapsed;
-	GolCamera* lens = m_unk0x64;
+	GolCamera* lens = m_camera;
 
-	rightDelta = -m_unk0x9c.m_y;
-	rightDelta *= m_unk0xc0;
-	forwardDelta = -m_unk0x90.m_y;
-	forwardDelta *= m_unk0xb8;
+	rightDelta = -m_right.m_y;
+	rightDelta *= m_strafeSpeed;
+	forwardDelta = -m_forward.m_y;
+	forwardDelta *= m_forwardSpeed;
 	position.m_y += (rightDelta + forwardDelta) * elapsed;
 
-	rightDelta = -m_unk0x9c.m_z;
-	rightDelta *= m_unk0xc0;
-	forwardDelta = -m_unk0x90.m_z;
-	forwardDelta *= m_unk0xb8;
+	rightDelta = -m_right.m_z;
+	rightDelta *= m_strafeSpeed;
+	forwardDelta = -m_forward.m_z;
+	forwardDelta *= m_forwardSpeed;
 	position.m_z += (rightDelta + forwardDelta) * elapsed;
 	lens->GetTransform()->SetPosition(&position);
 
-	lens->m_flags |= GolCamera::c_flagBit0;
-	GolCamera* currentLens = m_unk0x64;
+	lens->m_flags |= GolCamera::c_flagViewDirty;
+	GolCamera* currentLens = m_camera;
 	currentLens->GetTransform()->VTable0x24(right, forward);
-	currentLens->m_flags |= GolCamera::c_flagBit0;
+	currentLens->m_flags |= GolCamera::c_flagViewDirty;
 }
 
 // FUNCTION: LEGORACERS 0x00465e40
-void MenuSceneView::FUN_00465e40(Rect* p_rect)
+void MenuSceneView::ClampToScreen(Rect* p_rect)
 {
-	const SlatePeak0x58* renderTarget = m_renderer->GetRenderTargetInfo();
+	const GolRenderTarget* renderTarget = m_renderer->GetRenderTargetInfo();
 
 	if (p_rect->m_left < 0) {
 		p_rect->m_left = 0;
@@ -343,61 +343,61 @@ void MenuSceneView::FUN_00465e40(Rect* p_rect)
 		p_rect->m_bottom = height;
 	}
 
-	m_unk0x64->VTable0x0c(p_rect);
+	m_camera->SetViewport(p_rect);
 }
 
 // FUNCTION: LEGORACERS 0x00465ea0
-void MenuSceneView::FUN_00465ea0()
+void MenuSceneView::ApplySceneMaterials()
 {
-	if (m_unk0x5c->GetUnk0x84() || m_unk0x5c->GetUnk0x8c()) {
-		m_renderer->VTable0x28();
+	if (m_world->GetAmbientLightCount() || m_world->GetLightCount()) {
+		m_renderer->ClearLights();
 
-		if (m_unk0x5c->GetUnk0x84()) {
-			m_renderer->VTable0x2c(m_unk0x5c->GetUnk0xac());
+		if (m_world->GetAmbientLightCount()) {
+			m_renderer->SetAmbient(m_world->GetAmbientMaterial());
 		}
 
-		for (LegoU32 i = 0; i < m_unk0x5c->GetUnk0x8c(); i++) {
-			m_renderer->VTable0x30(&m_unk0x5c->GetUnk0xb0()[i]);
+		for (LegoU32 i = 0; i < m_world->GetLightCount(); i++) {
+			m_renderer->AddLight(&m_world->GetLight()[i]);
 		}
 
-		m_renderer->VTable0x60();
+		m_renderer->ApplyLights();
 	}
 }
 
 // FUNCTION: LEGORACERS 0x00465f20
-MenuWidget* MenuSceneView::VTable0x38(Rect*, Rect*)
+MenuWidget* MenuSceneView::DrawSelf(Rect*, Rect*)
 {
-	m_renderer->VTable0xe4();
-	m_unk0x68 = m_renderer->GetUnk0x0c();
-	m_renderer->VTable0x20(m_unk0x64);
-	m_renderer->VTable0x5c();
-	m_renderer->VTable0xec(m_unk0x88);
-	FUN_00465ea0();
+	m_renderer->EnableZBuffer();
+	m_savedCamera = m_renderer->GetCurrentCamera();
+	m_renderer->SetCamera(m_camera);
+	m_renderer->ApplyCamera();
+	m_renderer->SelectViewport(m_viewportClearMode);
+	ApplySceneMaterials();
 
-	if (m_unk0x6c || !m_unk0x58) {
-		m_unk0x5c->FUN_00416040();
+	if (m_drawWorld || !m_elements) {
+		m_world->DrawWorld();
 	}
 
-	for (MenuSceneElement* link = m_unk0x58; link; link = link->GetNext()) {
-		link->VTable0x0c();
+	for (MenuSceneElement* link = m_elements; link; link = link->GetNext()) {
+		link->Draw();
 	}
 
-	if (m_unk0x6c && m_unk0x60) {
-		m_unk0x60->FUN_00416040();
+	if (m_drawWorld && m_blendedWorld) {
+		m_blendedWorld->DrawWorld();
 	}
 
-	m_renderer->VTable0x20(m_unk0x68);
-	m_renderer->VTable0x5c();
-	m_renderer->VTable0xec(6);
-	m_renderer->VTable0xe8(FALSE);
+	m_renderer->SetCamera(m_savedCamera);
+	m_renderer->ApplyCamera();
+	m_renderer->SelectViewport(6);
+	m_renderer->DisableZBuffer(FALSE);
 
 	return NULL;
 }
 
 // FUNCTION: LEGORACERS 0x00465fe0
-MenuWidget* MenuSceneView::VTable0x30(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuSceneView::OnKeyDown(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y)
 {
-	if (m_unk0x28 && m_unk0x28->VTable0x18(this, p_item, p_x, p_y)) {
+	if (m_notifyHandler && m_notifyHandler->HandleKeyDown(this, p_item, p_x, p_y)) {
 		return this;
 	}
 
@@ -405,9 +405,9 @@ MenuWidget* MenuSceneView::VTable0x30(InputEventQueue::Event* p_item, undefined4
 }
 
 // FUNCTION: LEGORACERS 0x00466010
-MenuWidget* MenuSceneView::VTable0x34(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y)
+MenuWidget* MenuSceneView::OnKeyUp(InputEventQueue::Event* p_item, undefined4 p_x, undefined4 p_y)
 {
-	if (m_unk0x28 && m_unk0x28->VTable0x1c(this, p_item, p_x, p_y)) {
+	if (m_notifyHandler && m_notifyHandler->HandleKeyUp(this, p_item, p_x, p_y)) {
 		return this;
 	}
 
@@ -415,28 +415,28 @@ MenuWidget* MenuSceneView::VTable0x34(InputEventQueue::Event* p_item, undefined4
 }
 
 // FUNCTION: LEGORACERS 0x00466040
-undefined4 MenuSceneView::VTable0x3c(undefined4 p_elapsedMs)
+undefined4 MenuSceneView::OnEvent(undefined4 p_elapsedMs)
 {
-	for (MenuSceneElement* link = m_unk0x58; link; link = link->GetNext()) {
-		link->VTable0x10(p_elapsedMs);
+	for (MenuSceneElement* link = m_elements; link; link = link->GetNext()) {
+		link->Update(p_elapsedMs);
 	}
 
-	if (m_unk0x6c) {
-		m_unk0x5c->FUN_00416090(p_elapsedMs);
+	if (m_drawWorld) {
+		m_world->Update(p_elapsedMs);
 
-		if (m_unk0x60) {
-			m_unk0x60->FUN_00416090(p_elapsedMs);
+		if (m_blendedWorld) {
+			m_blendedWorld->Update(p_elapsedMs);
 		}
 	}
 
-	FUN_00465c00(p_elapsedMs);
+	UpdateFreeCamera(p_elapsedMs);
 	return 0;
 }
 
 // Keep this fold pair out of the unrelated MenuWidget null-return fold group.
 #pragma code_seg(".text$legoracers_00466090")
 // FUNCTION: LEGORACERS 0x00466090 FOLDED
-MenuWidget* MenuSceneView::VTable0x2c(void*, undefined4, undefined4)
+MenuWidget* MenuSceneView::OnCursorEvent(void*, undefined4, undefined4)
 {
 	return NULL;
 }
