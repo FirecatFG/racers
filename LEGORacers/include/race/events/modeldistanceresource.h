@@ -1,9 +1,12 @@
 #ifndef MODELDISTANCERESOURCE_H
 #define MODELDISTANCERESOURCE_H
 
+#include "compat.h"
 #include "race/events/raceeventresource.h"
+#include "types.h"
 
 class GolModelEntity;
+class RaceEventTable;
 
 // VTABLE: LEGORACERS 0x004b1c20
 // SIZE 0x34

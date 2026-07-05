@@ -1,3 +1,4 @@
+#include "golorientedentity.h"
 #include "util/legoeventqueue.h"
 
 #include <float.h>
